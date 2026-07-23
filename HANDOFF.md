@@ -24,13 +24,14 @@
 | Item | Status | Notes |
 |------|--------|-------|
 | **Image block** | ✅ Working | Upload, rendering, and storage implemented. Users can upload images via the image block editor. |
-| **Drag-and-drop reordering** | Not wired | Drag handles render but drop targets and reorder logic are missing. |
+| **Drag-and-drop reordering** | ? Working | Full drag-and-drop reorder via event delegation, DOM reordering, and server persistence. |
 | **Nested pages in sidebar** | Flat only | Tree shows root pages with direct-child counts, but no recursive expansion. |
 | **Change block type** | Not implemented | No `/command` UI to switch a block between text/heading/todo/etc. |
 | **Version history** | Removed | Backend methods exist but auto-versioning was disabled and the UI button was removed. |
 | **Dark mode** | Not implemented | |
 | **File attachments** | Not implemented | `BlockType.File = 13` exists in enum only. |
 | **Database / tables / embeds** | Not implemented | Block types exist in the enum but have no rendering. |
+| **Image side placement** | ? Not implemented | Images always fill block width. No float/side-by-side with text. |
 
 ---
 
@@ -167,4 +168,95 @@ dotnet run --project src/Yanoch.Web
 ### Infrastructure
 
 - Regenerated EF Core migration for v10 model (removed old v8 migration, created fresh)
+
+---
+
+## Plan: Image Placement Flexibility
+
+### Goal
+
+Allow images to sit beside text blocks (Notion-style side placement / inline float) rather than always occupying the full block width.
+
+### Motivation
+
+Currently, image blocks render at full width (`width: 100%`). Users want to place images to the left or right of adjacent text, similar to Notion's alignment options or Medium-style inline images.
+
+### Proposed Approach
+
+**1. Block metadata for alignment** (minimal schema change)
+
+The `BlockDto.Metadata` field (JSON string) already exists. Add an `align` property:
+```json
+{ "align": "left" | "right" | "full" | "center" }
+```
+
+Default is `"full"` (current behavior). No DB migration needed ? metadata is a freeform string column.
+
+**2. Image block rendering**
+
+Modify `BlockEditor.razor`'s image view mode to apply a CSS class based on alignment:
+
+```razor
+case "image":
+    var align = ParseMetadata("align") ?? "full";
+    <div class="image-block-@align">
+        <img src="..." />
+    </div>
+```
+
+**3. Alignment picker UI**
+
+Add a small toolbar to the image edit mode (three or four icon buttons):
+- **? Full width** ? default
+- **? Float left** ? text wraps right
+- **? Float right** ? text wraps left
+- **? Center** ? centered, reduced width
+
+The toolbar sits between the image preview and the upload button in edit mode.
+
+**4. CSS**
+
+```css
+.image-block-left  { float: left; margin: 4px 16px 8px 0; max-width: 50%; }
+.image-block-right { float: right; margin: 4px 0 8px 16px; max-width: 50%; }
+.image-block-center { display: block; margin: 8px auto; max-width: 70%; }
+.image-block-full  { width: 100%; }
+```
+
+Uses CSS `float` for side placement ? text in subsequent non-image blocks wraps around automatically. No changes needed to block layout or the flex container.
+
+**5. Metadata helpers**
+
+```csharp
+private string GetImageAlign()
+{
+    if (string.IsNullOrEmpty(Block.Metadata)) return "full";
+    try {
+        var json = JsonDocument.Parse(Block.Metadata);
+        return json.RootElement.TryGetProperty("align", out var a) ? a.GetString() ?? "full" : "full";
+    } catch { return "full"; }
+}
+```
+
+**6. Pillow / footgun prevention**
+
+- Clearfix on the blocks container so floated images don't leak outside
+- Max-width 50% for floated images prevents them from dominating the page
+
+### Implementation steps (ordered)
+
+1. Add alignment CSS classes to `app.css`
+2. Add `GetImageAlign()` helper to `BlockEditor.razor`
+3. Update image view mode to use alignment class
+4. Add alignment picker UI in image edit mode
+5. Wire selection to save `Block.Metadata` via `HandleBlockUpdate`
+6. Update `_lastSeenContent` tracking to also watch for metadata changes
+7. Test: left ? text wraps, right ? text wraps, full ? current behavior, center ? reduced width centered
+
+### Future nice-to-haves (out of scope for this plan)
+
+- Drag handles on floated images to resize
+- Inline images (image sits inside a text block's content)
+- Image galleries / side-by-side image grids
+- Captions that move with float
 

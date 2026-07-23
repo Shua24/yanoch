@@ -2,6 +2,34 @@
 
 This document provides an overview of the Yanoch codebase structure and recent changes.
 
+## Recent Changes
+
+### July 2026 ? Editor UX & Image Stability
+
+**Markdown rendering:** Replaced regex-based formatting with **Markdig** for full markdown support (`# headers`, `**bold**`, `*italic*`, `` `code` ``, `~~strikethrough~~`, `[links](url)`, `- lists`, `1. ordered`, `> quotes`, `---`, `| tables |`, and more). Wiki links `[[page]]` are converted to markdown links before processing.
+
+**Emoji picker:** Replaced the plain text icon input with a clickable icon display that opens an emoji grid (50 emojis, 10?5 layout, 50?50 buttons). Selection immediately saves via `SavePageAsync()`.
+
+**Block auto-focus on Enter/Backspace:**
+- **Enter** (from a block) ? saves current block, creates a new text block below, auto-focuses it in edit mode
+- **Backspace** (on empty block) ? deletes block, auto-focuses the previous block in edit mode
+- Uses `ElementReference.FocusAsync()` (Blazor built-in) for focus, tracked via `_focusBlockId` + `_focusVersion` counter to prevent focus-stealing on re-render
+
+**Auto-resize textarea:** `field-sizing: content` CSS makes block textareas grow with content instantly. JS `watchBlockInputScroll` keeps the cursor visible when typing past the viewport.
+
+**Drag-and-drop block reordering:** Rewrote `setupBlockDragAndDrop` JS to use event delegation (survives re-renders), physically reorder DOM elements on drop, and send new block order to the server via `DotNetObjectReference`. `HandleBlockReorder` persists the new order via `RenumberBlocksAsync`.
+
+**Image edit stability:**
+- Image blocks show the current image in both view and edit modes (no "vanishing" appearance)
+- Image URLs include a `?v=<page-unique-guid>` cache buster tied to page navigation
+- All EF Core read queries use `.AsNoTracking()` ? always fetches fresh data, no stale tracked entities
+- All writes use raw SQL ? clean separation, no change-tracker conflicts
+- Image deletion is only possible via block deletion (? button or Backspace)
+
+**Auto-resize listener re-attach:** `_inputListenerAttached` is reset on every edit re-entry (`StartEdit`, `OnParametersSet`), so `watchBlockInputScroll` always re-attaches to freshly created textarea elements.
+
+**Block content length limit:** 10,000 character `maxlength` on all inputs/textareas, server-side truncation enforced in `HandleBlockUpdate`.
+
 ## Project Structure
 
 ```
@@ -226,13 +254,13 @@ Image blocks use the standard `Block` model:
 
 ```bash
 # Build the application
-cd /home/apollon/Sources/Yanoch
+cd D:\Sourcecodes\Yanoch
 dotnet build
 
 # Run the application
 dotnet run --project src/Yanoch.Web
 
-# Access at: http://localhost:5000
+# Access at: http://localhost:5072
 ```
 
 ## Testing
