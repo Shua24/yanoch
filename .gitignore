@@ -20,5 +20,10 @@ obj/
 Thumbs.db
 .DS_Store
 
+## Local development secrets
+appsettings.*.local.json
+
 ## SQLite DB (local dev)
 *.db
+*.db-wal
+*.db-shm
