@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("Yanoch.Domain")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+d8698fda828565790dcecff827fff6b4ea7ec54d")]
 [assembly: System.Reflection.AssemblyProductAttribute("Yanoch.Domain")]
 [assembly: System.Reflection.AssemblyTitleAttribute("Yanoch.Domain")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

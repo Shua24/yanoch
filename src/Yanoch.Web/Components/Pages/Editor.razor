@@ -149,19 +149,29 @@
         StateHasChanged();
     }
 
+    private DotNetObjectReference<Editor>? _dotNetRef;
+    private bool _interopInitialized;
+
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (firstRender && !loading)
+        if (!_interopInitialized && !loading && page != null)
         {
+            _interopInitialized = true;
+            _dotNetRef = DotNetObjectReference.Create(this);
             try
             {
-                await JSRuntime.InvokeVoidAsync("setupBlockDragAndDrop");
+                await JSRuntime.InvokeVoidAsync("setupBlockDragAndDrop", _dotNetRef);
             }
             catch (Exception ex)
             {
                 Console.WriteLine("Error setting up interop: " + ex.Message);
             }
         }
+    }
+
+    public void Dispose()
+    {
+        _dotNetRef?.Dispose();
     }
 
     private async Task SavePageAsync()
@@ -366,9 +376,35 @@
         Navigation.NavigateTo("/new");
     }
     [JSInvokable]
-    public static async Task HandleCompleteBlockReorder(object[] newOrder)
+    public async Task HandleBlockReorder(string[] blockIds)
     {
-        // JS calls this after drag-and-drop to persist the new block order.
-        await Task.CompletedTask;
+        if (page == null || isNew) return;
+        try
+        {
+            // Reorder local blocks to match the new order from JS
+            var ordered = blockIds
+                .Select(id => page.Blocks.FirstOrDefault(b => b.Id.ToString() == id))
+                .Where(b => b != null)
+                .Cast<BlockDto>()
+                .ToList();
+
+            if (ordered.Count != page.Blocks.Count) return;
+
+            page.Blocks.Clear();
+            page.Blocks.AddRange(ordered);
+
+            // Persist new order to DB
+            var ids = ordered.Select(b => b.Id).ToList();
+            _saveStatus = "Saving...";
+            await PageService.RenumberBlocksAsync(page.Id, ids);
+            page.UpdatedAt = DateTime.UtcNow;
+            _saveStatus = "";
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            _saveStatus = "";
+            Console.WriteLine("HandleBlockReorder error: " + ex.Message);
+        }
     }
 }
