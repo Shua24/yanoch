@@ -1,0 +1,374 @@
+﻿@page "/new"
+@page "/page/{PageId:guid}"
+@layout MainLayout
+@inject IPageService PageService
+@inject NavigationManager Navigation
+@inject AuthenticationStateProvider AuthState
+@inject IJSRuntime JSRuntime
+
+<div class="editor-page">
+    @if (loading)
+    {
+        <div class="loading">@(isNew ? "Creating..." : "Loading...")</div>
+    }
+    else if (page == null && !isNew)
+    {
+        <div class="error-state">Page not found</div>
+    }
+    else
+    {
+        <div class="editor-header">
+            <div class="editor-header-top">
+                <div class="editor-icon">
+                    <input type="text" @bind="page!.Icon" @bind:after="async () => await SavePageAsync()" class="icon-input" placeholder="Icon" maxlength="2" />
+                </div>
+                <div class="editor-actions">
+                    <button class="btn-add-image" @onclick="async () => await AddImageBlock()" title="Add image block">🖼️ Image</button>
+                    <button class="btn-delete-page" @onclick="DeletePage" title="Delete page">🗑️ Delete</button>
+                </div>
+            </div>
+            <input type="text" @bind="page!.Title" @bind:after="async () => await SavePageAsync()" class="title-input" placeholder="Untitled" />
+            <div class="editor-meta">
+                <span>Updated @(page!.UpdatedAt.ToLocalTime().ToString("MMM dd, yyyy HH:mm"))</span>
+                @if (!string.IsNullOrEmpty(_saveStatus))
+                {
+                    <span class="save-status saving">@_saveStatus</span>
+                }
+            </div>
+        </div>
+
+        @if (page!.Tags.Any())
+        {
+            <div class="editor-tags">
+                @foreach (var tag in page.Tags)
+                {
+                    <span class="tag-badge" style="background:@(tag.Color ?? "#e0e0e0")">@tag.Name</span>
+                }
+            </div>
+        }
+
+        <div class="editor-blocks" id="blocks-container" @onclick="OnEmptyAreaClick">
+            @if (!page.Blocks.Any())
+            {
+                <div class="editor-empty-hint">Click anywhere to start typing...</div>
+            }
+            @foreach (var block in page.Blocks)
+            {
+                <BlockEditor @key="block.Id" Block="block" OnUpdate="HandleBlockUpdate" OnDelete="HandleBlockDelete" OnAddAfter="HandleAddBlock" />
+            }
+        </div>
+
+        @if (page.Backlinks.Any())
+        {
+            <div class="editor-backlinks">
+                <h4>Backlinks</h4>
+                <div class="backlinks-list">
+                    @foreach (var bl in page.Backlinks)
+                    {
+                        <a href="/page/@(bl.SourcePageId)" class="backlink-item">@bl.SourcePageTitle</a>
+                    }
+                </div>
+            </div>
+        }
+    }
+</div>
+
+@code {
+    [Parameter] public Guid PageId { get; set; }
+    private PageDto? page;
+    private bool loading = true;
+    private bool isNew;
+    private string _saveStatus = "";
+    private Guid currentUserId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var state = await AuthState.GetAuthenticationStateAsync();
+        if (state.User.Identity?.IsAuthenticated != true)
+        {
+            Navigation.NavigateTo("/login");
+            return;
+        }
+        var userIdClaim = state.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrEmpty(userIdClaim) || !Guid.TryParse(userIdClaim, out currentUserId))
+        {
+            Navigation.NavigateTo("/login");
+            return;
+        }
+
+        await LoadPageForRoute();
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        // Fires on every navigation ? handles component reuse when going from /page/{id} to /new
+        await LoadPageForRoute();
+    }
+
+    private string? _lastLoadedRoute;
+    private async Task LoadPageForRoute()
+    {
+        var newIsNew = Navigation.Uri.EndsWith("/new", StringComparison.OrdinalIgnoreCase);
+
+        // Skip if we are already on the same route and page is loaded
+        var currentRoute = Navigation.Uri;
+        if (currentRoute == _lastLoadedRoute)
+            return;
+        _lastLoadedRoute = currentRoute;
+
+        isNew = newIsNew;
+
+        if (isNew)
+        {
+            page = new PageDto
+            {
+                Id = Guid.NewGuid(),
+                Title = "Untitled",
+                Icon = "📄",
+                Blocks = new List<BlockDto> { new BlockDto { Id = Guid.NewGuid(), Type = "text", Content = "", SortOrder = 0 } },
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            };
+            loading = false;
+        }
+        else
+        {
+            // Skip DB load if we already have the correct page (e.g., after SavePageAsync redirect)
+            if (page == null || page.Id != PageId)
+            {
+                loading = true;
+                StateHasChanged();
+                page = await PageService.GetByIdAsync(PageId, currentUserId);
+            }
+            if (page != null && !page.Blocks.Any())
+            {
+                page.Blocks.Add(new BlockDto { Id = Guid.NewGuid(), Type = "text", Content = "", SortOrder = 0 });
+            }
+            loading = false;
+        }
+        StateHasChanged();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender && !loading)
+        {
+            try
+            {
+                await JSRuntime.InvokeVoidAsync("setupBlockDragAndDrop");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Error setting up interop: " + ex.Message);
+            }
+        }
+    }
+
+    private async Task SavePageAsync()
+    {
+        if (page == null) return;
+        try
+        {
+            if (isNew)
+            {
+                var newPage = await PageService.CreateAsync(new CreatePageDto
+                {
+                    Title = page.Title,
+                    Icon = page.Icon,
+                    Blocks = page.Blocks.Select(b => new CreateBlockDto { Id = b.Id, Type = b.Type, Content = b.Content, SortOrder = b.SortOrder }).ToList()
+                }, currentUserId);
+                if (newPage != null) Navigation.NavigateTo($"/page/{newPage.Id}");
+            }
+            else
+            {
+                await PageService.UpdateAsync(page.Id, new UpdatePageDto { Title = page.Title, Icon = page.Icon }, currentUserId);
+            }
+        }
+        catch { }
+    }
+
+    private async Task HandleBlockUpdate(BlockDto block)
+    {
+        if (page == null) return;
+        // For unsaved pages, update local state only — SavePageAsync will persist it
+        if (isNew) { StateHasChanged(); return; }
+
+        try
+        {
+            // Update local state immediately
+            var existingBlock = page.Blocks.FirstOrDefault(b => b.Id == block.Id);
+            if (existingBlock != null) existingBlock.Content = block.Content;
+            StateHasChanged();
+
+            // Fast save: only send the changed block, not all blocks
+            _saveStatus = "Saving...";
+            await PageService.UpdateBlockContentAsync(page.Id, block.Id, block.Content, currentUserId);
+            page.UpdatedAt = DateTime.UtcNow;
+            _saveStatus = "";
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            _saveStatus = "";
+            Console.WriteLine("HandleBlockUpdate error: " + ex.Message);
+        }
+    }
+
+    /// <summary>
+    /// Merge an updated page from the server into our existing page object.
+    /// CRITICAL: Updates fields in place so Blazor doesn't see the Block parameter
+    /// as "changed" and remount the BlockEditor component.
+    /// </summary>
+    private void MergePageInPlace(PageDto updated)
+    {
+        if (page == null || updated == null) return;
+
+        page.Title = updated.Title;
+        page.Icon = updated.Icon;
+        page.UpdatedAt = updated.UpdatedAt;
+        page.Tags = updated.Tags;
+        page.Backlinks = updated.Backlinks;
+
+        // Build lookup of updated blocks by ID
+        var updatedById = updated.Blocks.ToDictionary(b => b.Id);
+
+        // Update existing blocks IN PLACE
+        foreach (var local in page.Blocks.ToList())
+        {
+            if (updatedById.TryGetValue(local.Id, out var upd))
+            {
+                local.Type = upd.Type;
+                local.Content = upd.Content;
+                local.Metadata = upd.Metadata;
+                local.SortOrder = upd.SortOrder;
+                local.ParentBlockId = upd.ParentBlockId;
+            }
+        }
+    }
+
+    private async Task HandleBlockDelete(BlockDto block)
+    {
+        if (page == null) return;
+        try
+        {
+            page.Blocks.RemoveAll(b => b.Id == block.Id);
+            // Fast path: mark deleted and renumber remaining
+            var remainingIds = page.Blocks.Select(b => b.Id).ToList();
+            _saveStatus = "Saving...";
+            await PageService.DeleteBlockAsync(page.Id, block.Id, currentUserId);
+            await PageService.RenumberBlocksAsync(page.Id, remainingIds);
+            _saveStatus = "";
+            StateHasChanged();
+        }
+        catch { }
+    }
+
+    private async Task HandleAddBlock(BlockDto afterBlock)
+    {
+        if (page == null) return;
+        try
+        {
+            var newBlock = new BlockDto
+            {
+                Id = Guid.NewGuid(),
+                Type = "text",
+                Content = "",
+                SortOrder = afterBlock.SortOrder + 1
+            };
+
+            int insertIndex = page.Blocks.FindIndex(b => b.Id == afterBlock.Id);
+            if (insertIndex >= 0) page.Blocks.Insert(insertIndex + 1, newBlock);
+            else page.Blocks.Add(newBlock);
+
+            // Fast path: save new block and renumber
+            var remainingIds = page.Blocks.Select(b => b.Id).ToList();
+            _saveStatus = "Saving...";
+            await PageService.AddBlockAsync(new CreateBlockDto
+            {
+                Id = newBlock.Id,
+                Type = "text",
+                Content = "",
+                SortOrder = newBlock.SortOrder
+            }, page.Id);
+            await PageService.RenumberBlocksAsync(page.Id, remainingIds);
+            _saveStatus = "";
+            StateHasChanged();
+        }
+        catch { }
+    }
+
+    private async Task OnEmptyAreaClick()
+    {
+        if (page == null) return;
+        // Only add block if clicking on the empty container area, not on an existing block
+        if (!page.Blocks.Any())
+        {
+            var newBlock = new BlockDto
+            {
+                Id = Guid.NewGuid(),
+                Type = "text",
+                Content = "",
+                SortOrder = 0
+            };
+            page.Blocks.Add(newBlock);
+            StateHasChanged();
+            _saveStatus = "Saving...";
+            var remainingIds = page.Blocks.Select(b => b.Id).ToList();
+            if (!isNew)
+            {
+                await PageService.AddBlockAsync(new CreateBlockDto { Id = newBlock.Id, Type = "text", Content = "", SortOrder = 0 }, page.Id);
+                await PageService.RenumberBlocksAsync(page.Id, remainingIds);
+            }
+            _saveStatus = "";
+        }
+    }
+
+    private async Task AddImageBlock()
+    {
+        if (page == null) return;
+        try
+        {
+            var newBlock = new BlockDto
+            {
+                Id = Guid.NewGuid(),
+                Type = "image",
+                Content = "",
+                SortOrder = page.Blocks.Any() ? page.Blocks.Max(b => b.SortOrder) + 1 : 0
+            };
+            page.Blocks.Add(newBlock);
+            StateHasChanged();
+
+            // Fast path: save new block and renumber
+            var remainingIds = page.Blocks.Select(b => b.Id).ToList();
+            _saveStatus = "Saving...";
+            await PageService.AddBlockAsync(new CreateBlockDto
+            {
+                Id = newBlock.Id,
+                Type = "image",
+                Content = "",
+                SortOrder = newBlock.SortOrder
+            }, page.Id);
+            await PageService.RenumberBlocksAsync(page.Id, remainingIds);
+            _saveStatus = "";
+            StateHasChanged();
+        }
+        catch { }
+    }
+
+    private async Task DeletePage()
+    {
+        if (page == null) return;
+        try { await PageService.DeleteAsync(page.Id, currentUserId); Navigation.NavigateTo("/"); } catch { }
+    }
+
+    private void CreateNewPage()
+    {
+        Navigation.NavigateTo("/new");
+    }
+    [JSInvokable]
+    public static async Task HandleCompleteBlockReorder(object[] newOrder)
+    {
+        // JS calls this after drag-and-drop to persist the new block order.
+        await Task.CompletedTask;
+    }
+}

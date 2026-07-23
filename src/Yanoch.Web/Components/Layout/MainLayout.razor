@@ -1,0 +1,70 @@
+@inherits LayoutComponentBase
+@inject NavigationManager Navigation
+@inject AuthenticationStateProvider AuthState
+
+<div class="yanoch-layout">
+    <script src="/js/interop.js"></script>
+    <aside class="yanoch-sidebar">
+        <div class="sidebar-header">
+            <a href="/" class="sidebar-logo">Yanoch</a>
+        </div>
+        <div class="sidebar-search">
+            <input type="text" placeholder="Search pages..." @onkeyup="HandleSearchKey" @bind="searchQuery" />
+        </div>
+        <div class="sidebar-actions">
+            <button class="btn-new-page" @onclick="CreateNewPage">+ New Page</button>
+        </div>
+        <div class="sidebar-nav">
+            <AuthorizeView>
+                <Authorized>
+                    <PageTree />
+                </Authorized>
+            </AuthorizeView>
+        </div>
+        <div class="sidebar-footer">
+            <AuthorizeView>
+                <Authorized>
+                    <span>@context.User.Identity?.Name</span>
+                    <a href="/logout" class="btn-logout">Sign out</a>
+                </Authorized>
+                <NotAuthorized>
+                    <a href="/login" class="btn-login">Sign in</a>
+                </NotAuthorized>
+            </AuthorizeView>
+        </div>
+    </aside>
+    <main class="yanoch-main">
+        @Body
+    </main>
+</div>
+
+@code {
+    private string searchQuery = "";
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            var state = await AuthState.GetAuthenticationStateAsync();
+            if (!state.User.Identity?.IsAuthenticated == true 
+                && !Navigation.Uri.Contains("/login") 
+                && !Navigation.Uri.Contains("/register"))
+            {
+                Navigation.NavigateTo("/login");
+            }
+        }
+    }
+
+    private void HandleSearchKey(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter" && !string.IsNullOrWhiteSpace(searchQuery))
+        {
+            Navigation.NavigateTo($"/search?q={Uri.EscapeDataString(searchQuery)}");
+        }
+    }
+
+    private void CreateNewPage()
+    {
+        Navigation.NavigateTo("/new");
+    }
+}

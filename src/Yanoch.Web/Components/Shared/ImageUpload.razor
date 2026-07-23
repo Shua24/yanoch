@@ -1,0 +1,76 @@
+@using Microsoft.AspNetCore.Components.Forms
+@inject Yanoch.Application.Interfaces.IFileStorageService FileStorageService
+
+<div class="image-upload-component">
+    <div class="image-upload-area">
+        <InputFile OnChange="HandleFileSelected" accept="image/*">
+            <button class="upload-button">@UploadText</button>
+        </InputFile>
+        
+        @if (isUploading)
+        {
+            <div class="upload-progress">Uploading...</div>
+        }
+        
+        @if (!string.IsNullOrEmpty(errorMessage))
+        {
+            <div class="upload-error">@errorMessage</div>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter] public string UploadText { get; set; } = "Upload Image";
+    [Parameter] public EventCallback<string> OnUploadComplete { get; set; }
+    
+    private bool isUploading = false;
+    private string errorMessage = "";
+    
+    private async Task HandleFileSelected(InputFileChangeEventArgs e)
+    {
+        try
+        {
+            errorMessage = "";
+            isUploading = true;
+            
+            var file = e.File;
+            if (file == null)
+            {
+                errorMessage = "No file selected";
+                return;
+            }
+            
+            // Validate file size
+            if (file.Size > 10 * 1024 * 1024) // 10MB
+            {
+                errorMessage = "File size exceeds 10MB limit";
+                return;
+            }
+            
+            // Validate file type
+            var allowedExtensions = new[] { ".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg" };
+            var extension = Path.GetExtension(file.Name).ToLowerInvariant();
+            if (!allowedExtensions.Contains(extension))
+            {
+                errorMessage = "Unsupported file type. Allowed: png, jpg, jpeg, gif, webp, svg";
+                return;
+            }
+            
+            // Upload using direct service call (server-side)
+            using (var stream = file.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024))
+            {
+                var url = await FileStorageService.SaveAsync(stream, file.Name);
+                await OnUploadComplete.InvokeAsync(url);
+            }
+            
+        }
+        catch (Exception ex)
+        {
+            errorMessage = "Error: " + ex.Message;
+        }
+        finally
+        {
+            isUploading = false;
+        }
+    }
+}

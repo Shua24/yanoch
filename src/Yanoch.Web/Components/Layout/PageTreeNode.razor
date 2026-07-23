@@ -1,0 +1,19 @@
+﻿@inject NavigationManager Navigation
+
+<div class="tree-node" style="padding-left: @(Depth * 16)px">
+    <a href="/page/@Page.Id" class="tree-node-link @(IsActive ? "active" : "")">
+        <span class="tree-node-icon">@(Page.Icon ?? "📄")</span>
+        <span class="tree-node-title">@Page.Title</span>
+        @if (Page.ChildCount > 0)
+        {
+            <span class="tree-node-count">@Page.ChildCount</span>
+        }
+    </a>
+</div>
+
+@code {
+    [Parameter] public PageDto Page { get; set; } = new();
+    [Parameter] public int Depth { get; set; } = 0;
+
+    private bool IsActive => Navigation.Uri.Contains($"/page/{Page.Id}") || Navigation.Uri.Contains($"/editor/{Page.Id}");
+}

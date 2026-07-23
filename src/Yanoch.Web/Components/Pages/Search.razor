@@ -1,0 +1,77 @@
+﻿@page "/search"
+@layout MainLayout
+@inject IPageService PageService
+@inject NavigationManager Navigation
+@inject AuthenticationStateProvider AuthState
+@inject UserManager<IdentityUser> UserManager
+
+<div class="search-page">
+    <h2>Search</h2>
+    <div class="search-bar">
+        <input type="text" @bind="query" @bind:event="oninput" placeholder="Search pages..." @onkeyup="HandleKey" autofocus />
+    </div>
+
+    @if (searching)
+    {
+        <div class="loading">Searching...</div>
+    }
+    else if (results != null)
+    {
+        <div class="search-results">
+            @if (!results.Any())
+            {
+                <div class="empty-state">No results found for "@query"</div>
+            }
+            else
+            {
+                @foreach (var r in results)
+                {
+                    <a href="/page/@r.Id" class="search-result-item">
+                        <div class="search-result-title">@(r.Icon ?? "📄") @r.Title</div>
+                        @if (!string.IsNullOrEmpty(r.Snippet))
+                        {
+                            <div class="search-result-snippet">@r.Snippet</div>
+                        }
+                        <div class="search-result-date">@r.UpdatedAt.ToLocalTime().ToString("MMM dd, yyyy")</div>
+                    </a>
+                }
+            }
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] [SupplyParameterFromQuery] public string? q { get; set; }
+    private string query = "";
+    private List<SearchResultDto>? results;
+    private bool searching;
+    private Guid currentUserId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var state = await AuthState.GetAuthenticationStateAsync();
+        if (state.User.Identity?.IsAuthenticated == true)
+        {
+            var user = await UserManager.GetUserAsync(state.User);
+            currentUserId = Guid.Parse(user!.Id);
+        }
+        if (!string.IsNullOrEmpty(q))
+        {
+            query = q;
+            await DoSearch();
+        }
+    }
+
+    private async Task HandleKey(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter") await DoSearch();
+    }
+
+    private async Task DoSearch()
+    {
+        if (string.IsNullOrWhiteSpace(query) || currentUserId == Guid.Empty) return;
+        searching = true;
+        results = (await PageService.SearchAsync(query, currentUserId)).ToList();
+        searching = false;
+    }
+}

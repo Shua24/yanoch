@@ -1,0 +1,68 @@
+﻿@page "/"
+@inject IPageService PageService
+@inject NavigationManager Navigation
+@inject AuthenticationStateProvider AuthState
+
+<div class="home-page">
+    <AuthorizeView>
+        <NotAuthorized>
+            <div class="welcome">
+                <h1>Welcome to Yanoch</h1>
+                <p>Your connected workspace for docs, projects, and knowledge.</p>
+                <a href="/register" class="btn btn-primary">Get Started</a>
+                <a href="/login" class="btn btn-outline">Sign In</a>
+            </div>
+        </NotAuthorized>
+        <Authorized>
+            @if (recentPages == null)
+            {
+                <div class="loading">Loading...</div>
+            }
+            else if (!recentPages.Any())
+            {
+                <div class="empty-state">
+                    <p>No pages yet. Create your first page!</p>
+                    <button class="btn btn-primary" @onclick="CreatePage">Create Page</button>
+                </div>
+            }
+            else
+            {
+                <div class="recent-pages">
+                    <h2>Recent Pages</h2>
+                    <div class="page-grid">
+                        @foreach (var p in recentPages)
+                        {
+                            <a href="/page/@(p.Id)" class="page-card">
+                                <div class="page-card-icon">@(p.Icon ?? "📄")</div>
+                                <div class="page-card-title">@p.Title</div>
+                                <div class="page-card-date">@p.UpdatedAt.ToLocalTime().ToString("MMM dd, yyyy")</div>
+                            </a>
+                        }
+                    </div>
+                </div>
+            }
+        </Authorized>
+    </AuthorizeView>
+</div>
+
+@code {
+    private List<PageDto>? recentPages;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var state = await AuthState.GetAuthenticationStateAsync();
+        if (state.User.Identity?.IsAuthenticated == true)
+        {
+            var userId = Guid.TryParse(
+                state.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value,
+                out var uid) ? uid : Guid.Empty;
+            if (userId != Guid.Empty)
+            {
+                var result = await PageService.GetRecentAsync(userId);
+                recentPages = result.ToList();
+            }
+        }
+    }
+
+    private void CreatePage() => Navigation.NavigateTo("/new");
+}

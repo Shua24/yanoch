@@ -1,0 +1,31 @@
+﻿@page "/login"
+@layout MainLayout
+
+<div class="auth-page">
+    <div class="auth-card">
+        <h1>Sign In</h1>
+        @if (!string.IsNullOrEmpty(error))
+        {
+            <div class="alert alert-danger">@error</div>
+        }
+        <form method="post" action="/account/login">
+            <div class="form-group">
+                <label>Email</label>
+                <input name="email" type="email" class="form-control" required />
+            </div>
+            <div class="form-group">
+                <label>Password</label>
+                <input name="password" type="password" class="form-control" required />
+            </div>
+            <div class="form-group">
+                <label><input name="rememberMe" type="checkbox" value="true" /> Remember me</label>
+            </div>
+            <button type="submit" class="btn btn-primary">Sign In</button>
+        </form>
+        <p class="auth-link">Don't have an account? <a href="/register">Register</a></p>
+    </div>
+</div>
+
+@code {
+    [SupplyParameterFromQuery] public string? error { get; set; }
+}

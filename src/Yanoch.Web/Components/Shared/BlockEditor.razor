@@ -1,0 +1,273 @@
+<div class="block-editor @GetBlockClass()" data-block-id="@Block.Id">
+    <div class="block-drag-handle">⋮⋮</div>
+    <div class="block-icon">
+        @switch (Block.Type)
+        {
+            case "heading1": <text>#</text>; break;
+            case "heading2": <text>##</text>; break;
+            case "heading3": <text>###</text>; break;
+            case "todo": <text>☐</text>; break;
+            case "bulletList": <text>•</text>; break;
+            case "numberedList": <text>1.</text>; break;
+            case "toggle": <text>▶</text>; break;
+            case "quote": <text>"</text>; break;
+            case "code": <text>&lt;/&gt;</text>; break;
+            case "divider": <hr class="divider-render" />; break;
+            case "callout": <text>💡</text>; break;
+            case "image":
+                @if (string.IsNullOrEmpty(Block.Content))
+                {
+                    <text>🖼️</text>
+                }
+                break;
+            default: <text></text>; break;
+        }
+    </div>
+    <div class="block-content" @onclick="StartEdit">
+        @if (isEditing)
+        {
+            @switch (Block.Type)
+            {
+                case "heading1":
+                    <input @bind="Block.Content" @bind:event="oninput" class="block-input h1" @onkeydown="HandleKeyDown" @onfocusout="HandleFocusOut" @onclick:stopPropagation="true" />
+                    break;
+                case "heading2":
+                    <input @bind="Block.Content" @bind:event="oninput" class="block-input h2" @onkeydown="HandleKeyDown" @onfocusout="HandleFocusOut" @onclick:stopPropagation="true" />
+                    break;
+                case "heading3":
+                    <input @bind="Block.Content" @bind:event="oninput" class="block-input h3" @onkeydown="HandleKeyDown" @onfocusout="HandleFocusOut" @onclick:stopPropagation="true" />
+                    break;
+                case "todo":
+                    <label class="todo-item">
+                        <input type="checkbox" @bind="isChecked" @bind:after="ToggleTodo" />
+                        <input @bind="Block.Content" @bind:event="oninput" class="block-input" @onkeydown="HandleKeyDown" @onfocusout="HandleFocusOut" @onclick:stopPropagation="true" />
+                    </label>
+                    break;
+                case "code":
+                    <textarea @bind="Block.Content" @bind:event="oninput" class="block-textarea code-block" @onkeydown="HandleKeyDown" @onfocusout="HandleFocusOut" rows="3"></textarea>
+                    break;
+                case "quote":
+                    <textarea @bind="Block.Content" @bind:event="oninput" class="block-textarea quote-block" @onkeydown="HandleKeyDown" @onfocusout="HandleFocusOut" rows="1"></textarea>
+                    break;
+                case "image":
+                    <div class="image-upload-area">
+                        <ImageUpload UploadText="@(string.IsNullOrEmpty(Block.Content) ? "Upload Image" : "Change Image")" OnUploadComplete="HandleImageUpload" />
+                        @if (!string.IsNullOrEmpty(Block.Content))
+                        {
+                            <button class="btn-remove" @onclick="RemoveImage">Remove Image</button>
+                        }
+                    </div>
+                    break;
+                default:
+                    <textarea @bind="Block.Content" @bind:event="oninput" class="block-textarea" @onkeydown="HandleKeyDown" @onfocusout="HandleFocusOut" rows="1"></textarea>
+                    break;
+            }
+        }
+        else
+        {
+            @switch (Block.Type)
+            {
+                case "heading1": <h1 class="block-render">@RenderContent()</h1>; break;
+                case "heading2": <h2 class="block-render">@RenderContent()</h2>; break;
+                case "heading3": <h3 class="block-render">@RenderContent()</h3>; break;
+                case "todo":
+                    <label class="todo-item">
+                        <input type="checkbox" checked="@isChecked" disabled />
+                        <span class="@(isChecked ? "done" : "")">@RenderContent()</span>
+                    </label>
+                    break;
+                case "bulletList": <div class="bullet-item">@RenderContent()</div>; break;
+                case "numberedList": <div class="numbered-item">@RenderContent()</div>; break;
+                case "toggle": <div class="toggle-item" @onclick="ToggleExpand">@RenderContent()</div>; break;
+                case "code": <pre class="code-render"><code>@(string.IsNullOrEmpty(Block.Content) ? "Code..." : Block.Content)</code></pre>; break;
+                case "quote": <blockquote class="quote-render">@RenderContent()</blockquote>; break;
+                case "callout": <div class="callout-render">@RenderContent()</div>; break;
+                case "image":
+                    <div class="image-block-container">
+                        @if (string.IsNullOrEmpty(Block.Content))
+                        {
+                            <div class="image-placeholder">Click to upload image</div>
+                        }
+                        else
+                        {
+                            <img src="@Block.Content" class="image-block" alt="Uploaded image" />
+                        }
+                    </div>
+                    break;
+                case "divider":
+                    <hr class="divider-render" />
+                    break;
+                default:
+                    if (string.IsNullOrEmpty(Block.Content))
+                    {
+                        <div class="text-render empty-hint">Click to type...</div>
+                    }
+                    else
+                    {
+                        <div class="text-render">@RenderContent()</div>
+                    }
+                    break;
+            }
+        }
+    </div>
+    <div class="block-actions">
+        <button class="block-add-btn" @onclick="AddAfter" title="Add block below">+</button>
+        <button class="block-del-btn" @onclick="DeleteBlock" title="Delete block">×</button>
+    </div>
+</div>
+
+@if (expanded && Block.Children?.Any() == true)
+{
+    <div class="block-children">
+        @foreach (var child in Block.Children)
+        {
+            <BlockEditor Block="child" OnUpdate="OnUpdate" OnDelete="OnDelete" OnAddAfter="OnAddAfter" />
+        }
+    </div>
+}
+
+@code {
+    [Parameter] public BlockDto Block { get; set; } = new();
+    [Parameter] public EventCallback<BlockDto> OnUpdate { get; set; }
+    [Parameter] public EventCallback<BlockDto> OnDelete { get; set; }
+    [Parameter] public EventCallback<BlockDto> OnAddAfter { get; set; }
+
+    private bool isEditing;
+    private bool isChecked;
+    private bool expanded = true;
+    private string _contentBeforeEdit = "";
+    private bool _disposed;
+    private string? _lastSeenContent = null;
+
+    public void Dispose() => _disposed = true;
+
+    private string GetBlockClass() => $"block-type-{Block.Type}";
+
+    protected override void OnInitialized()
+    {
+        isChecked = (Block.Content ?? "").StartsWith("[x] ");
+        _lastSeenContent = Block.Content ?? "";
+    }
+
+    protected override void OnParametersSet()
+    {
+        // Sync local state when parent updates the block (e.g. after image upload)
+        if (Block.Content != _lastSeenContent)
+        {
+            isChecked = (Block.Content ?? "").StartsWith("[x] ");
+            _lastSeenContent = Block.Content ?? "";
+            // Exit edit mode so the new content renders immediately
+            isEditing = false;
+        }
+    }
+
+    private MarkupString RenderContent()
+    {
+        var content = Block.Content ?? "";
+        content = System.Text.RegularExpressions.Regex.Replace(content, "\\[\\[([^\\]]+)\\]\\]", "<a href=\"/search?q=$1\" class=\"wiki-link\">$1</a>");
+        content = System.Text.RegularExpressions.Regex.Replace(content, "\\*\\*(.+?)\\*\\*", "<strong>$1</strong>");
+        content = System.Text.RegularExpressions.Regex.Replace(content, "\\*(.+?)\\*", "<em>$1</em>");
+        content = content.Replace("\n", "<br/>");
+        return new MarkupString(content);
+    }
+
+    private void StartEdit()
+    {
+        if (isEditing || _disposed) return;
+        isEditing = true;
+        _contentBeforeEdit = Block.Content ?? "";
+    }
+
+    private async Task HandleFocusOut()
+    {
+        if (_disposed || !isEditing) return;
+        isEditing = false;
+        if (Block.Content != _contentBeforeEdit)
+        {
+            await OnUpdate.InvokeAsync(Block);
+        }
+    }
+
+    private async Task HandleKeyDown(KeyboardEventArgs e)
+    {
+        if (_disposed) return;
+        try
+        {
+            if (e.Key == "Enter" && !e.ShiftKey)
+            {
+                isEditing = false;
+                await OnUpdate.InvokeAsync(Block);
+            }
+            else if (e.Key == "Escape")
+            {
+                Block.Content = _contentBeforeEdit;
+                isEditing = false;
+            }
+            else if (e.Key == "Backspace" && string.IsNullOrEmpty(Block.Content))
+            {
+                await DeleteBlock();
+            }
+        }
+        catch { _disposed = true; }
+    }
+
+    private async Task ToggleTodo()
+    {
+        if (_disposed) return;
+        try
+        {
+            if (isChecked)
+                Block.Content = "[x] " + Block.Content.Replace("[x] ", "").Replace("[ ] ", "");
+            else
+                Block.Content = "[ ] " + Block.Content.Replace("[x] ", "").Replace("[ ] ", "");
+            await OnUpdate.InvokeAsync(Block);
+        }
+        catch { _disposed = true; }
+    }
+
+    private void ToggleExpand() => expanded = !expanded;
+
+    private async Task AddAfter()
+    {
+        if (_disposed) return;
+        try { await OnAddAfter.InvokeAsync(Block); } catch { _disposed = true; }
+    }
+
+    private async Task DeleteBlock()
+    {
+        if (_disposed) return;
+        try { await OnDelete.InvokeAsync(Block); } catch { _disposed = true; }
+    }
+
+    private void TriggerFileUpload()
+    {
+        // This will be handled by JavaScript interop
+    }
+
+    private async Task HandleImageUpload(string imageUrl)
+    {
+        if (_disposed) return;
+        try
+        {
+            if (!string.IsNullOrEmpty(imageUrl))
+            {
+                Block.Content = imageUrl;
+                await OnUpdate.InvokeAsync(Block);
+                isEditing = false;
+                StateHasChanged();
+            }
+        }
+        catch { _disposed = true; }
+    }
+
+    private async Task RemoveImage()
+    {
+        if (_disposed) return;
+        try
+        {
+            Block.Content = "";
+            await OnUpdate.InvokeAsync(Block);
+        }
+        catch { _disposed = true; }
+    }
+}

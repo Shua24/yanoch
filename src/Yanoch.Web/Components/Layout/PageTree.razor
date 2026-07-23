@@ -1,0 +1,69 @@
+﻿@implements IDisposable
+@inject IPageService PageService
+@inject NavigationManager Navigation
+@inject AuthenticationStateProvider AuthState
+@inject UserManager<IdentityUser> UserManager
+
+<div class="page-tree">
+    @if (pages == null)
+    {
+        <div class="tree-loading">Loading...</div>
+    }
+    else if (!pages.Any())
+    {
+        <div class="tree-empty">No pages yet</div>
+    }
+    else
+    {
+        @foreach (var page in pages)
+        {
+            <PageTreeNode Page="page" Depth="0" />
+        }
+    }
+</div>
+
+@code {
+    private List<PageDto>? pages;
+
+    protected override void OnInitialized()
+    {
+        Navigation.LocationChanged += OnLocationChanged;
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadPages();
+    }
+
+    private async void OnLocationChanged(object? sender, Microsoft.AspNetCore.Components.Routing.LocationChangedEventArgs e)
+    {
+        await LoadPages();
+    }
+
+    private async Task LoadPages()
+    {
+        try
+        {
+            var state = await AuthState.GetAuthenticationStateAsync();
+            if (state.User.Identity?.IsAuthenticated == true)
+            {
+                var user = await UserManager.GetUserAsync(state.User);
+                if (user != null)
+                {
+                    var userId = Guid.Parse(user.Id);
+                    var result = await PageService.GetTreeAsync(userId);
+                    pages = result.ToList();
+                    StateHasChanged();
+                }
+            }
+        }
+        catch
+        {
+        }
+    }
+
+    public void Dispose()
+    {
+        Navigation.LocationChanged -= OnLocationChanged;
+    }
+}
