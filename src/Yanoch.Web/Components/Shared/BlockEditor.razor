@@ -1,3 +1,5 @@
+@inject IJSRuntime JSRuntime
+
 <div class="block-editor @GetBlockClass()" data-block-id="@Block.Id">
     <div class="block-drag-handle">⋮⋮</div>
     <div class="block-icon">
@@ -29,37 +31,39 @@
             @switch (Block.Type)
             {
                 case "heading1":
-                    <input @bind="Block.Content" @bind:event="oninput" class="block-input h1" @onkeydown="HandleKeyDown" @onfocusout="HandleFocusOut" @onclick:stopPropagation="true" />
+                    <input maxlength="10000" @ref="_inputRef" @bind="Block.Content" @bind:event="oninput" class="block-input h1" @onkeydown="HandleKeyDown" @onfocusout="HandleFocusOut" @onclick:stopPropagation="true" />
                     break;
                 case "heading2":
-                    <input @bind="Block.Content" @bind:event="oninput" class="block-input h2" @onkeydown="HandleKeyDown" @onfocusout="HandleFocusOut" @onclick:stopPropagation="true" />
+                    <input maxlength="10000" @ref="_inputRef" @bind="Block.Content" @bind:event="oninput" class="block-input h2" @onkeydown="HandleKeyDown" @onfocusout="HandleFocusOut" @onclick:stopPropagation="true" />
                     break;
                 case "heading3":
-                    <input @bind="Block.Content" @bind:event="oninput" class="block-input h3" @onkeydown="HandleKeyDown" @onfocusout="HandleFocusOut" @onclick:stopPropagation="true" />
+                    <input maxlength="10000" @ref="_inputRef" @bind="Block.Content" @bind:event="oninput" class="block-input h3" @onkeydown="HandleKeyDown" @onfocusout="HandleFocusOut" @onclick:stopPropagation="true" />
                     break;
                 case "todo":
                     <label class="todo-item">
                         <input type="checkbox" @bind="isChecked" @bind:after="ToggleTodo" />
-                        <input @bind="Block.Content" @bind:event="oninput" class="block-input" @onkeydown="HandleKeyDown" @onfocusout="HandleFocusOut" @onclick:stopPropagation="true" />
+                        <input maxlength="10000" @ref="_inputRef" @bind="Block.Content" @bind:event="oninput" class="block-input" @onkeydown="HandleKeyDown" @onfocusout="HandleFocusOut" @onclick:stopPropagation="true" />
                     </label>
                     break;
                 case "code":
-                    <textarea @bind="Block.Content" @bind:event="oninput" class="block-textarea code-block" @onkeydown="HandleKeyDown" @onfocusout="HandleFocusOut" rows="3"></textarea>
+                    <textarea @ref="_inputRef" maxlength="10000" @bind="Block.Content" @bind:event="oninput" class="block-textarea code-block" @onkeydown="HandleKeyDown" @onfocusout="HandleFocusOut" rows="3"></textarea>
                     break;
                 case "quote":
-                    <textarea @bind="Block.Content" @bind:event="oninput" class="block-textarea quote-block" @onkeydown="HandleKeyDown" @onfocusout="HandleFocusOut" rows="1"></textarea>
+                    <textarea @ref="_inputRef" maxlength="10000" @bind="Block.Content" @bind:event="oninput" class="block-textarea quote-block" @onkeydown="HandleKeyDown" @onfocusout="HandleFocusOut" rows="1"></textarea>
                     break;
                 case "image":
-                    <div class="image-upload-area">
-                        <ImageUpload UploadText="@(string.IsNullOrEmpty(Block.Content) ? "Upload Image" : "Change Image")" OnUploadComplete="HandleImageUpload" />
+                    <div class="image-edit-area">
                         @if (!string.IsNullOrEmpty(Block.Content))
                         {
-                            <button class="btn-remove" @onclick="RemoveImage">Remove Image</button>
+                            <div class="image-edit-preview">
+                                <img src="@ImageSrc" class="image-block" alt="Image" />
+                            </div>
                         }
+                        <ImageUpload UploadText="@(string.IsNullOrEmpty(Block.Content) ? "Upload Image" : "Change Image")" OnUploadComplete="HandleImageUpload" />
                     </div>
                     break;
                 default:
-                    <textarea @bind="Block.Content" @bind:event="oninput" class="block-textarea" @onkeydown="HandleKeyDown" @onfocusout="HandleFocusOut" rows="1"></textarea>
+                    <textarea @ref="_inputRef" maxlength="10000" @bind="Block.Content" @bind:event="oninput" class="block-textarea" @onkeydown="HandleKeyDown" @onfocusout="HandleFocusOut" rows="1"></textarea>
                     break;
             }
         }
@@ -90,7 +94,7 @@
                         }
                         else
                         {
-                            <img src="@Block.Content" class="image-block" alt="Uploaded image" />
+                            <img src="@ImageSrc" class="image-block" alt="Uploaded image" />
                         }
                     </div>
                     break;
@@ -131,7 +135,11 @@
     [Parameter] public EventCallback<BlockDto> OnUpdate { get; set; }
     [Parameter] public EventCallback<BlockDto> OnDelete { get; set; }
     [Parameter] public EventCallback<BlockDto> OnAddAfter { get; set; }
+    [Parameter] public bool AutoFocus { get; set; }
+    [Parameter] public int FocusVersion { get; set; }
+    [Parameter] public string PageVersion { get; set; } = "";
 
+    private const int MaxContentLength = 10000;
     private bool isEditing;
     private bool isChecked;
     private bool expanded = true;
@@ -143,11 +151,41 @@
 
     private string GetBlockClass() => $"block-type-{Block.Type}";
 
+    private ElementReference _inputRef;
+
     protected override void OnInitialized()
     {
         isChecked = (Block.Content ?? "").StartsWith("[x] ");
         _lastSeenContent = Block.Content ?? "";
     }
+
+    private bool _focusedOnce;
+    private int _prevFocusVersion = -1;
+    private bool _inputListenerAttached;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!_focusedOnce && AutoFocus && isEditing)
+        {
+            _focusedOnce = true;
+            try
+            {
+                await _inputRef.FocusAsync();
+                await JSRuntime.InvokeVoidAsync("scrollElementIntoView", Block.Id.ToString());
+            }
+            catch { }
+        }
+
+        // Attach native input listener once to keep cursor visible while typing
+        if (!_inputListenerAttached && isEditing)
+        {
+            _inputListenerAttached = true;
+            try { await JSRuntime.InvokeVoidAsync("watchBlockInputScroll", Block.Id.ToString()); }
+            catch { }
+        }
+    }
+
+
 
     protected override void OnParametersSet()
     {
@@ -159,17 +197,46 @@
             // Exit edit mode so the new content renders immediately
             isEditing = false;
         }
+
+        // Auto-focus: enter edit mode when this block is targeted (new block or backspace-delete)
+        if (AutoFocus && !isEditing && FocusVersion != _prevFocusVersion)
+        {
+            isEditing = true;
+            _focusedOnce = false;
+            _inputListenerAttached = false;
+            _prevFocusVersion = FocusVersion;
+        }
     }
 
     private MarkupString RenderContent()
     {
         var content = Block.Content ?? "";
-        content = System.Text.RegularExpressions.Regex.Replace(content, "\\[\\[([^\\]]+)\\]\\]", "<a href=\"/search?q=$1\" class=\"wiki-link\">$1</a>");
-        content = System.Text.RegularExpressions.Regex.Replace(content, "\\*\\*(.+?)\\*\\*", "<strong>$1</strong>");
-        content = System.Text.RegularExpressions.Regex.Replace(content, "\\*(.+?)\\*", "<em>$1</em>");
-        content = content.Replace("\n", "<br/>");
-        return new MarkupString(content);
+        if (string.IsNullOrEmpty(content))
+            return new MarkupString(content);
+
+        // Convert wiki links [[page]] to markdown links before markdown processing
+        content = System.Text.RegularExpressions.Regex.Replace(content, @"\[\[([^\]]+)\]\]", "[$1](/search?q=$1)");
+
+        // Full markdown rendering via Markdig
+        var pipeline = new Markdig.MarkdownPipelineBuilder().Build();
+        var html = Markdig.Markdown.ToHtml(content, pipeline).Trim();
+
+        // Markdig wraps inline content in <p>. Since block types provide structure,
+        // unwrap a single wrapping <p> so inline content stays flat.
+        if (html.StartsWith("<p>") && !html.Contains("</p>\n<p>"))
+        {
+            var close = html.LastIndexOf("</p>");
+            if (close > 0)
+                html = html.Substring(3, close - 3);
+        }
+
+        // Style wiki links
+        html = html.Replace("href=\"/search?q=", "class=\"wiki-link\" href=\"/search?q=");
+
+        return new MarkupString(html);
     }
+
+private string ImageSrc => string.IsNullOrEmpty(Block.Content) ? "" : Block.Content + "?v=" + PageVersion;
 
     private void StartEdit()
     {
@@ -197,6 +264,7 @@
             {
                 isEditing = false;
                 await OnUpdate.InvokeAsync(Block);
+                await OnAddAfter.InvokeAsync(Block);
             }
             else if (e.Key == "Escape")
             {
@@ -251,7 +319,7 @@
         {
             if (!string.IsNullOrEmpty(imageUrl))
             {
-                Block.Content = imageUrl;
+                Block.Content = imageUrl != null && imageUrl.Length > MaxContentLength ? imageUrl[..MaxContentLength] : imageUrl ?? "";
                 await OnUpdate.InvokeAsync(Block);
                 isEditing = false;
                 StateHasChanged();
@@ -260,14 +328,4 @@
         catch { _disposed = true; }
     }
 
-    private async Task RemoveImage()
-    {
-        if (_disposed) return;
-        try
-        {
-            Block.Content = "";
-            await OnUpdate.InvokeAsync(Block);
-        }
-        catch { _disposed = true; }
-    }
 }

@@ -66,7 +66,7 @@
             }
             @foreach (var block in page.Blocks)
             {
-                <BlockEditor @key="block.Id" Block="block" OnUpdate="HandleBlockUpdate" OnDelete="HandleBlockDelete" OnAddAfter="HandleAddBlock" />
+                <BlockEditor @key="block.Id" Block="block" AutoFocus="block.Id == _focusBlockId" FocusVersion="_focusVersion" PageVersion="_pageVersion" OnUpdate="HandleBlockUpdate" OnDelete="HandleBlockDelete" OnAddAfter="HandleAddBlock" />
             }
         </div>
 
@@ -93,6 +93,9 @@
     private bool isNew;
     private string _saveStatus = "";
     private Guid currentUserId;
+    private Guid? _focusBlockId;
+    private int _focusVersion;
+    private string _pageVersion = Guid.NewGuid().ToString("N");
     private bool _showEmojiPicker;
 
     private static readonly string[] _emojis = new[] {
@@ -149,6 +152,7 @@
         if (currentRoute == _lastLoadedRoute)
             return;
         _lastLoadedRoute = currentRoute;
+            _pageVersion = Guid.NewGuid().ToString("N");
 
         isNew = newIsNew;
 
@@ -170,8 +174,11 @@
             // Skip DB load if we already have the correct page (e.g., after SavePageAsync redirect)
             if (page == null || page.Id != PageId)
             {
+                // Fully clear old page state and force render before loading new page
+                page = null;
                 loading = true;
                 StateHasChanged();
+                await Task.Yield();
                 page = await PageService.GetByIdAsync(PageId, currentUserId);
             }
             if (page != null && !page.Blocks.Any())
@@ -242,7 +249,7 @@
         {
             // Update local state immediately
             var existingBlock = page.Blocks.FirstOrDefault(b => b.Id == block.Id);
-            if (existingBlock != null) existingBlock.Content = block.Content;
+            if (existingBlock != null) existingBlock.Content = block.Content != null && block.Content.Length > 10000 ? block.Content[..10000] : block.Content ?? "";
             StateHasChanged();
 
             // Fast save: only send the changed block, not all blocks
@@ -296,6 +303,10 @@
         if (page == null) return;
         try
         {
+            // Find the block before this one so we can focus it after deletion
+            var blockIndex = page.Blocks.FindIndex(b => b.Id == block.Id);
+            var prevBlockId = blockIndex > 0 ? page.Blocks[blockIndex - 1].Id : (Guid?)null;
+
             page.Blocks.RemoveAll(b => b.Id == block.Id);
             // Fast path: mark deleted and renumber remaining
             var remainingIds = page.Blocks.Select(b => b.Id).ToList();
@@ -303,6 +314,11 @@
             await PageService.DeleteBlockAsync(page.Id, block.Id, currentUserId);
             await PageService.RenumberBlocksAsync(page.Id, remainingIds);
             _saveStatus = "";
+
+            if (prevBlockId.HasValue)
+                _focusBlockId = prevBlockId.Value;
+            _focusVersion++;
+
             StateHasChanged();
         }
         catch { }
@@ -328,6 +344,8 @@
             // Fast path: save new block and renumber
             var remainingIds = page.Blocks.Select(b => b.Id).ToList();
             _saveStatus = "Saving...";
+            _focusBlockId = newBlock.Id;
+            _focusVersion++;
             await PageService.AddBlockAsync(new CreateBlockDto
             {
                 Id = newBlock.Id,
@@ -338,6 +356,9 @@
             await PageService.RenumberBlocksAsync(page.Id, remainingIds);
             _saveStatus = "";
             StateHasChanged();
+            // Yield to let the render complete, then focus the new block
+            await Task.Yield();
+            await JSRuntime.InvokeVoidAsync("focusBlockInput", newBlock.Id.ToString());
         }
         catch { }
     }

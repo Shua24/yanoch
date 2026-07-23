@@ -149,7 +149,6 @@ D:\Sourcecodes\Yanoch\src\Yanoch.Web\obj\Debug\net10.0\scopedcss\bundle\Yanoch.W
 D:\Sourcecodes\Yanoch\src\Yanoch.Web\obj\Debug\net10.0\scopedcss\projectbundle\Yanoch.Web.bundle.scp.css
 D:\Sourcecodes\Yanoch\src\Yanoch.Web\obj\Debug\net10.0\compressed\po9o0pkrsf-{0}-bpk8xqwxhs-bpk8xqwxhs.gz
 D:\Sourcecodes\Yanoch\src\Yanoch.Web\obj\Debug\net10.0\compressed\3des7zvfdg-{0}-8inm30yfxf-8inm30yfxf.gz
-D:\Sourcecodes\Yanoch\src\Yanoch.Web\obj\Debug\net10.0\compressed\mswmi94x84-{0}-y1kyqxlrud-y1kyqxlrud.gz
 D:\Sourcecodes\Yanoch\src\Yanoch.Web\obj\Debug\net10.0\compressed\wdvx6ad9as-{0}-mv64ey4j7u-mv64ey4j7u.gz
 D:\Sourcecodes\Yanoch\src\Yanoch.Web\obj\Debug\net10.0\compressed\cf08b96j32-{0}-f7fxoh55ae-f7fxoh55ae.gz
 D:\Sourcecodes\Yanoch\src\Yanoch.Web\obj\Debug\net10.0\compressed\g1qif41s3f-{0}-68qhiysw0j-68qhiysw0j.gz
@@ -166,4 +165,6 @@ D:\Sourcecodes\Yanoch\src\Yanoch.Web\obj\Debug\net10.0\refint\Yanoch.Web.dll
 D:\Sourcecodes\Yanoch\src\Yanoch.Web\obj\Debug\net10.0\Yanoch.Web.pdb
 D:\Sourcecodes\Yanoch\src\Yanoch.Web\obj\Debug\net10.0\Yanoch.Web.genruntimeconfig.cache
 D:\Sourcecodes\Yanoch\src\Yanoch.Web\obj\Debug\net10.0\ref\Yanoch.Web.dll
-D:\Sourcecodes\Yanoch\src\Yanoch.Web\obj\Debug\net10.0\compressed\y22vdmsggk-{0}-rz38f1zs9j-rz38f1zs9j.gz
+D:\Sourcecodes\Yanoch\src\Yanoch.Web\bin\Debug\net10.0\Markdig.dll
+D:\Sourcecodes\Yanoch\src\Yanoch.Web\obj\Debug\net10.0\compressed\y22vdmsggk-{0}-ykpbxurrev-ykpbxurrev.gz
+D:\Sourcecodes\Yanoch\src\Yanoch.Web\obj\Debug\net10.0\compressed\mswmi94x84-{0}-wccp4zfcv4-wccp4zfcv4.gz

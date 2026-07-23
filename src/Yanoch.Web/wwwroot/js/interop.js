@@ -100,3 +100,42 @@ function setupBlockDragAndDrop(dotNetRef) {
         dropTarget = null;
     });
 }
+
+function focusBlockInput(blockId) {
+    console.log('focusBlockInput called for:', blockId);
+    var block = document.querySelector('[data-block-id="' + blockId + '"]');
+    if (!block) { console.warn('Block not found:', blockId); return; }
+    var input = block.querySelector('input, textarea');
+    if (input) { input.focus(); console.log('Focused input for:', blockId); }
+    else { console.warn('No input found in block:', blockId); }
+}
+
+function scrollElementIntoView(blockId) {
+    var el = document.querySelector('[data-block-id="' + blockId + '"]');
+    if (!el) return;
+    var input = el.querySelector('input, textarea');
+    if (input) {
+        // Scroll the input into view if it's partially or fully below the viewport
+        var rect = input.getBoundingClientRect();
+        var viewBottom = window.innerHeight;
+        if (rect.bottom > viewBottom || rect.top < 0) {
+            input.scrollIntoView({ block: 'center', behavior: 'smooth' });
+        }
+    }
+}
+
+function watchBlockInputScroll(blockId) {
+    var el = document.querySelector('[data-block-id="' + blockId + '"]');
+    if (!el) return;
+    var input = el.querySelector('textarea');
+    if (!input) return;
+
+    // Keep cursor visible while typing past the viewport
+    var scrollToCursor = function() {
+        var rect = input.getBoundingClientRect();
+        if (rect.bottom > window.innerHeight) {
+            input.scrollIntoView({ block: 'center', behavior: 'smooth' });
+        }
+    };
+    input.addEventListener('input', scrollToCursor);
+}

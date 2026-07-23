@@ -13,21 +13,22 @@ public class PageRepository : IPageRepository
 
     public async Task<Page?> GetByIdAsync(Guid id, Guid userId) =>
         await _db.Pages
+            .AsNoTracking()
             .Include(p => p.Blocks.OrderBy(b => b.SortOrder))
             .Include(p => p.PageTags).ThenInclude(pt => pt.Tag)
             .Include(p => p.Backlinks).ThenInclude(b => b.SourcePage)
             .FirstOrDefaultAsync(p => p.Id == id && p.UserId == userId);
 
     public async Task<IEnumerable<Page>> GetByParentAsync(Guid? parentId, Guid userId) =>
-        await _db.Pages.Where(p => p.ParentPageId == parentId && p.UserId == userId).OrderBy(p => p.SortOrder).ThenBy(p => p.CreatedAt).ToListAsync();
+        await _db.Pages.AsNoTracking().Where(p => p.ParentPageId == parentId && p.UserId == userId).OrderBy(p => p.SortOrder).ThenBy(p => p.CreatedAt).ToListAsync();
 
     public async Task<IEnumerable<Page>> GetRootPagesAsync(Guid userId) =>
-        await _db.Pages.Where(p => p.ParentPageId == null && p.UserId == userId).OrderBy(p => p.SortOrder).ThenBy(p => p.CreatedAt).ToListAsync();
+        await _db.Pages.AsNoTracking().Where(p => p.ParentPageId == null && p.UserId == userId).OrderBy(p => p.SortOrder).ThenBy(p => p.CreatedAt).ToListAsync();
 
     public async Task<IEnumerable<Page>> SearchAsync(string query, Guid userId)
     {
         var q = query.ToLower();
-        return await _db.Pages.Where(p => p.UserId == userId && (p.Title.ToLower().Contains(q) || p.Blocks.Any(b => b.Content.ToLower().Contains(q))))
+        return await _db.Pages.AsNoTracking().Where(p => p.UserId == userId && (p.Title.ToLower().Contains(q) || p.Blocks.Any(b => b.Content.ToLower().Contains(q))))
             .OrderByDescending(p => p.UpdatedAt).Take(20).ToListAsync();
     }
 
@@ -42,7 +43,7 @@ public class PageRepository : IPageRepository
     public async Task DeleteAsync(Page page) { page.IsDeleted = true; page.DeletedAt = DateTime.UtcNow; await _db.SaveChangesAsync(); }
 
     public async Task<IEnumerable<Page>> GetRecentAsync(Guid userId, int count = 10) =>
-        await _db.Pages.Where(p => p.UserId == userId).OrderByDescending(p => p.UpdatedAt).Take(count).ToListAsync();
+        await _db.Pages.AsNoTracking().Where(p => p.UserId == userId).OrderByDescending(p => p.UpdatedAt).Take(count).ToListAsync();
 
     public async Task ReplaceBlocksAsync(Guid pageId, List<Block> newBlocks)
     {
