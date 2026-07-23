@@ -1,4 +1,4 @@
-:root {
+﻿:root {
     --sidebar-width: 260px;
     --sidebar-bg: #f7f7f5;
     --sidebar-hover: #e8e8e6;
@@ -221,7 +221,59 @@ body {
 /* EDITOR PAGE */
 .editor-page { max-width: 780px; margin: 0 auto; padding: 48px 24px 120px; }
 .editor-header { margin-bottom: 24px; }
-.icon-input { width: 40px; font-size: 28px; border: none; background: none; outline: none; text-align: center; }
+.icon-display {
+    width: 40px;
+    font-size: 28px;
+    border: none;
+    background: none;
+    outline: none;
+    text-align: center;
+    cursor: pointer;
+    line-height: 1;
+}
+.editor-icon { position: relative; }
+
+.emoji-picker {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    margin-top: 6px;
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+    z-index: 100;
+    padding: 10px;
+    width: 320px;
+}
+.emoji-picker-header {
+    font-size: 12px;
+    color: var(--text-secondary);
+    margin-bottom: 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+.emoji-picker-grid {
+    display: grid;
+    grid-template-columns: repeat(10, 1fr);
+    gap: 2px;
+}
+.emoji-option {
+    background: none;
+    border: none;
+    font-size: 28px;
+    padding: 6px;
+    border-radius: 4px;
+    width: 50px;
+    height: 50px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    line-height: 1;
+    transition: background 0.1s;
+}
+.emoji-option:hover { background: var(--sidebar-hover); }
 .title-input {
     width: 100%;
     font-size: 36px;
@@ -734,3 +786,6 @@ body {
     text-align: center;
     font-size: 0.95rem;
 }
+
+
+

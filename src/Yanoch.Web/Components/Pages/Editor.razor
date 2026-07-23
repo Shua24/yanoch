@@ -20,7 +20,19 @@
         <div class="editor-header">
             <div class="editor-header-top">
                 <div class="editor-icon">
-                    <input type="text" @bind="page!.Icon" @bind:after="async () => await SavePageAsync()" class="icon-input" placeholder="Icon" maxlength="2" />
+                    <button class="icon-display" @onclick="ToggleEmojiPicker" title="Change icon">@(string.IsNullOrEmpty(page!.Icon) ? "📄" : page.Icon)</button>
+                @if (_showEmojiPicker)
+                {
+                    <div class="emoji-picker" @onclick:stopPropagation="true">
+                        <div class="emoji-picker-header">Pick an icon</div>
+                        <div class="emoji-picker-grid">
+                            @foreach (var emoji in _emojis)
+                            {
+                                <button class="emoji-option" @onclick="() => SelectEmoji(emoji)">@emoji</button>
+                            }
+                        </div>
+                    </div>
+                }
                 </div>
                 <div class="editor-actions">
                     <button class="btn-add-image" @onclick="async () => await AddImageBlock()" title="Add image block">🖼️ Image</button>
@@ -74,12 +86,34 @@
 </div>
 
 @code {
+    public static event Action? OnPageDataChanged;
     [Parameter] public Guid PageId { get; set; }
     private PageDto? page;
     private bool loading = true;
     private bool isNew;
     private string _saveStatus = "";
     private Guid currentUserId;
+    private bool _showEmojiPicker;
+
+    private static readonly string[] _emojis = new[] {
+        "📄", "📝", "📋", "📌", "📎", "✏️", "📖", "📕", "📗", "📘",
+        "📙", "📚", "📓", "📒", "📃", "📑", "🔖", "🏷️", "💡", "⭐",
+        "🎯", "🔥", "💻", "🎨", "🎵", "🎬", "📷", "✈️", "🏠", "🛒",
+        "❤️", "💪", "🧠", "🎉", "✅", "🔄", "📊", "🗂️", "📁", "🔐",
+        "🌍", "🎓", "💼", "🎮", "📱", "☕", "🍕", "🏀", "⚽", "🎸"
+    };
+
+    private void ToggleEmojiPicker() => _showEmojiPicker = !_showEmojiPicker;
+
+    private async Task SelectEmoji(string emoji)
+    {
+        if (page == null) return;
+        page.Icon = emoji;
+        _showEmojiPicker = false;
+        await SavePageAsync();
+        StateHasChanged();
+    }
+
 
     protected override async Task OnInitializedAsync()
     {
@@ -187,11 +221,12 @@
                     Icon = page.Icon,
                     Blocks = page.Blocks.Select(b => new CreateBlockDto { Id = b.Id, Type = b.Type, Content = b.Content, SortOrder = b.SortOrder }).ToList()
                 }, currentUserId);
-                if (newPage != null) Navigation.NavigateTo($"/page/{newPage.Id}");
+                if (newPage != null) { OnPageDataChanged?.Invoke(); Navigation.NavigateTo($"/page/{newPage.Id}"); }
             }
             else
             {
                 await PageService.UpdateAsync(page.Id, new UpdatePageDto { Title = page.Title, Icon = page.Icon }, currentUserId);
+                OnPageDataChanged?.Invoke();
             }
         }
         catch { }
@@ -368,7 +403,7 @@
     private async Task DeletePage()
     {
         if (page == null) return;
-        try { await PageService.DeleteAsync(page.Id, currentUserId); Navigation.NavigateTo("/"); } catch { }
+        try { await PageService.DeleteAsync(page.Id, currentUserId); OnPageDataChanged?.Invoke(); Navigation.NavigateTo("/"); } catch { }
     }
 
     private void CreateNewPage()
@@ -408,3 +443,5 @@
         }
     }
 }
+
+

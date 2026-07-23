@@ -28,6 +28,7 @@
     protected override void OnInitialized()
     {
         Navigation.LocationChanged += OnLocationChanged;
+        Editor.OnPageDataChanged += OnPageDataChanged;
     }
 
     protected override async Task OnInitializedAsync()
@@ -62,8 +63,14 @@
         }
     }
 
+    private async void OnPageDataChanged()
+    {
+        await LoadPages();
+    }
+
     public void Dispose()
     {
         Navigation.LocationChanged -= OnLocationChanged;
+        Editor.OnPageDataChanged -= OnPageDataChanged;
     }
 }

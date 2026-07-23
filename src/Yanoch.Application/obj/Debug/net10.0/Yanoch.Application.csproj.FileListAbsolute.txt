@@ -1,0 +1,15 @@
+D:\Sourcecodes\Yanoch\src\Yanoch.Application\bin\Debug\net10.0\Yanoch.Application.deps.json
+D:\Sourcecodes\Yanoch\src\Yanoch.Application\bin\Debug\net10.0\Yanoch.Application.dll
+D:\Sourcecodes\Yanoch\src\Yanoch.Application\bin\Debug\net10.0\Yanoch.Application.pdb
+D:\Sourcecodes\Yanoch\src\Yanoch.Application\bin\Debug\net10.0\Yanoch.Domain.dll
+D:\Sourcecodes\Yanoch\src\Yanoch.Application\bin\Debug\net10.0\Yanoch.Domain.pdb
+D:\Sourcecodes\Yanoch\src\Yanoch.Application\obj\Debug\net10.0\Yanoch.Application.csproj.AssemblyReference.cache
+D:\Sourcecodes\Yanoch\src\Yanoch.Application\obj\Debug\net10.0\Yanoch.Application.GeneratedMSBuildEditorConfig.editorconfig
+D:\Sourcecodes\Yanoch\src\Yanoch.Application\obj\Debug\net10.0\Yanoch.Application.AssemblyInfoInputs.cache
+D:\Sourcecodes\Yanoch\src\Yanoch.Application\obj\Debug\net10.0\Yanoch.Application.AssemblyInfo.cs
+D:\Sourcecodes\Yanoch\src\Yanoch.Application\obj\Debug\net10.0\Yanoch.Application.csproj.CoreCompileInputs.cache
+D:\Sourcecodes\Yanoch\src\Yanoch.Application\obj\Debug\net10.0\Yanoch.A.5F5905A6.Up2Date
+D:\Sourcecodes\Yanoch\src\Yanoch.Application\obj\Debug\net10.0\Yanoch.Application.dll
+D:\Sourcecodes\Yanoch\src\Yanoch.Application\obj\Debug\net10.0\refint\Yanoch.Application.dll
+D:\Sourcecodes\Yanoch\src\Yanoch.Application\obj\Debug\net10.0\Yanoch.Application.pdb
+D:\Sourcecodes\Yanoch\src\Yanoch.Application\obj\Debug\net10.0\ref\Yanoch.Application.dll
