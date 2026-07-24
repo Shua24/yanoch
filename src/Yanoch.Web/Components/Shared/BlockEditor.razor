@@ -307,11 +307,6 @@ private string ImageSrc => string.IsNullOrEmpty(Block.Content) ? "" : Block.Cont
         try { await OnDelete.InvokeAsync(Block); } catch { _disposed = true; }
     }
 
-    private void TriggerFileUpload()
-    {
-        // This will be handled by JavaScript interop
-    }
-
     private async Task HandleImageUpload(string imageUrl)
     {
         if (_disposed) return;

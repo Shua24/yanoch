@@ -266,38 +266,6 @@
         }
     }
 
-    /// <summary>
-    /// Merge an updated page from the server into our existing page object.
-    /// CRITICAL: Updates fields in place so Blazor doesn't see the Block parameter
-    /// as "changed" and remount the BlockEditor component.
-    /// </summary>
-    private void MergePageInPlace(PageDto updated)
-    {
-        if (page == null || updated == null) return;
-
-        page.Title = updated.Title;
-        page.Icon = updated.Icon;
-        page.UpdatedAt = updated.UpdatedAt;
-        page.Tags = updated.Tags;
-        page.Backlinks = updated.Backlinks;
-
-        // Build lookup of updated blocks by ID
-        var updatedById = updated.Blocks.ToDictionary(b => b.Id);
-
-        // Update existing blocks IN PLACE
-        foreach (var local in page.Blocks.ToList())
-        {
-            if (updatedById.TryGetValue(local.Id, out var upd))
-            {
-                local.Type = upd.Type;
-                local.Content = upd.Content;
-                local.Metadata = upd.Metadata;
-                local.SortOrder = upd.SortOrder;
-                local.ParentBlockId = upd.ParentBlockId;
-            }
-        }
-    }
-
     private async Task HandleBlockDelete(BlockDto block)
     {
         if (page == null) return;

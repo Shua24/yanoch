@@ -1,13 +1,4 @@
-﻿// File Upload Interop
-function triggerFileUpload(element) {
-    if (element && element.click) {
-        element.click();
-    } else {
-        console.error('Could not trigger file upload: element not found or not clickable');
-    }
-}
-
-// Block Drag and Drop Interop
+﻿// Block Drag and Drop Interop
 function setupBlockDragAndDrop(dotNetRef) {
     console.log('Setting up block drag and drop...');
     

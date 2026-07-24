@@ -416,6 +416,55 @@ body {
 }
 
 /* IMAGE BLOCK */
+.image-block-container {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 8px 0;
+}
+
+/* Image alignment variants */
+.image-block-left  { float: left; margin: 4px 16px 8px 0; max-width: 50%; }
+.image-block-right { float: right; margin: 4px 0 8px 16px; max-width: 50%; }
+.image-block-center { display: block; margin: 8px auto; max-width: 70%; }
+.image-block-full  { width: 100%; }
+
+/* clearfix on blocks container so floated images don't leak */
+.editor-blocks::after {
+    content: "";
+    display: table;
+    clear: both;
+}
+
+/* Alignment picker */
+.image-align-picker {
+    display: flex;
+    gap: 4px;
+    margin: 8px 0;
+    justify-content: center;
+}
+.image-align-btn {
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 4px 10px;
+    font-size: 12px;
+    cursor: pointer;
+    color: var(--text-secondary);
+    transition: all 0.15s;
+}
+.image-align-btn:hover {
+    background: var(--sidebar-hover);
+    border-color: var(--accent);
+    color: var(--accent);
+}
+.image-align-btn.active {
+    background: var(--accent);
+    color: white;
+    border-color: var(--accent);
+}
+
 .image-render {
     max-width: 100%;
     max-height: 600px;
