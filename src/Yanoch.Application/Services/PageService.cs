@@ -185,6 +185,11 @@ public class PageService : IPageService
         await _pages.UpdateBlockContentAsync(blockId, content, pageId);
     }
 
+    public async Task UpdateBlockTypeAsync(Guid pageId, Guid blockId, string type, Guid userId)
+    {
+        await _pages.UpdateBlockTypeAsync(blockId, type, pageId);
+    }
+
     public async Task AddBlockAsync(CreateBlockDto dto, Guid pageId)
     {
         await _pages.AddBlockAsync(new Block

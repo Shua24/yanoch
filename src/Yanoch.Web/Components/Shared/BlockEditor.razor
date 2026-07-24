@@ -1,7 +1,8 @@
 @inject IJSRuntime JSRuntime
+@inject Yanoch.Application.Interfaces.IFileStorageService FileStorageService
 
-<div class="block-editor @GetBlockClass()" data-block-id="@Block.Id">
-    <div class="block-drag-handle">⋮⋮</div>
+ <div class="block-editor @GetViewClass()" data-block-id="@Block.Id">
+    <div class="block-drag-handle" @onmousedown:stopPropagation="true">⋮⋮</div>
     <div class="block-icon">
         @switch (Block.Type)
         {
@@ -11,7 +12,7 @@
             case "todo": <text>☐</text>; break;
             case "bulletList": <text>•</text>; break;
             case "numberedList": <text>1.</text>; break;
-            case "toggle": <text>▶</text>; break;
+            case "toggle": <text>@(expanded ? "▼" : "▶")</text>; break;
             case "quote": <text>"</text>; break;
             case "code": <text>&lt;/&gt;</text>; break;
             case "divider": <hr class="divider-render" />; break;
@@ -46,24 +47,14 @@
                     </label>
                     break;
                 case "code":
-                    <textarea @ref="_inputRef" maxlength="10000" @bind="Block.Content" @bind:event="oninput" class="block-textarea code-block" @onkeydown="HandleKeyDown" @onfocusout="HandleFocusOut" rows="3"></textarea>
+                    <textarea @ref="_inputRef" maxlength="10000" @bind="Block.Content" @bind:event="oninput" class="block-textarea code-block" @onkeydown="HandleKeyDown" @onfocusout="HandleFocusOut"></textarea>
                     break;
                 case "quote":
-                    <textarea @ref="_inputRef" maxlength="10000" @bind="Block.Content" @bind:event="oninput" class="block-textarea quote-block" @onkeydown="HandleKeyDown" @onfocusout="HandleFocusOut" rows="1"></textarea>
+                    <textarea @ref="_inputRef" maxlength="10000" @bind="Block.Content" @bind:event="oninput" class="block-textarea quote-block" @onkeydown="HandleKeyDown" @onfocusout="HandleFocusOut"></textarea>
                     break;
-                case "image":
-                    <div class="image-edit-area">
-                        @if (!string.IsNullOrEmpty(Block.Content))
-                        {
-                            <div class="image-edit-preview">
-                                <img src="@ImageSrc" class="image-block" alt="Image" />
-                            </div>
-                        }
-                        <ImageUpload UploadText="@(string.IsNullOrEmpty(Block.Content) ? "Upload Image" : "Change Image")" OnUploadComplete="HandleImageUpload" />
-                    </div>
-                    break;
+ @* Image has no edit mode - see drag-to-place *@
                 default:
-                    <textarea @ref="_inputRef" maxlength="10000" @bind="Block.Content" @bind:event="oninput" class="block-textarea" @onkeydown="HandleKeyDown" @onfocusout="HandleFocusOut" rows="1"></textarea>
+                    <textarea @ref="_inputRef" maxlength="10000" @bind="Block.Content" @bind:event="oninput" class="block-textarea" @onkeydown="HandleKeyDown" @onfocusout="HandleFocusOut"></textarea>
                     break;
             }
         }
@@ -82,19 +73,25 @@
                     break;
                 case "bulletList": <div class="bullet-item">@RenderContent()</div>; break;
                 case "numberedList": <div class="numbered-item">@RenderContent()</div>; break;
-                case "toggle": <div class="toggle-item" @onclick="ToggleExpand">@RenderContent()</div>; break;
+                case "toggle": <div class="toggle-item" @onclick="ToggleExpand" @onclick:stopPropagation="true">@RenderContent()</div>; break;
                 case "code": <pre class="code-render"><code>@(string.IsNullOrEmpty(Block.Content) ? "Code..." : Block.Content)</code></pre>; break;
                 case "quote": <blockquote class="quote-render">@RenderContent()</blockquote>; break;
                 case "callout": <div class="callout-render">@RenderContent()</div>; break;
                 case "image":
-                    <div class="image-block-container">
+                    var imgAlign = GetImageAlign();
+                    <div class="image-block-container image-block-view-@imgAlign" data-image-block-id="@Block.Id">
                         @if (string.IsNullOrEmpty(Block.Content))
                         {
-                            <div class="image-placeholder">Click to upload image</div>
+                            <label class="image-placeholder upload-label">
+                                Click to upload image
+                                <InputFile OnChange="HandleFileSelected" accept="image/*" hidden />
+                            </label>
                         }
                         else
                         {
-                            <img src="@ImageSrc" class="image-block" alt="Uploaded image" />
+                            <div class="image-drag-edge image-drag-edge-left"></div>
+                            <img src="@ImageSrc" class="image-block" alt="Uploaded image" draggable="false" />
+                            <div class="image-drag-edge image-drag-edge-right"></div>
                         }
                     </div>
                     break;
@@ -108,7 +105,7 @@
                     }
                     else
                     {
-                        <div class="text-render">@RenderContent()</div>
+                        <div class="text-render">@RenderPlainTextContent()</div>
                     }
                     break;
             }
@@ -146,10 +143,15 @@
     private string _contentBeforeEdit = "";
     private bool _disposed;
     private string? _lastSeenContent = null;
+    private string? _lastSeenMetadata = null;
 
     public void Dispose() => _disposed = true;
 
     private string GetBlockClass() => $"block-type-{Block.Type}";
+    private string GetViewClass() =>
+        Block.Type == "image" && !isEditing
+            ? $"block-type-{Block.Type} image-block-view-{GetImageAlign()}"
+            : $"block-type-{Block.Type}";
 
     private ElementReference _inputRef;
 
@@ -157,6 +159,7 @@
     {
         isChecked = (Block.Content ?? "").StartsWith("[x] ");
         _lastSeenContent = Block.Content ?? "";
+        _lastSeenMetadata = Block.Metadata;
     }
 
     private bool _focusedOnce;
@@ -182,6 +185,7 @@
             _inputListenerAttached = true;
             try { await JSRuntime.InvokeVoidAsync("watchBlockInputScroll", Block.Id.ToString()); }
             catch { }
+
         }
     }
 
@@ -190,10 +194,11 @@
     protected override void OnParametersSet()
     {
         // Sync local state when parent updates the block (e.g. after image upload)
-        if (Block.Content != _lastSeenContent)
+        if (Block.Content != _lastSeenContent || Block.Metadata != _lastSeenMetadata)
         {
             isChecked = (Block.Content ?? "").StartsWith("[x] ");
             _lastSeenContent = Block.Content ?? "";
+            _lastSeenMetadata = Block.Metadata;
             // Exit edit mode so the new content renders immediately
             isEditing = false;
         }
@@ -214,8 +219,8 @@
         if (string.IsNullOrEmpty(content))
             return new MarkupString(content);
 
-        // Convert wiki links [[page]] to markdown links before markdown processing
-        content = System.Text.RegularExpressions.Regex.Replace(content, @"\[\[([^\]]+)\]\]", "[$1](/search?q=$1)");
+        // Convert wiki links [[page]] to HTML anchor tags before markdown
+        content = System.Text.RegularExpressions.Regex.Replace(content, @"\[\[([^\]]+)\]\]", "<a class=\"wiki-link\" href=\"/search?q=$1\">$1</a>");
 
         // Full markdown rendering via Markdig
         var pipeline = new Markdig.MarkdownPipelineBuilder().Build();
@@ -230,17 +235,56 @@
                 html = html.Substring(3, close - 3);
         }
 
-        // Style wiki links
-        html = html.Replace("href=\"/search?q=", "class=\"wiki-link\" href=\"/search?q=");
+        // Preserve line breaks — Markdig collapses \n inside paragraphs
+        html = html.Replace("\r\n", "<br>").Replace("\n", "<br>");
 
         return new MarkupString(html);
     }
 
+    private MarkupString RenderPlainTextContent()
+    {
+        var content = Block.Content ?? "";
+        if (string.IsNullOrEmpty(content))
+            return new MarkupString(content);
+
+        // Convert wiki links [[page]] to HTML anchor tags
+        content = System.Text.RegularExpressions.Regex.Replace(content, @"\[\[([^\]]+)\]\]", "<a class=\"wiki-link\" href=\"/search?q=$1\">$1</a>");
+
+        // Preserve line breaks by replacing newlines with <br> tags
+        content = content.Replace("\r\n", "<br>").Replace("\n", "<br>").Replace("\r", "<br>");
+
+        return new MarkupString(content);
+    }
+
 private string ImageSrc => string.IsNullOrEmpty(Block.Content) ? "" : Block.Content + "?v=" + PageVersion;
+
+    private async Task HandleFileSelected(InputFileChangeEventArgs e)
+    {
+        if (_disposed) return;
+        try
+        {
+            var file = e.File;
+            if (file == null) return;
+            if (file.Size > 10 * 1024 * 1024) return;
+            var ext = Path.GetExtension(file.Name).ToLowerInvariant();
+            if (!new[]{".png",".jpg",".jpeg",".gif",".webp",".svg"}.Contains(ext)) return;
+            using var stream = file.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024);
+            var url = await FileStorageService.SaveAsync(stream, file.Name);
+            if (!string.IsNullOrEmpty(url))
+            {
+                Block.Content = url;
+                await OnUpdate.InvokeAsync(Block);
+                StateHasChanged();
+            }
+        }
+        catch { _disposed = true; }
+    }
 
     private void StartEdit()
     {
         if (isEditing || _disposed) return;
+        // Images are not clickable-edit; use drag-to-place instead
+        if (Block.Type == "image") return;
         isEditing = true;
         _contentBeforeEdit = Block.Content ?? "";
     }
@@ -307,20 +351,27 @@ private string ImageSrc => string.IsNullOrEmpty(Block.Content) ? "" : Block.Cont
         try { await OnDelete.InvokeAsync(Block); } catch { _disposed = true; }
     }
 
-    private async Task HandleImageUpload(string imageUrl)
+    private string GetImageAlign()
+    {
+        if (string.IsNullOrEmpty(Block.Metadata)) return "full";
+        try
+        {
+            var json = System.Text.Json.JsonDocument.Parse(Block.Metadata);
+            return json.RootElement.TryGetProperty("align", out var a) ? a.GetString() ?? "full" : "full";
+        }
+        catch { return "full"; }
+    }
+
+    private async Task SetImageAlign(string align)
     {
         if (_disposed) return;
         try
         {
-            if (!string.IsNullOrEmpty(imageUrl))
-            {
-                Block.Content = imageUrl != null && imageUrl.Length > MaxContentLength ? imageUrl[..MaxContentLength] : imageUrl ?? "";
-                await OnUpdate.InvokeAsync(Block);
-                isEditing = false;
-                StateHasChanged();
-            }
+            Block.Metadata = $"{{\"align\":\"{align}\"}}";
+            _lastSeenMetadata = Block.Metadata;
+            await OnUpdate.InvokeAsync(Block);
+            StateHasChanged();
         }
         catch { _disposed = true; }
     }
-
 }

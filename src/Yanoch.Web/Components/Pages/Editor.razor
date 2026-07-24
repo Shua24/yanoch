@@ -59,7 +59,7 @@
             </div>
         }
 
-        <div class="editor-blocks" id="blocks-container" @onclick="OnEmptyAreaClick">
+        <div class="editor-blocks" id="blocks-container" @onclick="OnEmptyAreaClick" @onmousedown:stopPropagation>
             @if (!page.Blocks.Any())
             {
                 <div class="editor-empty-hint">Click anywhere to start typing...</div>
@@ -197,11 +197,12 @@
     {
         if (!_interopInitialized && !loading && page != null)
         {
-            _interopInitialized = true;
-            _dotNetRef = DotNetObjectReference.Create(this);
             try
             {
+                _dotNetRef = DotNetObjectReference.Create(this);
                 await JSRuntime.InvokeVoidAsync("setupBlockDragAndDrop", _dotNetRef);
+                await JSRuntime.InvokeVoidAsync("setupImagePlaceDrag", _dotNetRef);
+                _interopInitialized = true;
             }
             catch (Exception ex)
             {
@@ -429,6 +430,111 @@
         {
             _saveStatus = "";
             Console.WriteLine("HandleBlockReorder error: " + ex.Message);
+        }
+    }
+
+    [JSInvokable]
+    public async Task HandleBlockConvert(string blockId, string newType)
+    {
+        if (page == null) return;
+        try
+        {
+            var block = page.Blocks.FirstOrDefault(b => b.Id.ToString() == blockId);
+            if (block == null) return;
+            // Strip '/' content from text blocks, strip '#' prefix for headings
+            if (block.Type == "text" || block.Content == "/") block.Content = "";
+            if (newType is "heading1" or "heading2" or "heading3")
+            {
+                block.Content = System.Text.RegularExpressions.Regex.Replace(block.Content ?? "", @"^#+\s*", "");
+            }
+            block.Type = newType;
+            if (newType == "image") block.Content = "";
+            _saveStatus = "Saving...";
+            await PageService.UpdateBlockContentAsync(page.Id, block.Id, block.Content, currentUserId);
+            await PageService.UpdateBlockTypeAsync(page.Id, block.Id, newType, currentUserId);
+            _saveStatus = "";
+            StateHasChanged();
+        }
+        catch (Exception ex) { Console.WriteLine("Convert error: " + ex.Message); }
+    }
+
+    [JSInvokable]
+    public async Task HandleBlockDuplicate(string blockId)
+    {
+        if (page == null) return;
+        try
+        {
+            var idx = page.Blocks.FindIndex(b => b.Id.ToString() == blockId);
+            if (idx < 0) return;
+            var src = page.Blocks[idx];
+            var copy = new BlockDto
+            {
+                Id = Guid.NewGuid(),
+                Type = src.Type,
+                Content = src.Content,
+                Metadata = src.Metadata,
+                SortOrder = src.SortOrder + 1
+            };
+            page.Blocks.Insert(idx + 1, copy);
+            var ids = page.Blocks.Select(b => b.Id).ToList();
+            _saveStatus = "Saving...";
+            await PageService.AddBlockAsync(new CreateBlockDto { Id = copy.Id, Type = copy.Type, Content = copy.Content, Metadata = copy.Metadata, SortOrder = copy.SortOrder }, page.Id);
+            await PageService.RenumberBlocksAsync(page.Id, ids);
+            _saveStatus = "";
+            _focusBlockId = copy.Id; _focusVersion++;
+            StateHasChanged();
+        }
+        catch (Exception ex) { Console.WriteLine("Duplicate error: " + ex.Message); }
+    }
+
+    [JSInvokable]
+    public async Task HandleBlockDelete(string blockId)
+    {
+        if (page == null || isNew) return;
+        try
+        {
+            var guid = Guid.Parse(blockId);
+            var idx = page.Blocks.FindIndex(b => b.Id == guid);
+            if (idx < 0) return;
+            page.Blocks.RemoveAt(idx);
+            var ids = page.Blocks.Select(b => b.Id).ToList();
+            _saveStatus = "Saving...";
+            await PageService.DeleteBlockAsync(page.Id, guid, currentUserId);
+            await PageService.RenumberBlocksAsync(page.Id, ids);
+            _saveStatus = "";
+            _focusBlockId = idx > 0 ? page.Blocks[idx - 1].Id : null;
+            if (_focusBlockId == null && page.Blocks.Any()) _focusBlockId = page.Blocks[0].Id;
+            _focusVersion++;
+            StateHasChanged();
+        }
+        catch (Exception ex) { Console.WriteLine("HandleBlockDelete error: " + ex.Message); }
+    }
+
+    [JSInvokable]
+    public async Task HandleImageAlign(string blockId, string align)
+    {
+        if (page == null || isNew) return;
+        try
+        {
+            var block = page.Blocks.FirstOrDefault(b => b.Id.ToString() == blockId);
+            if (block == null) return;
+            block.Metadata = $"{{\"align\":\"{align}\"}}";
+            _saveStatus = "Saving...";
+            // Full blocks update to persist metadata change
+            await PageService.UpdateAsync(page.Id, new UpdatePageDto
+            {
+                Blocks = page.Blocks.Select(b => new CreateBlockDto
+                {
+                    Id = b.Id, Type = b.Type, Content = b.Content, Metadata = b.Metadata, SortOrder = b.SortOrder
+                }).ToList()
+            }, currentUserId);
+            _saveStatus = "";
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            _saveStatus = "";
+            Console.WriteLine("HandleImageAlign error: " + ex.Message);
         }
     }
 }

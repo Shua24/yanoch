@@ -23,6 +23,7 @@ D:/Sourcecodes/Yanoch/src/Yanoch.Application/obj/Debug/net10.0/ref/Yanoch.Applic
 /home/apollon/Sources/Yanoch/src/Yanoch.Application/obj/Debug/net10.0/Yanoch.Application.AssemblyInfoInputs.cache
 /home/apollon/Sources/Yanoch/src/Yanoch.Application/obj/Debug/net10.0/Yanoch.Application.AssemblyInfo.cs
 /home/apollon/Sources/Yanoch/src/Yanoch.Application/obj/Debug/net10.0/Yanoch.Application.csproj.CoreCompileInputs.cache
+/home/apollon/Sources/Yanoch/src/Yanoch.Application/obj/Debug/net10.0/Yanoch.Application.sourcelink.json
 /home/apollon/Sources/Yanoch/src/Yanoch.Application/obj/Debug/net10.0/Yanoch.A.5F5905A6.Up2Date
 /home/apollon/Sources/Yanoch/src/Yanoch.Application/obj/Debug/net10.0/Yanoch.Application.dll
 /home/apollon/Sources/Yanoch/src/Yanoch.Application/obj/Debug/net10.0/refint/Yanoch.Application.dll

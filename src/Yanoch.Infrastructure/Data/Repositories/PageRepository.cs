@@ -131,6 +131,16 @@ public class PageRepository : IPageRepository
             DateTime.UtcNow, pageId);
     }
 
+    public async Task UpdateBlockTypeAsync(Guid blockId, string type, Guid pageId)
+    {
+        await _db.Database.ExecuteSqlRawAsync(
+            "UPDATE \"Blocks\" SET \"Type\" = {0} WHERE \"Id\" = {1}",
+            type, blockId);
+        await _db.Database.ExecuteSqlRawAsync(
+            "UPDATE \"Pages\" SET \"UpdatedAt\" = {0} WHERE \"Id\" = {1}",
+            DateTime.UtcNow, pageId);
+    }
+
     public async Task AddBlockAsync(Block block)
     {
         if (block.Id == Guid.Empty) block.Id = Guid.NewGuid();

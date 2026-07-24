@@ -15,6 +15,7 @@ public interface IPageRepository
     Task ReplaceBlocksAsync(Guid pageId, List<Block> newBlocks);
     Task UpdateBlocksAsync(Guid pageId, List<Block> updatedBlocks);
     Task UpdateBlockContentAsync(Guid blockId, string content, Guid pageId);
+    Task UpdateBlockTypeAsync(Guid blockId, string type, Guid pageId);
     Task AddBlockAsync(Block block);
     Task DeleteBlockAsync(Guid blockId, Guid pageId);
     Task RenumberBlocksAsync(Guid pageId, List<Guid> blockIdsInOrder);
