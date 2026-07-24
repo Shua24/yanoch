@@ -47,14 +47,14 @@
                     </label>
                     break;
                 case "code":
-                    <textarea @ref="_inputRef" maxlength="10000" @bind="Block.Content" @bind:event="oninput" class="block-textarea code-block" @onkeydown="HandleKeyDown" @onfocusout="HandleFocusOut"></textarea>
+                    <div contenteditable @ref="_inputRef" maxlength="10000" class="block-textarea code-block" @onkeydown="HandleKeyDown" @onfocusout="HandleFocusOut">@Block.Content</div>
                     break;
                 case "quote":
-                    <textarea @ref="_inputRef" maxlength="10000" @bind="Block.Content" @bind:event="oninput" class="block-textarea quote-block" @onkeydown="HandleKeyDown" @onfocusout="HandleFocusOut"></textarea>
+                    <div contenteditable @ref="_inputRef" maxlength="10000" class="block-textarea quote-block" @onkeydown="HandleKeyDown" @onfocusout="HandleFocusOut">@Block.Content</div>
                     break;
  @* Image has no edit mode - see drag-to-place *@
                 default:
-                    <textarea @ref="_inputRef" maxlength="10000" @bind="Block.Content" @bind:event="oninput" class="block-textarea" @onkeydown="HandleKeyDown" @onfocusout="HandleFocusOut"></textarea>
+                    <div contenteditable @ref="_inputRef" maxlength="10000" class="block-textarea" @onkeydown="HandleKeyDown" @onfocusout="HandleFocusOut">@Block.Content</div>
                     break;
             }
         }
@@ -164,7 +164,6 @@
 
     private bool _focusedOnce;
     private int _prevFocusVersion = -1;
-    private bool _inputListenerAttached;
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -179,14 +178,6 @@
             catch { }
         }
 
-        // Attach native input listener once to keep cursor visible while typing
-        if (!_inputListenerAttached && isEditing)
-        {
-            _inputListenerAttached = true;
-            try { await JSRuntime.InvokeVoidAsync("watchBlockInputScroll", Block.Id.ToString()); }
-            catch { }
-
-        }
     }
 
 
@@ -208,7 +199,6 @@
         {
             isEditing = true;
             _focusedOnce = false;
-            _inputListenerAttached = false;
             _prevFocusVersion = FocusVersion;
         }
     }
@@ -293,6 +283,12 @@ private string ImageSrc => string.IsNullOrEmpty(Block.Content) ? "" : Block.Cont
     {
         if (_disposed || !isEditing) return;
         isEditing = false;
+        try
+        {
+            var text = await JSRuntime.InvokeAsync<string>("getDivText", _inputRef);
+            if (text is not null) Block.Content = text;
+        }
+        catch { }
         if (Block.Content != _contentBeforeEdit)
         {
             await OnUpdate.InvokeAsync(Block);

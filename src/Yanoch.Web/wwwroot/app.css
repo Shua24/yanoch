@@ -1142,6 +1142,34 @@ body {
 
 
 
+    font-family: inherit;
+
+
+
+    resize: none;
+
+
+
+    overflow: hidden;
+
+
+
+    white-space: pre-wrap;
+
+
+
+    word-wrap: break-word;
+
+
+
+    overflow-wrap: break-word;
+
+
+
+    word-break: break-word;
+
+
+
 }
 
 
@@ -1212,7 +1240,9 @@ body {
        is properly constrained by adjacent floated image blocks (left/right).
        Without this the flex container overlaps the float, giving text blocks
        the full page width and preventing proper wrapping. */
-    overflow: hidden;
+}
+
+    /* overflow on .block-content only */
 
 }
 
@@ -1324,7 +1354,7 @@ body {
 
 
 
-.block-content { flex: 1; min-width: 0; }
+.block-content { flex: 1; min-width: 0; overflow: hidden; }
 
 
 
@@ -1368,15 +1398,19 @@ body {
 
 
 
-.block-input.h1 { font-size: 28px; font-weight: 700; }
+.block-textarea.h1 { font-size: 28px; font-weight: 700; }
 
 
 
-.block-input.h2 { font-size: 22px; font-weight: 600; }
+.block-textarea.h2 { font-size: 22px; font-weight: 600; }
 
 
 
-.block-input.h3 { font-size: 18px; font-weight: 600; }
+.block-textarea.h3 { font-size: 18px; font-weight: 600; }
+
+
+
+.block-textarea.todo-input { flex: 1; }
 
 
 
@@ -1386,67 +1420,36 @@ body {
 
 .block-textarea {
 
-
-
     display: block;
 
-
-
     width: 100%;
-
-
+    min-width: 0;
 
     border: none;
 
-
-
     outline: none;
-
-
 
     background: transparent;
 
-
-
     font-family: inherit;
-
-
 
     font-size: 15px;
 
-
-
-    resize: none;
-
-
-
     padding: 4px 0;
-
-
 
     line-height: 1.6;
 
-
-
-    overflow-y: clip;
-
-
+    overflow: hidden;
 
     white-space: pre-wrap;
 
-
-
     overflow-wrap: break-word;
-
-
 
     word-wrap: break-word;
 
     word-break: break-word;
 
     min-height: 24px;
-
-
 
 }
 

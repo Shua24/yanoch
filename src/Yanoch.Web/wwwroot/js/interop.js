@@ -246,7 +246,7 @@
             return;
         }
         var target = e.target;
-        if (!target.matches('textarea.block-textarea, input.block-input')) return;
+        if (!target.matches('textarea.block-textarea, input.block-input, div.block-textarea')) return;
         var val = target.value;
         // Only open if content is just '/' at the start (nothing before it)
         if (val.trim() === '/' && val.lastIndexOf('/') === val.length - 1) {
@@ -429,6 +429,14 @@
         dotNetRef = null; imageRef = null; blocksContainer = null;
         closeContextMenu(); closeSlashMenu();
     });
+
+    // Scroll focused block input into view
+    document.addEventListener('focusin', function(e) {
+        var el = e.target.closest('input.block-textarea');
+        if (!el) return;
+        var r = el.getBoundingClientRect();
+        if (r.bottom > window.innerHeight) el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    });
 })();
 
 function focusBlockInput(blockId) {
@@ -448,24 +456,16 @@ function scrollElementIntoView(blockId) {
     }
 }
 
-function watchBlockInputScroll(blockId) {
-    var el = document.querySelector('[data-block-id="' + blockId + '"]');
-    if (!el) return;
-    var input = el.querySelector('textarea');
-    if (!input) return;
-    var fn = function() {
-        // Auto-resize height + keep cursor visible
-        input.style.height = 'auto';
-        input.style.height = input.scrollHeight + 'px';
-        var r = input.getBoundingClientRect();
-        if (r.bottom > window.innerHeight) input.scrollIntoView({ block: 'center', behavior: 'smooth' });
-    };
-    input.addEventListener('input', fn);
-    // rAF ensures layout settled before measuring scrollHeight
-    requestAnimationFrame(function() {
-        fn();
-        // Second pass after browser processes the first height change
-        requestAnimationFrame(function() { fn(); });
-    });
+function blurElementById(elementId) {
+    var el = document.getElementById(elementId);
+    if (el) el.blur();
+}
+function watchTitleInputScroll() {}
+function watchBlockInputScroll() {}
+
+function getDivText(el) {
+    if (!el) return '';
+    if (el.tagName === 'DIV') return el.innerText || '';
+    return el.value || '';
 }
 

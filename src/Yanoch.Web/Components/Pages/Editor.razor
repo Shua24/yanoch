@@ -39,7 +39,7 @@
                     <button class="btn-delete-page" @onclick="DeletePage" title="Delete page">🗑️ Delete</button>
                 </div>
             </div>
-            <input type="text" @bind="page!.Title" @bind:after="async () => await SavePageAsync()" class="title-input" placeholder="Untitled" />
+            <textarea rows="1" id="page-title-input" @bind="page!.Title" @bind:after="async () => await SavePageAsync()" class="title-input" placeholder="Untitled" @onkeydown="HandleTitleKeyDown"></textarea>
             <div class="editor-meta">
                 <span>Updated @(page!.UpdatedAt.ToLocalTime().ToString("MMM dd, yyyy HH:mm"))</span>
                 @if (!string.IsNullOrEmpty(_saveStatus))
@@ -202,6 +202,7 @@
                 _dotNetRef = DotNetObjectReference.Create(this);
                 await JSRuntime.InvokeVoidAsync("setupBlockDragAndDrop", _dotNetRef);
                 await JSRuntime.InvokeVoidAsync("setupImagePlaceDrag", _dotNetRef);
+                await JSRuntime.InvokeVoidAsync("watchTitleInputScroll", "page-title-input");
                 _interopInitialized = true;
             }
             catch (Exception ex)
@@ -214,6 +215,15 @@
     public void Dispose()
     {
         _dotNetRef?.Dispose();
+    }
+
+    private async Task HandleTitleKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter" && !e.ShiftKey)
+        {
+            try { await JSRuntime.InvokeVoidAsync("blurElementById", "page-title-input"); }
+            catch { }
+        }
     }
 
     private async Task SavePageAsync()
