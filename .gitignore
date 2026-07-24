@@ -27,3 +27,6 @@ appsettings.*.local.json
 *.db
 *.db-wal
 *.db-shm
+
+## Uploaded files (local dev)
+uploads/
