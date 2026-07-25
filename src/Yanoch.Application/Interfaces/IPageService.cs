@@ -1,4 +1,4 @@
-﻿using Yanoch.Application.DTOs;
+using Yanoch.Application.DTOs;
 
 namespace Yanoch.Application.Interfaces;
 
@@ -14,11 +14,6 @@ public interface IPageService
     Task<IEnumerable<PageDto>> GetRecentAsync(Guid userId);
     Task<IEnumerable<PageVersionDto>> GetVersionsAsync(Guid pageId, Guid userId);
     Task<PageDto?> RestoreVersionAsync(Guid pageId, Guid versionId, Guid userId);
-    Task UpdateBlockContentAsync(Guid pageId, Guid blockId, string content, Guid userId);
-    Task UpdateBlockTypeAsync(Guid pageId, Guid blockId, string type, Guid userId);
-    Task AddBlockAsync(CreateBlockDto dto, Guid pageId);
-    Task DeleteBlockAsync(Guid pageId, Guid blockId, Guid userId);
-    Task RenumberBlocksAsync(Guid pageId, List<Guid> blockIdsInOrder);
     Task<string?> GetContentAsync(Guid pageId, Guid userId);
     Task SetContentAsync(Guid pageId, string content);
 }

@@ -8,12 +8,13 @@ export default defineConfig({
     outDir: '../dist/wwwroot',
     emptyOutDir: true,
     lib: {
-      entry: path.resolve(__dirname, 'src/Yanoch.Web/wwwroot/js/tiptap-editor.js'),
+      entry: path.resolve(__dirname, 'src/Yanoch.Web/wwwroot/js/tiptap-editor.src.js'),
       formats: ['es'],
       fileName: 'tiptap-editor'
     },
     rollupOptions: {
       external: [],
+      treeshake: false,
       output: {
         entryFileNames: 'js/tiptap-editor.js',
         chunkFileNames: 'js/[name]-[hash].js',

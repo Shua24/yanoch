@@ -1,4 +1,4 @@
-using System.Text.Json;
+using System.Text.RegularExpressions;
 using Yanoch.Application.DTOs;
 using Yanoch.Application.Interfaces;
 using Yanoch.Domain.Interfaces;
@@ -61,7 +61,6 @@ public class PageService : IPageService
             UserId = userId,
             Content = dto.Content ?? ""
         };
-
         await _pages.CreateAsync(page);
         return MapToDto(page);
     }
@@ -101,13 +100,13 @@ public class PageService : IPageService
 
     private async Task UpdateBacklinksFromContent(Guid sourcePageId, string content)
     {
-        var page = await _pages.GetByIdAsync(sourcePageId, Guid.Empty); // userId not needed for this
+        var page = await _pages.GetByIdAsync(sourcePageId, Guid.Empty);
         if (page == null) return;
         var userId = page.UserId;
 
         await _backlinks.DeleteBySourcePageAsync(sourcePageId);
-        var matches = System.Text.RegularExpressions.Regex.Matches(content, @"\[\[([^\]]+)\]\]");
-        foreach (System.Text.RegularExpressions.Match m in matches)
+        var matches = Regex.Matches(content, @"\[\[([^\]]+)\]\]");
+        foreach (Match m in matches)
         {
             var title = m.Groups[1].Value;
             var target = await FindPageByTitle(title, userId);
@@ -139,42 +138,6 @@ public class PageService : IPageService
             if (found != null) return found;
         }
         return null;
-    }
-
-    public async Task UpdateBlockContentAsync(Guid pageId, Guid blockId, string content, Guid userId)
-    {
-        await _pages.UpdateBlockContentAsync(blockId, content, pageId);
-    }
-
-    public async Task UpdateBlockTypeAsync(Guid pageId, Guid blockId, string type, Guid userId)
-    {
-        await _pages.UpdateBlockTypeAsync(blockId, type, pageId);
-    }
-
-    public async Task AddBlockAsync(CreateBlockDto dto, Guid pageId)
-    {
-        await _pages.AddBlockAsync(new Block
-        {
-            Id = dto.Id == Guid.Empty ? Guid.NewGuid() : dto.Id,
-            PageId = pageId,
-            Type = dto.Type,
-            Content = dto.Content ?? "",
-            Metadata = dto.Metadata,
-            SortOrder = dto.SortOrder,
-            ParentBlockId = dto.ParentBlockId
-        });
-    }
-
-    public async Task DeleteBlockAsync(Guid pageId, Guid blockId, Guid userId)
-    {
-        var page = await _pages.GetByIdAsync(pageId, userId);
-        if (page == null) return;
-        await _pages.DeleteBlockAsync(blockId, pageId);
-    }
-
-    public async Task RenumberBlocksAsync(Guid pageId, List<Guid> blockIdsInOrder)
-    {
-        await _pages.RenumberBlocksAsync(pageId, blockIdsInOrder);
     }
 
     public async Task DeleteAsync(Guid id, Guid userId)
@@ -221,35 +184,12 @@ public class PageService : IPageService
         if (version == null || version.PageId != pageId) return null;
 
         page.Title = version.Title;
+        page.Content = version.Content;
         page.UpdatedAt = DateTime.UtcNow;
-
-        // Restore blocks from JSON
-        var restoredBlocks = JsonSerializer.Deserialize<List<Block>>(version.BlocksJson);
-        if (restoredBlocks != null)
-        {
-            await _pages.ReplaceBlocksAsync(page.Id, restoredBlocks);
-        }
-        else
-        {
-            await _pages.UpdateAsync(page);
-        }
+        await _pages.UpdateAsync(page);
 
         var updated = await _pages.GetByIdAsync(page.Id, page.UserId);
         return MapToDto(updated!);
-    }
-
-    private async Task SaveVersionAsync(Page page)
-    {
-        var latest = await _versions.GetLatestAsync(page.Id);
-        var version = new PageVersion
-        {
-            PageId = page.Id,
-            Title = page.Title,
-            BlocksJson = JsonSerializer.Serialize(page.Blocks.Where(b => !b.IsDeleted).OrderBy(b => b.SortOrder).ToList(), new JsonSerializerOptions { ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles }),
-            VersionNumber = (latest?.VersionNumber ?? 0) + 1,
-            UserId = page.UserId
-        };
-        await _versions.CreateAsync(version);
     }
 
     private static PageDto MapToDto(Page p) => new()
@@ -263,19 +203,6 @@ public class PageService : IPageService
         Content = p.Content,
         CreatedAt = p.CreatedAt,
         UpdatedAt = p.UpdatedAt,
-        Blocks = p.Blocks?.Where(b => !b.IsDeleted).OrderBy(b => b.SortOrder).Select(b => new BlockDto
-        {
-            Id = b.Id,
-            Type = b.Type,
-            Content = b.Content ?? "",
-            Metadata = b.Metadata,
-            SortOrder = b.SortOrder,
-            ParentBlockId = b.ParentBlockId,
-            Children = b.Children?.Where(c => !c.IsDeleted).OrderBy(c => c.SortOrder).Select(c => new BlockDto
-            {
-                Id = c.Id, Type = c.Type, Content = c.Content, Metadata = c.Metadata, SortOrder = c.SortOrder, ParentBlockId = c.ParentBlockId
-            }).ToList() ?? new()
-        }).ToList() ?? new(),
         Tags = p.PageTags?.Select(pt => new TagDto { Id = pt.TagId, Name = pt.Tag?.Name ?? "", Color = pt.Tag?.Color }).ToList() ?? new(),
         VersionCount = p.Versions?.Count ?? 0,
         Backlinks = p.Backlinks?.Select(b => new BacklinkDto

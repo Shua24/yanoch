@@ -1,6 +1,4 @@
-﻿using Yanoch.Domain.Enums;
-
-namespace Yanoch.Domain.Models;
+﻿namespace Yanoch.Domain.Models;
 
 public class Page
 {
@@ -18,7 +16,6 @@ public class Page
     public DateTime? DeletedAt { get; set; }
     public ICollection<Page> Children { get; set; } = new List<Page>();
     public string? Content { get; set; } // Markdown source of truth
-    public ICollection<Block> Blocks { get; set; } = new List<Block>();
     public ICollection<PageTag> PageTags { get; set; } = new List<PageTag>();
     public ICollection<PageVersion> Versions { get; set; } = new List<PageVersion>();
     public ICollection<Backlink> Backlinks { get; set; } = new List<Backlink>();

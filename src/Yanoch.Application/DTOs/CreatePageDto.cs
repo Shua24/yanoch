@@ -9,16 +9,6 @@ public class CreatePageDto
     public List<Guid>? TagIds { get; set; }
 }
 
-public class CreateBlockDto
-{
-    public Guid Id { get; set; }
-    public string Type { get; set; } = "text";
-    public string Content { get; set; } = "";
-    public string? Metadata { get; set; }
-    public int SortOrder { get; set; }
-    public Guid? ParentBlockId { get; set; }
-}
-
 public class UpdatePageDto
 {
     public string? Title { get; set; }
@@ -27,13 +17,6 @@ public class UpdatePageDto
     public Guid? ParentPageId { get; set; }
     public int? SortOrder { get; set; }
     public List<Guid>? TagIds { get; set; }
-}
-
-public class MoveBlockDto
-{
-    public Guid BlockId { get; set; }
-    public Guid? NewParentBlockId { get; set; }
-    public int NewSortOrder { get; set; }
 }
 
 public class SearchResultDto
