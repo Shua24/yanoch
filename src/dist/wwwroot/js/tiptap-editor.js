@@ -22150,8 +22150,16 @@ function wA(e) {
 	if (!r || r.dataset.type === n) return;
 	let i = Array.from(HA.values()).find((e) => e.editor?.view?.dom?.contains(r));
 	if (!i) return;
-	let a = i.editor, o = a.view.posAtDOM(r, 0);
-	o != null && a.chain().focus().setNodeAttribute(o, "type", n).run();
+	let { state: a, view: o } = i.editor, s = o.posAtDOM(r, 0);
+	if (s == null) return;
+	let c = a.doc.resolve(s), l = c.depth;
+	for (; l >= 0 && c.node(l).type.name !== "callout";) l--;
+	if (l < 0) return;
+	let u = c.node(l);
+	o.dispatch(a.tr.setNodeMarkup(c.before(l), null, {
+		...u.attrs,
+		type: n
+	}).scrollIntoView());
 }
 function TA() {
 	document.addEventListener("click", function(e) {

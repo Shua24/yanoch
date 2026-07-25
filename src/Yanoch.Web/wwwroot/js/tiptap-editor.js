@@ -22117,19 +22117,19 @@ var yA = {
 				n.icon
 			],
 			[
-				"select",
+				"div",
 				{
-					class: "callout-type-picker",
-					contenteditable: "false",
-					onchange: "changeCalloutType(this)"
+					class: "callout-picker",
+					contenteditable: "false"
 				},
 				...xA.map((e) => [
-					"option",
+					"span",
 					{
-						value: e.id,
-						selected: t === e.id
+						class: "callout-dot callout--" + e.id + (t === e.id ? " active" : ""),
+						"data-type": e.id,
+						title: e.label
 					},
-					e.label
+					""
 				])
 			],
 			[
@@ -22144,15 +22144,26 @@ var yA = {
 	}
 });
 function wA(e) {
-	let t = e.closest("[data-callout]");
+	let t = e.target.closest(".callout-dot");
 	if (!t) return;
-	let n = e.value;
-	if (t.dataset.type === n) return;
-	t.dataset.type = n, t.className = "callout callout--" + n;
-	let r = t.querySelector(".callout-icon");
-	r && (r.textContent = SA[n]?.icon || "📌");
+	let n = t.dataset.type, r = t.closest("[data-callout]");
+	if (!r || r.dataset.type === n) return;
+	let i = Array.from(HA.values()).find((e) => e.editor?.view?.dom?.contains(r));
+	if (!i) return;
+	let a = i.editor, o = a.view.posAtDOM(r, 0);
+	if (o == null) return;
+	let { state: s, view: c } = a, l = s.doc.resolve(o).node();
+	l.type.name === "callout" && c.dispatch(s.tr.setNodeMarkup(o, null, {
+		...l.attrs,
+		type: n
+	}));
 }
-var TA = [
+function TA() {
+	document.addEventListener("click", function(e) {
+		e.target.closest(".callout-dot") && wA(e);
+	});
+}
+var EA = [
 	{
 		title: "Text",
 		desc: "Plain paragraph",
@@ -22218,7 +22229,7 @@ var TA = [
 		desc: "Upload an image",
 		icon: "🖼️",
 		run: (e) => {
-			HA(e);
+			UA(e);
 		}
 	},
 	{
@@ -22227,11 +22238,11 @@ var TA = [
 		icon: "📌",
 		run: (e) => e.chain().focus().clearNodes().setCallout().run()
 	}
-], EA = null;
-function DA() {
-	return EA || (EA = document.createElement("input"), EA.type = "file", EA.accept = "image/*", EA.style.cssText = "display:none", document.body.appendChild(EA), EA);
+], DA = null;
+function OA() {
+	return DA || (DA = document.createElement("input"), DA.type = "file", DA.accept = "image/*", DA.style.cssText = "display:none", document.body.appendChild(DA), DA);
 }
-async function OA(e) {
+async function kA(e) {
 	let t = new FormData();
 	t.append("file", e);
 	try {
@@ -22245,8 +22256,8 @@ async function OA(e) {
 		return console.error("Upload error:", e), null;
 	}
 }
-var $ = null, kA = !1, AA = 0, jA = -1, MA = "", NA = null;
-function PA(e, t) {
+var $ = null, AA = !1, jA = 0, MA = -1, NA = "", PA = null;
+function FA(e, t) {
 	let n = e.resolve(t);
 	if (!n) return "";
 	try {
@@ -22255,84 +22266,84 @@ function PA(e, t) {
 		return "";
 	}
 }
-function FA() {
+function IA() {
 	let e = $?.querySelector(".slash-item.active");
 	e && e.scrollIntoView({ block: "nearest" });
 }
-function IA() {
+function LA() {
 	if (!$) return;
-	let e = MA.toLowerCase(), t = TA.filter((t) => t.title.toLowerCase().includes(e) || t.desc.toLowerCase().includes(e));
-	$.innerHTML = t.map((e, t) => `<button class="slash-item${t === AA ? " active" : ""}" data-idx="${t}"><span class="slash-icon">${e.icon}</span><span class="slash-text"><strong>${e.title}</strong><span class="slash-desc">${e.desc}</span></span></button>`).join(""), $.querySelectorAll(".slash-item").forEach((e) => {
+	let e = NA.toLowerCase(), t = EA.filter((t) => t.title.toLowerCase().includes(e) || t.desc.toLowerCase().includes(e));
+	$.innerHTML = t.map((e, t) => `<button class="slash-item${t === jA ? " active" : ""}" data-idx="${t}"><span class="slash-icon">${e.icon}</span><span class="slash-text"><strong>${e.title}</strong><span class="slash-desc">${e.desc}</span></span></button>`).join(""), $.querySelectorAll(".slash-item").forEach((e) => {
 		let t = parseInt(e.dataset.idx, 10);
 		isNaN(t) || (e.onclick = (e) => {
-			e.stopPropagation(), AA = t, BA();
+			e.stopPropagation(), jA = t, VA();
 		}, e.onmouseenter = () => {
-			AA = t, IA();
+			jA = t, LA();
 		});
-	}), FA();
+	}), IA();
 }
-function LA() {
-	$ && ($.style.display = "none", $.innerHTML = ""), kA = !1, jA = -1, MA = "", NA = null;
-}
-function RA(e) {
-	NA = e;
-	let { view: t, state: n } = e, { from: r } = n.selection;
-	jA = n.doc.resolve(r).start(), $ || ($ = document.createElement("div"), $.className = "slash-menu", $.style.cssText = "position:fixed;z-index:100000;", document.body.appendChild($));
-	let i = t.coordsAtPos(r);
-	$.style.left = Math.max(0, i.left) + "px", $.style.top = i.bottom + 4 + "px", $.style.display = "block", AA = 0, MA = "", kA = !0, IA();
+function RA() {
+	$ && ($.style.display = "none", $.innerHTML = ""), AA = !1, MA = -1, NA = "", PA = null;
 }
 function zA(e) {
+	PA = e;
+	let { view: t, state: n } = e, { from: r } = n.selection;
+	MA = n.doc.resolve(r).start(), $ || ($ = document.createElement("div"), $.className = "slash-menu", $.style.cssText = "position:fixed;z-index:100000;", document.body.appendChild($));
+	let i = t.coordsAtPos(r);
+	$.style.left = Math.max(0, i.left) + "px", $.style.top = i.bottom + 4 + "px", $.style.display = "block", jA = 0, NA = "", AA = !0, LA();
+}
+function BA(e) {
 	if (!e) return;
 	let { doc: t, selection: n } = e.state, { $from: r } = n;
 	if (r.parent.type.name === "codeBlock") {
-		kA && LA();
+		AA && RA();
 		return;
 	}
 	if (!e.isFocused) return;
-	let i = r.pos, a = PA(t, i);
-	if (a === "/" && !kA) {
-		RA(e);
+	let i = r.pos, a = FA(t, i);
+	if (a === "/" && !AA) {
+		zA(e);
 		return;
 	}
-	if (kA) if (a.startsWith("/")) {
+	if (AA) if (a.startsWith("/")) {
 		let e = a.slice(1);
-		e !== MA && (MA = e, AA = 0, IA());
-	} else LA();
+		e !== NA && (NA = e, jA = 0, LA());
+	} else RA();
 }
-function BA() {
-	if (!kA || !$) return;
-	let e = TA.filter((e) => e.title.toLowerCase().includes(MA) || e.desc.toLowerCase().includes(MA))[AA];
+function VA() {
+	if (!AA || !$) return;
+	let e = EA.filter((e) => e.title.toLowerCase().includes(NA) || e.desc.toLowerCase().includes(NA))[jA];
 	if (!e) {
-		LA();
+		RA();
 		return;
 	}
-	let t = NA;
+	let t = PA;
 	if (!t) {
-		LA();
+		RA();
 		return;
 	}
-	let { view: n } = t, r = n.state.selection.from, i = jA;
-	LA();
+	let { view: n } = t, r = n.state.selection.from, i = MA;
+	RA();
 	try {
 		n.dispatch(n.state.tr.delete(i, r)), e.run(t), t.commands.focus();
 	} catch (e) {
 		console.error("runSlashItem error:", e);
 	}
 }
-var VA = /* @__PURE__ */ new Map();
-function HA(e) {
-	let t = DA();
+var HA = /* @__PURE__ */ new Map();
+function UA(e) {
+	let t = OA();
 	t.onchange = async () => {
 		let n = t.files?.[0];
 		if (!n) return;
-		let r = await OA(n);
+		let r = await kA(n);
 		r && e.chain().focus().setImage({ src: r }).run(), t.value = "";
 	}, t.click();
 }
-function UA() {
+function WA() {
 	return (e, t) => {
-		if (!kA) return !1;
-		let n = TA.filter((e) => e.title.toLowerCase().includes(MA) || e.desc.toLowerCase().includes(MA));
+		if (!AA) return !1;
+		let n = EA.filter((e) => e.title.toLowerCase().includes(NA) || e.desc.toLowerCase().includes(NA));
 		if (!n.length && ![
 			"ArrowDown",
 			"ArrowUp",
@@ -22341,22 +22352,22 @@ function UA() {
 			"Escape"
 		].includes(t.key)) return !1;
 		switch (t.key) {
-			case "ArrowDown": return n.length ? (t.preventDefault(), AA = (AA + 1) % n.length, IA(), !0) : !0;
-			case "ArrowUp": return n.length ? (t.preventDefault(), AA = (AA - 1 + n.length) % n.length, IA(), !0) : !0;
+			case "ArrowDown": return n.length ? (t.preventDefault(), jA = (jA + 1) % n.length, LA(), !0) : !0;
+			case "ArrowUp": return n.length ? (t.preventDefault(), jA = (jA - 1 + n.length) % n.length, LA(), !0) : !0;
 			case "Enter":
-			case "Tab": return t.preventDefault(), BA(), !0;
-			case "Escape": return t.preventDefault(), LA(), !0;
+			case "Tab": return t.preventDefault(), VA(), !0;
+			case "Escape": return t.preventDefault(), RA(), !0;
 			default: return !1;
 		}
 	};
 }
-function WA(e, t, ...n) {
+function GA(e, t, ...n) {
 	if (e) try {
 		e.invokeMethodAsync(t, ...n).catch(() => {});
 	} catch {}
 }
-function GA(e, t, n, r) {
-	KA(e);
+function KA(e, t, n, r) {
+	qA(e);
 	let i = document.getElementById(e);
 	if (!i) return null;
 	let a = {
@@ -22411,10 +22422,10 @@ function GA(e, t, n, r) {
 				class: "tiptap-editor",
 				"data-block-id": r
 			},
-			handleKeyDown: UA(),
+			handleKeyDown: WA(),
 			handlePaste(e, t) {
 				let n = t.clipboardData?.files;
-				if (n && n[0]?.type.startsWith("image/")) return t.preventDefault(), OA(n[0]).then((t) => {
+				if (n && n[0]?.type.startsWith("image/")) return t.preventDefault(), kA(n[0]).then((t) => {
 					t && e.dispatch(e.state.tr.replaceSelectionWith(e.state.schema.nodes.image.create(null, { src: t })));
 				}), !0;
 				let r = t.clipboardData?.getData("text/plain");
@@ -22428,7 +22439,7 @@ function GA(e, t, n, r) {
 						left: t.clientX,
 						top: t.clientY
 					});
-					return r && OA(n[0]).then((t) => {
+					return r && kA(n[0]).then((t) => {
 						t && e.dispatch(e.state.tr.insert(r.pos, e.state.schema.nodes.image.create(null, { src: t })));
 					}), !0;
 				}
@@ -22440,56 +22451,56 @@ function GA(e, t, n, r) {
 				a.firstUpdate = !1;
 				return;
 			}
-			WA(a.dotNetRef, "OnMarkdownChanged", a.blockId, e.getMarkdown()), zA(e);
+			GA(a.dotNetRef, "OnMarkdownChanged", a.blockId, e.getMarkdown()), BA(e);
 		},
 		onSelectionUpdate: ({ editor: e }) => {
-			kA && zA(e);
+			AA && BA(e);
 		},
-		onFocus: () => WA(a.dotNetRef, "OnFocus", a.blockId),
+		onFocus: () => GA(a.dotNetRef, "OnFocus", a.blockId),
 		onBlur: () => {
-			kA && LA(), WA(a.dotNetRef, "OnBlur", a.blockId);
+			AA && RA(), GA(a.dotNetRef, "OnBlur", a.blockId);
 		}
 	});
 	a.editor = o;
 	let s = document.getElementById("btn-upload-image");
 	if (s) {
-		let t = DA();
+		let t = OA();
 		t.onchange = async () => {
 			let n = t.files?.[0];
 			if (!n) return;
-			let r = VA.get(e)?.editor;
+			let r = HA.get(e)?.editor;
 			if (!r) return;
-			let i = await OA(n);
+			let i = await kA(n);
 			i && r.chain().focus().setImage({ src: i }).run(), t.value = "";
 		}, s.onclick = () => t.click();
 	}
 	let c = function(e) {
-		kA && $ && !$.contains(e.target) && !i.contains(e.target) && LA();
+		AA && $ && !$.contains(e.target) && !i.contains(e.target) && RA();
 	};
 	return document.addEventListener("mousedown", c), a.listeners.push({
 		type: "mousedown",
 		handler: c
-	}), VA.set(e, a), o;
-}
-function KA(e) {
-	let t = VA.get(e);
-	t && (t.listeners.forEach((e) => document.removeEventListener(e.type, e.handler)), t.listeners = [], t.dotNetRef = null, t.editor &&= (t.editor.destroy(), null), VA.delete(e));
+	}), HA.set(e, a), o;
 }
 function qA(e) {
-	return VA.get(e)?.editor?.getMarkdown() ?? "";
+	let t = HA.get(e);
+	t && (t.listeners.forEach((e) => document.removeEventListener(e.type, e.handler)), t.listeners = [], t.dotNetRef = null, t.editor &&= (t.editor.destroy(), null), HA.delete(e));
 }
-function JA(e, t) {
-	VA.get(e)?.editor?.commands.setContent(t, !1, "markdown");
+function JA(e) {
+	return HA.get(e)?.editor?.getMarkdown() ?? "";
 }
 function YA(e, t) {
-	VA.get(e)?.editor?.setEditable(t);
+	HA.get(e)?.editor?.commands.setContent(t, !1, "markdown");
 }
-function XA(e) {
-	VA.get(e)?.editor?.commands.focus();
+function XA(e, t) {
+	HA.get(e)?.editor?.setEditable(t);
 }
 function ZA(e) {
-	VA.get(e)?.editor?.commands.blur();
+	HA.get(e)?.editor?.commands.focus();
 }
-window.initTipTap = GA, window.destroyTipTap = KA, window.getTipTapMarkdown = qA, window.setTipTapContent = JA, window.setTipTapEditable = YA, window.focusTipTap = XA, window.blurTipTap = ZA, window.changeCalloutType = wA;
+function QA(e) {
+	HA.get(e)?.editor?.commands.blur();
+}
+window.initTipTap = KA, window.destroyTipTap = qA, window.getTipTapMarkdown = JA, window.setTipTapContent = YA, window.setTipTapEditable = XA, window.focusTipTap = ZA, window.blurTipTap = QA, TA();
 //#endregion
-export { ZA as blurEditor, GA as createEditor, KA as destroyEditor, XA as focusEditor, qA as getMarkdown, JA as setContent, YA as setEditable };
+export { QA as blurEditor, KA as createEditor, qA as destroyEditor, ZA as focusEditor, JA as getMarkdown, YA as setContent, XA as setEditable };

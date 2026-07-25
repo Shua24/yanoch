@@ -235,7 +235,14 @@
     [JSInvokable]
     public async Task OnMarkdownChanged(string blockId, string markdown)
     {
-        if (isNew || page == null) return;
+        if (page == null) return;
+
+        // New pages: save content but don't debounce since no PageId yet
+        if (isNew)
+        {
+            if (page != null) page.Content = markdown;
+            return;
+        }
 
         var now = DateTime.UtcNow;
         if ((now - _lastSave).TotalMilliseconds < SaveDebounceMs) return;

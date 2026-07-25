@@ -78,9 +78,15 @@ function changeCalloutType(e) {
   const instance = Array.from(instances.values()).find(i => i.editor?.view?.dom?.contains(calloutEl))
   if (!instance) return
   const editor = instance.editor
-  const pos = editor.view.posAtDOM(calloutEl, 0)
+  const { state, view } = editor
+  const pos = view.posAtDOM(calloutEl, 0)
   if (pos == null) return
-  editor.chain().focus().setNodeAttribute(pos, 'type', type).run()
+  const $pos = state.doc.resolve(pos)
+  let depth = $pos.depth
+  while (depth >= 0 && $pos.node(depth).type.name !== 'callout') depth--
+  if (depth < 0) return
+  const node = $pos.node(depth)
+  view.dispatch(state.tr.setNodeMarkup($pos.before(depth), null, { ...node.attrs, type }).scrollIntoView())
 }
 
 // Delegate clicks on callout dots
