@@ -51,7 +51,7 @@ const Callout = Node.create({
   addCommands() {
     return {
       setCallout: (attrs = {}) => ({ commands }) => {
-        return commands.insertContent({ type: this.name, attrs })
+        return commands.wrapIn(this.name, attrs)
       },
     }
   },
