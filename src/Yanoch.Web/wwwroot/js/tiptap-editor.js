@@ -22088,7 +22088,7 @@ var yA = {
 		desc: "Upload an image",
 		icon: "🖼️",
 		run: (e) => {
-			zA(e);
+			BA(e);
 		}
 	},
 	{
@@ -22183,11 +22183,26 @@ var yA = {
 			handler: ({ range: e, match: t }) => (t[1], e.from + e.text.length)
 		}];
 	}
-}), CA = null;
-function wA() {
-	return CA || (CA = document.createElement("input"), CA.type = "file", CA.accept = "image/*", CA.style.cssText = "display:none", document.body.appendChild(CA), CA);
+});
+function CA(e) {
+	let t = e.closest("[data-callout]");
+	if (!t) return;
+	let n = e.value;
+	if (t.dataset.type === n) return;
+	t.dataset.type = n, t.className = t.className.replace(/callout--\w+/g, "") + " callout--" + n;
+	let r = t.querySelector(".callout-icon");
+	r && (r.textContent = {
+		info: "ℹ️",
+		warning: "⚠️",
+		success: "✅",
+		error: "❌"
+	}[n] || "📌");
 }
-async function TA(e) {
+var wA = null;
+function TA() {
+	return wA || (wA = document.createElement("input"), wA.type = "file", wA.accept = "image/*", wA.style.cssText = "display:none", document.body.appendChild(wA), wA);
+}
+async function EA(e) {
 	let t = new FormData();
 	t.append("file", e);
 	try {
@@ -22201,8 +22216,8 @@ async function TA(e) {
 		return console.error("Upload error:", e), null;
 	}
 }
-var $ = null, EA = !1, DA = 0, OA = -1, kA = "", AA = null;
-function jA(e, t) {
+var $ = null, DA = !1, OA = 0, kA = -1, AA = "", jA = null;
+function MA(e, t) {
 	let n = e.resolve(t);
 	if (!n) return "";
 	try {
@@ -22211,84 +22226,84 @@ function jA(e, t) {
 		return "";
 	}
 }
-function MA() {
+function NA() {
 	let e = $?.querySelector(".slash-item.active");
 	e && e.scrollIntoView({ block: "nearest" });
 }
-function NA() {
+function PA() {
 	if (!$) return;
-	let e = kA.toLowerCase(), t = xA.filter((t) => t.title.toLowerCase().includes(e) || t.desc.toLowerCase().includes(e));
-	$.innerHTML = t.map((e, t) => `<button class="slash-item${t === DA ? " active" : ""}" data-idx="${t}"><span class="slash-icon">${e.icon}</span><span class="slash-text"><strong>${e.title}</strong><span class="slash-desc">${e.desc}</span></span></button>`).join(""), $.querySelectorAll(".slash-item").forEach((e) => {
+	let e = AA.toLowerCase(), t = xA.filter((t) => t.title.toLowerCase().includes(e) || t.desc.toLowerCase().includes(e));
+	$.innerHTML = t.map((e, t) => `<button class="slash-item${t === OA ? " active" : ""}" data-idx="${t}"><span class="slash-icon">${e.icon}</span><span class="slash-text"><strong>${e.title}</strong><span class="slash-desc">${e.desc}</span></span></button>`).join(""), $.querySelectorAll(".slash-item").forEach((e) => {
 		let t = parseInt(e.dataset.idx, 10);
 		isNaN(t) || (e.onclick = (e) => {
-			e.stopPropagation(), DA = t, LA();
+			e.stopPropagation(), OA = t, RA();
 		}, e.onmouseenter = () => {
-			DA = t, NA();
+			OA = t, PA();
 		});
-	}), MA();
+	}), NA();
 }
-function PA() {
-	$ && ($.style.display = "none", $.innerHTML = ""), EA = !1, OA = -1, kA = "", AA = null;
-}
-function FA(e) {
-	AA = e;
-	let { view: t, state: n } = e, { from: r } = n.selection;
-	OA = n.doc.resolve(r).start(), $ || ($ = document.createElement("div"), $.className = "slash-menu", $.style.cssText = "position:fixed;z-index:100000;", document.body.appendChild($));
-	let i = t.coordsAtPos(r);
-	$.style.left = Math.max(0, i.left) + "px", $.style.top = i.bottom + 4 + "px", $.style.display = "block", DA = 0, kA = "", EA = !0, NA();
+function FA() {
+	$ && ($.style.display = "none", $.innerHTML = ""), DA = !1, kA = -1, AA = "", jA = null;
 }
 function IA(e) {
+	jA = e;
+	let { view: t, state: n } = e, { from: r } = n.selection;
+	kA = n.doc.resolve(r).start(), $ || ($ = document.createElement("div"), $.className = "slash-menu", $.style.cssText = "position:fixed;z-index:100000;", document.body.appendChild($));
+	let i = t.coordsAtPos(r);
+	$.style.left = Math.max(0, i.left) + "px", $.style.top = i.bottom + 4 + "px", $.style.display = "block", OA = 0, AA = "", DA = !0, PA();
+}
+function LA(e) {
 	if (!e) return;
 	let { doc: t, selection: n } = e.state, { $from: r } = n;
 	if (r.parent.type.name === "codeBlock") {
-		EA && PA();
+		DA && FA();
 		return;
 	}
 	if (!e.isFocused) return;
-	let i = r.pos, a = jA(t, i);
-	if (a === "/" && !EA) {
-		FA(e);
+	let i = r.pos, a = MA(t, i);
+	if (a === "/" && !DA) {
+		IA(e);
 		return;
 	}
-	if (EA) if (a.startsWith("/")) {
+	if (DA) if (a.startsWith("/")) {
 		let e = a.slice(1);
-		e !== kA && (kA = e, DA = 0, NA());
-	} else PA();
+		e !== AA && (AA = e, OA = 0, PA());
+	} else FA();
 }
-function LA() {
-	if (!EA || !$) return;
-	let e = xA.filter((e) => e.title.toLowerCase().includes(kA) || e.desc.toLowerCase().includes(kA))[DA];
+function RA() {
+	if (!DA || !$) return;
+	let e = xA.filter((e) => e.title.toLowerCase().includes(AA) || e.desc.toLowerCase().includes(AA))[OA];
 	if (!e) {
-		PA();
+		FA();
 		return;
 	}
-	let t = AA;
+	let t = jA;
 	if (!t) {
-		PA();
+		FA();
 		return;
 	}
-	let { view: n } = t, r = n.state.selection.from, i = OA;
-	PA();
+	let { view: n } = t, r = n.state.selection.from, i = kA;
+	FA();
 	try {
 		n.dispatch(n.state.tr.delete(i, r)), e.run(t), t.commands.focus();
 	} catch (e) {
 		console.error("runSlashItem error:", e);
 	}
 }
-var RA = /* @__PURE__ */ new Map();
-function zA(e) {
-	let t = wA();
+var zA = /* @__PURE__ */ new Map();
+function BA(e) {
+	let t = TA();
 	t.onchange = async () => {
 		let n = t.files?.[0];
 		if (!n) return;
-		let r = await TA(n);
+		let r = await EA(n);
 		r && e.chain().focus().setImage({ src: r }).run(), t.value = "";
 	}, t.click();
 }
-function BA() {
+function VA() {
 	return (e, t) => {
-		if (!EA) return !1;
-		let n = xA.filter((e) => e.title.toLowerCase().includes(kA) || e.desc.toLowerCase().includes(kA));
+		if (!DA) return !1;
+		let n = xA.filter((e) => e.title.toLowerCase().includes(AA) || e.desc.toLowerCase().includes(AA));
 		if (!n.length && ![
 			"ArrowDown",
 			"ArrowUp",
@@ -22297,22 +22312,22 @@ function BA() {
 			"Escape"
 		].includes(t.key)) return !1;
 		switch (t.key) {
-			case "ArrowDown": return n.length ? (t.preventDefault(), DA = (DA + 1) % n.length, NA(), !0) : !0;
-			case "ArrowUp": return n.length ? (t.preventDefault(), DA = (DA - 1 + n.length) % n.length, NA(), !0) : !0;
+			case "ArrowDown": return n.length ? (t.preventDefault(), OA = (OA + 1) % n.length, PA(), !0) : !0;
+			case "ArrowUp": return n.length ? (t.preventDefault(), OA = (OA - 1 + n.length) % n.length, PA(), !0) : !0;
 			case "Enter":
-			case "Tab": return t.preventDefault(), LA(), !0;
-			case "Escape": return t.preventDefault(), PA(), !0;
+			case "Tab": return t.preventDefault(), RA(), !0;
+			case "Escape": return t.preventDefault(), FA(), !0;
 			default: return !1;
 		}
 	};
 }
-function VA(e, t, ...n) {
+function HA(e, t, ...n) {
 	if (e) try {
 		e.invokeMethodAsync(t, ...n).catch(() => {});
 	} catch {}
 }
-function HA(e, t, n, r) {
-	UA(e);
+function UA(e, t, n, r) {
+	WA(e);
 	let i = document.getElementById(e);
 	if (!i) return null;
 	let a = {
@@ -22363,10 +22378,10 @@ function HA(e, t, n, r) {
 				class: "tiptap-editor",
 				"data-block-id": r
 			},
-			handleKeyDown: BA(),
+			handleKeyDown: VA(),
 			handlePaste(e, t) {
 				let n = t.clipboardData?.files;
-				if (n && n[0]?.type.startsWith("image/")) return t.preventDefault(), TA(n[0]).then((t) => {
+				if (n && n[0]?.type.startsWith("image/")) return t.preventDefault(), EA(n[0]).then((t) => {
 					t && e.dispatch(e.state.tr.replaceSelectionWith(e.state.schema.nodes.image.create(null, { src: t })));
 				}), !0;
 				let r = t.clipboardData?.getData("text/plain");
@@ -22380,7 +22395,7 @@ function HA(e, t, n, r) {
 						left: t.clientX,
 						top: t.clientY
 					});
-					return r && TA(n[0]).then((t) => {
+					return r && EA(n[0]).then((t) => {
 						t && e.dispatch(e.state.tr.insert(r.pos, e.state.schema.nodes.image.create(null, { src: t })));
 					}), !0;
 				}
@@ -22392,56 +22407,56 @@ function HA(e, t, n, r) {
 				a.firstUpdate = !1;
 				return;
 			}
-			VA(a.dotNetRef, "OnMarkdownChanged", a.blockId, e.getMarkdown()), IA(e);
+			HA(a.dotNetRef, "OnMarkdownChanged", a.blockId, e.getMarkdown()), LA(e);
 		},
 		onSelectionUpdate: ({ editor: e }) => {
-			EA && IA(e);
+			DA && LA(e);
 		},
-		onFocus: () => VA(a.dotNetRef, "OnFocus", a.blockId),
+		onFocus: () => HA(a.dotNetRef, "OnFocus", a.blockId),
 		onBlur: () => {
-			EA && PA(), VA(a.dotNetRef, "OnBlur", a.blockId);
+			DA && FA(), HA(a.dotNetRef, "OnBlur", a.blockId);
 		}
 	});
 	a.editor = o;
 	let s = document.getElementById("btn-upload-image");
 	if (s) {
-		let t = wA();
+		let t = TA();
 		t.onchange = async () => {
 			let n = t.files?.[0];
 			if (!n) return;
-			let r = RA.get(e)?.editor;
+			let r = zA.get(e)?.editor;
 			if (!r) return;
-			let i = await TA(n);
+			let i = await EA(n);
 			i && r.chain().focus().setImage({ src: i }).run(), t.value = "";
 		}, s.onclick = () => t.click();
 	}
 	let c = function(e) {
-		EA && $ && !$.contains(e.target) && !i.contains(e.target) && PA();
+		DA && $ && !$.contains(e.target) && !i.contains(e.target) && FA();
 	};
 	return document.addEventListener("mousedown", c), a.listeners.push({
 		type: "mousedown",
 		handler: c
-	}), RA.set(e, a), o;
-}
-function UA(e) {
-	let t = RA.get(e);
-	t && (t.listeners.forEach((e) => document.removeEventListener(e.type, e.handler)), t.listeners = [], t.dotNetRef = null, t.editor &&= (t.editor.destroy(), null), RA.delete(e));
+	}), zA.set(e, a), o;
 }
 function WA(e) {
-	return RA.get(e)?.editor?.getMarkdown() ?? "";
+	let t = zA.get(e);
+	t && (t.listeners.forEach((e) => document.removeEventListener(e.type, e.handler)), t.listeners = [], t.dotNetRef = null, t.editor &&= (t.editor.destroy(), null), zA.delete(e));
 }
-function GA(e, t) {
-	RA.get(e)?.editor?.commands.setContent(t, !1, "markdown");
+function GA(e) {
+	return zA.get(e)?.editor?.getMarkdown() ?? "";
 }
 function KA(e, t) {
-	RA.get(e)?.editor?.setEditable(t);
+	zA.get(e)?.editor?.commands.setContent(t, !1, "markdown");
 }
-function qA(e) {
-	RA.get(e)?.editor?.commands.focus();
+function qA(e, t) {
+	zA.get(e)?.editor?.setEditable(t);
 }
 function JA(e) {
-	RA.get(e)?.editor?.commands.blur();
+	zA.get(e)?.editor?.commands.focus();
 }
-window.initTipTap = HA, window.destroyTipTap = UA, window.getTipTapMarkdown = WA, window.setTipTapContent = GA, window.setTipTapEditable = KA, window.focusTipTap = qA, window.blurTipTap = JA;
+function YA(e) {
+	zA.get(e)?.editor?.commands.blur();
+}
+window.initTipTap = UA, window.destroyTipTap = WA, window.getTipTapMarkdown = GA, window.setTipTapContent = KA, window.setTipTapEditable = qA, window.focusTipTap = JA, window.blurTipTap = YA, window.changeCalloutType = CA;
 //#endregion
-export { JA as blurEditor, HA as createEditor, UA as destroyEditor, qA as focusEditor, WA as getMarkdown, GA as setContent, KA as setEditable };
+export { YA as blurEditor, UA as createEditor, WA as destroyEditor, JA as focusEditor, GA as getMarkdown, KA as setContent, qA as setEditable };

@@ -166,5 +166,5 @@
 /home/apollon/Sources/Yanoch/src/Yanoch.Web/obj/Debug/net10.0/Yanoch.Web.genruntimeconfig.cache
 /home/apollon/Sources/Yanoch/src/Yanoch.Web/obj/Debug/net10.0/ref/Yanoch.Web.dll
 /home/apollon/Sources/Yanoch/src/Yanoch.Web/obj/Debug/net10.0/compressed/y22vdmsggk-{0}-otuk1zj5dx-otuk1zj5dx.gz
-/home/apollon/Sources/Yanoch/src/Yanoch.Web/obj/Debug/net10.0/compressed/dezmg131w3-{0}-ynrks8y4mm-ynrks8y4mm.gz
-/home/apollon/Sources/Yanoch/src/Yanoch.Web/obj/Debug/net10.0/compressed/36dyj36ceo-{0}-f7lbehw7ld-f7lbehw7ld.gz
+/home/apollon/Sources/Yanoch/src/Yanoch.Web/obj/Debug/net10.0/compressed/dezmg131w3-{0}-wlgja40u0q-wlgja40u0q.gz
+/home/apollon/Sources/Yanoch/src/Yanoch.Web/obj/Debug/net10.0/compressed/36dyj36ceo-{0}-0vlqqjil3e-0vlqqjil3e.gz

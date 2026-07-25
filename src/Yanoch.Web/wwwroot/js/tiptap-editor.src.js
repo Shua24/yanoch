@@ -1,4 +1,4 @@
-import { Editor } from '@tiptap/core'
+import { Editor, Node } from '@tiptap/core'
 import StarterKit from '@tiptap/starter-kit'
 import Underline from '@tiptap/extension-underline'
 import Link from '@tiptap/extension-link'
@@ -8,7 +8,74 @@ import TaskItem from '@tiptap/extension-task-item'
 import { Markdown } from '@tiptap/markdown'
 import Placeholder from '@tiptap/extension-placeholder'
 import { DragHandle } from '@tiptap/extension-drag-handle'
-import { Node } from '@tiptap/core'
+
+// ─── Callout type defs ─────────────────────────────────────────
+const calloutTypes = [
+  { id: 'info',    icon: 'ℹ️',  label: 'Info' },
+  { id: 'warning', icon: '⚠️', label: 'Warning' },
+  { id: 'success', icon: '✅', label: 'Success' },
+  { id: 'error',   icon: '❌', label: 'Error' },
+  { id: 'gray',    icon: '⚪', label: 'Gray' },
+  { id: 'brown',   icon: '🟤', label: 'Brown' },
+  { id: 'orange',  icon: '🟠', label: 'Orange' },
+  { id: 'yellow',  icon: '🟡', label: 'Yellow' },
+  { id: 'green',   icon: '🟢', label: 'Green' },
+  { id: 'blue',    icon: '🔵', label: 'Blue' },
+  { id: 'purple',  icon: '🟣', label: 'Purple' },
+  { id: 'pink',    icon: '🩷', label: 'Pink' },
+  { id: 'red',     icon: '🔴', label: 'Red' },
+]
+const typeById = Object.fromEntries(calloutTypes.map(t => [t.id, t]))
+
+// ─── Callout node ─────────────────────────────────────────────
+const Callout = Node.create({
+  name: 'callout',
+  content: 'block+',
+  group: 'block',
+  defining: true,
+  addAttributes() {
+    return { type: { default: 'info' } }
+  },
+  parseHTML() {
+    return [{ tag: 'div[data-callout]' }]
+  },
+  renderHTML({ HTMLAttributes }) {
+    const type = HTMLAttributes.type || 'info'
+    const t = typeById[type] || typeById.info
+    return ['div', { 'data-callout': '', 'data-type': type, class: 'callout callout--' + type },
+      ['div', { class: 'callout-icon', contenteditable: 'false' }, t.icon],
+      ['select', { class: 'callout-type-picker', contenteditable: 'false', onchange: 'changeCalloutType(this)' },
+        ...calloutTypes.map(ct =>
+          ['option', { value: ct.id, selected: type === ct.id }, ct.label]
+        ),
+      ],
+      ['div', { class: 'callout-content' }, 0],
+    ]
+  },
+
+  addCommands() {
+    return {
+      setCallout: (attrs = {}) => ({ commands }) => {
+        return commands.wrapIn(this.name, attrs)
+      },
+    }
+  },
+})
+
+// ─── Callout type change handler ────────────────────────────────
+function changeCalloutType(selectEl) {
+  const calloutEl = selectEl.closest('[data-callout]')
+  if (!calloutEl) return
+  const type = selectEl.value
+  const oldType = calloutEl.dataset.type
+  if (oldType === type) return
+  calloutEl.dataset.type = type
+  calloutEl.className = 'callout callout--' + type
+  const iconEl = calloutEl.querySelector('.callout-icon')
+  if (iconEl) {
+    iconEl.textContent = typeById[type]?.icon || '📌'
+  }
+}
 
 // ─── Slash item definitions ──────────────────────────────────────
 const slashItems = [
@@ -23,72 +90,8 @@ const slashItems = [
   { title: 'Code Block',    desc: 'Code fence',                icon: '</>', run: e => e.chain().focus().clearNodes().toggleCodeBlock().run() },
   { title: 'Divider',       desc: 'Horizontal rule',           icon: '—',   run: e => e.chain().focus().setHorizontalRule().run() },
   { title: 'Image',         desc: 'Upload an image',            icon: '🖼️',  run: e => { triggerImageUpload(e); } },
-  { title: 'Callout',       desc: 'Colored callout',            icon: '📌',  run: e => e.chain().focus().clearNodes().setCallout().run() },
+  { title: 'Callout',       desc: 'Colored callout box',        icon: '📌',  run: e => e.chain().focus().clearNodes().setCallout().run() },
 ]
-
-// ─── Callout node ─────────────────────────────────────────────
-const Callout = Node.create({
-  name: 'callout',
-  content: 'block+',
-  group: 'block',
-  defining: true,
-  addAttributes() {
-    return {
-      type: { default: 'info' },
-    }
-  },
-  parseHTML() {
-    return [{ tag: 'div[data-callout]' }]
-  },
-  renderHTML({ HTMLAttributes }) {
-    const type = HTMLAttributes.type || 'info'
-    const icon = { info: 'ℹ️', warning: '⚠️', success: '✅', error: '❌' }[type] || '📌'
-    return ['div', { 'data-callout': '', 'data-type': type, class: 'callout callout--' + type },
-      ['div', { class: 'callout-icon' }, icon],
-      ['select', { class: 'callout-type-picker', 'data-type': type, onchange: 'changeCalloutType(this)' },
-        ['option', { value: 'info', selected: type === 'info' }, 'Info'],
-        ['option', { value: 'warning', selected: type === 'warning' }, 'Warning'],
-        ['option', { value: 'success', selected: type === 'success' }, 'Success'],
-        ['option', { value: 'error', selected: type === 'error' }, 'Error']
-      ],
-      ['div', { class: 'callout-content' }, 0]
-    ]
-  },
-  addCommands() {
-    return {
-      setCallout: (attrs = {}) => ({ commands }) => {
-        return commands.wrapIn(this.name, attrs)
-      },
-    }
-  },
-  addInputRules() {
-    return [
-      {
-        find: /^> \[!(\w+)\]\s$/,
-        handler: ({ range, match }) => {
-          const type = match[1] || 'info'
-          return range.from + range.text.length
-        },
-      },
-    ]
-  },
-})
-
-// ─── Callout type change handler ────────────────────────────────
-function changeCalloutType(selectEl) {
-  const calloutEl = selectEl.closest('[data-callout]')
-  if (!calloutEl) return
-  const type = selectEl.value
-  const oldType = calloutEl.dataset.type
-  if (oldType === type) return
-  calloutEl.dataset.type = type
-  calloutEl.className = calloutEl.className.replace(/callout--\w+/g, '') + ' callout--' + type
-  const iconEl = calloutEl.querySelector('.callout-icon')
-  if (iconEl) {
-    const icons = { info: 'ℹ️', warning: '⚠️', success: '✅', error: '❌' }
-    iconEl.textContent = icons[type] || '📌'
-  }
-}
 
 // ─── Image upload (one-off) ─────────────────────────────────────
 let imageInputEl = null
@@ -296,15 +299,18 @@ export function createEditor(elementId, content, dotNetRef, blockId) {
       Image.configure({ inline: false, allowBase64: true, HTMLAttributes: { class: 'editor-image' } }),
       TaskList,
       TaskItem.configure({ nested: true }),
-      // StarterKit codeBlock already enabled (codeBlock: true by default)
       Placeholder.configure({ placeholder: "Type '/' for commands…" }),
-      Markdown.configure({ html: false }),
+      Markdown.configure({
+        html: true,
+        transformCopiedText: true,
+        transformPastedText: true,
+      }),
       DragHandle.configure({
         nested: true,
         render() {
           const el = document.createElement('div')
           el.classList.add('drag-handle')
-          el.innerHTML = '⠿'
+          el.innerHTML = '⣿'
           el.title = 'Drag to reorder'
           return el
         },
