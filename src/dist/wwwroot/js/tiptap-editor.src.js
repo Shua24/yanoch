@@ -7,6 +7,7 @@ import TaskList from '@tiptap/extension-task-list'
 import TaskItem from '@tiptap/extension-task-item'
 import { Markdown } from '@tiptap/markdown'
 import Placeholder from '@tiptap/extension-placeholder'
+import { DragHandle } from '@tiptap/extension-drag-handle'
 
 // ─── Slash item definitions ──────────────────────────────────────
 const slashItems = [
@@ -232,6 +233,16 @@ export function createEditor(elementId, content, dotNetRef, blockId) {
       // StarterKit codeBlock already enabled (codeBlock: true by default)
       Placeholder.configure({ placeholder: "Type '/' for commands…" }),
       Markdown.configure({ html: false }),
+      DragHandle.configure({
+        nested: true,
+        render() {
+          const el = document.createElement('div')
+          el.classList.add('drag-handle')
+          el.innerHTML = '⠿'
+          el.title = 'Drag to reorder'
+          return el
+        },
+      }),
     ],
     content: content || '',
     contentType: 'markdown',

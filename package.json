@@ -1,5 +1,7 @@
 {
   "dependencies": {
+    "@tiptap/extension-drag-handle": "^3.29.0",
+    "@tiptap/extension-gapcursor": "^3.29.0",
     "@tiptap/extension-image": "^3.29.0",
     "@tiptap/extension-link": "^3.29.0",
     "@tiptap/extension-placeholder": "^3.29.0",
