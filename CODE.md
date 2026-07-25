@@ -1,285 +1,195 @@
 # Yanoch Codebase Documentation
 
-This document provides an overview of the Yanoch codebase structure and recent changes.
+This document provides an overview of the Yanoch codebase structure, architecture, and current state.
 
-## Recent Changes
+## Architecture Overview
 
-### July 2026 ? Editor UX & Image Stability
+- **Backend:** .NET 10 Blazor Server (Interactive Server rendering)
+- **Frontend:** TipTap (ProseMirror) rich text editor via JS interop
+- **Database:** SQLite via Entity Framework Core
+- **Auth:** ASP.NET Core Identity
+- **Build:** Vite (frontend) + dotnet build (backend)
 
-**Markdown rendering:** Replaced regex-based formatting with **Markdig** for full markdown support (`# headers`, `**bold**`, `*italic*`, `` `code` ``, `~~strikethrough~~`, `[links](url)`, `- lists`, `1. ordered`, `> quotes`, `---`, `| tables |`, and more). Wiki links `[[page]]` are converted to markdown links before processing.
+## Reality: Markdown Source of Truth
 
-**Emoji picker:** Replaced the plain text icon input with a clickable icon display that opens an emoji grid (50 emojis, 10?5 layout, 50?50 buttons). Selection immediately saves via `SavePageAsync()`.
+The editor uses **TipTap** with the `@tiptap/markdown` extension. `Page.Content` stores raw markdown. The editor mounts via JS interop and pushes changes back to the Blazor circuit as the user types.
 
-**Block auto-focus on Enter/Backspace:**
-- **Enter** (from a block) ? saves current block, creates a new text block below, auto-focuses it in edit mode
-- **Backspace** (on empty block) ? deletes block, auto-focuses the previous block in edit mode
-- Uses `ElementReference.FocusAsync()` (Blazor built-in) for focus, tracked via `_focusBlockId` + `_focusVersion` counter to prevent focus-stealing on re-render
-
-**Auto-resize textarea:** `field-sizing: content` CSS makes block textareas grow with content instantly. JS `watchBlockInputScroll` keeps the cursor visible when typing past the viewport.
-
-**Drag-and-drop block reordering:** Rewrote `setupBlockDragAndDrop` JS to use event delegation (survives re-renders), physically reorder DOM elements on drop, and send new block order to the server via `DotNetObjectReference`. `HandleBlockReorder` persists the new order via `RenumberBlocksAsync`.
-
-**Image edit stability:**
-- Image blocks show the current image in both view and edit modes (no "vanishing" appearance)
-- Image URLs include a `?v=<page-unique-guid>` cache buster tied to page navigation
-- All EF Core read queries use `.AsNoTracking()` ? always fetches fresh data, no stale tracked entities
-- All writes use raw SQL ? clean separation, no change-tracker conflicts
-- Image deletion is only possible via block deletion (? button or Backspace)
-
-**Auto-resize listener re-attach:** `_inputListenerAttached` is reset on every edit re-entry (`StartEdit`, `OnParametersSet`), so `watchBlockInputScroll` always re-attaches to freshly created textarea elements.
-
-**Block content length limit:** 10,000 character `maxlength` on all inputs/textareas, server-side truncation enforced in `HandleBlockUpdate`.
+Dead-code removal history:
+- Removed: `BlockEditor.razor`, `BlockDto.cs`, `BlockType.cs`, `Block.cs`, `CreateBlockDto`/`MoveBlockDto`, `interop.js`
+- Removed: `Block` domain model, `BlockRepository`, block-related EF config
+- The `Blocks` DB table still exists (rollback safety) but is unused.
 
 ## Project Structure
 
 ```
 src/
-├── Yanoch.Application/      # Application layer (DTOs, services, interfaces)
-├── Yanoch.Domain/           # Domain layer (models, enums, interfaces)
-├── Yanoch.Infrastructure/   # Infrastructure layer (repositories, data access)
-└── Yanoch.Web/              # Web layer (Blazor components, controllers, pages)
+├── Yanoch.Application/          # Application layer
+│   ├── DTOs/
+│   │   ├── PageDto.cs           # Page read model
+│   │   ├── CreatePageDto.cs     # Page creation DTO
+│   │   ├── SetContentDto.cs     # Content update DTO
+│   │   ├── PageVersionDto.cs    # Version history model
+│   │   ├── TagDto.cs            # Tag model
+│   │   ├── BacklinkDto.cs       # Backlink model
+│   │   └── SearchResultDto.cs   # Search result model
+│   ├── Interfaces/
+│   │   ├── IPageService.cs      # Page CRUD + content + search + versions
+│   │   ├── ITagService.cs       # Tag management
+│   │   └── IFileStorageService.cs
+│   └── Services/
+│       ├── PageService.cs       # Core page orchestration + backlink extraction
+│       └── TagService.cs
+├── Yanoch.Domain/               # Domain layer
+│   ├── Models/
+│   │   ├── Page.cs              # Title, Icon, Content (markdown), ParentPageId, tags, backlinks
+│   │   ├── PageVersion.cs       # Historical versions (snapshot on significant edits)
+│   │   ├── Backlink.cs          # Source→Target page references (parsed from [[wiki links]])
+│   │   ├── PageTag.cs           # Many-to-many Page↔Tag
+│   │   └── Tag.cs               # Name + color
+│   └── Interfaces/
+│       ├── IPageRepository.cs
+│       ├── IPageVersionRepository.cs
+│       ├── IBacklinkRepository.cs
+│       └── ITagRepository.cs
+├── Yanoch.Infrastructure/        # Data access
+│   ├── Data/
+│   │   ├── AppDbContext.cs       # EF Core context (Pages, Tags, PageVersions, Backlinks)
+│   │   └── Repositories/
+│   │       ├── PageRepository.cs     # Content queries via raw SQL (no tracking)
+│   │       ├── PageVersionRepository.cs
+│   │       ├── BacklinkRepository.cs
+│   │       └── TagRepository.cs
+│   ├── Migrations/
+│   │   ├── 20260722235320_InitialCreate.cs
+│   │   └── 20260725094535_AddPageContent.cs   # Adds Page.Content column
+│   └── Services/
+│       └── LocalFileStorageService.cs
+└── Yanoch.Web/                  # Web layer
+    ├── Components/
+    │   ├── App.razor            # Root layout, loads tiptap-editor.js?v=2
+    │   ├── Routes.razor
+    │   ├── Layout/
+    │   │   ├── MainLayout.razor # Sidebar + page tree
+    │   │   ├── AuthLayout.razor
+    │   │   ├── PageTree.razor   # Hierarchical page navigation
+    │   │   └── PageTreeNode.razor
+    │   ├── Pages/
+    │   │   ├── Editor.razor     # Page editor with TipTap mount
+    │   │   ├── Home.razor       # Landing page
+    │   │   ├── Search.razor
+    │   │   ├── Login.razor / Register.razor / Logout.razor
+    │   │   └── Error.razor
+    │   └── Shared/
+    │       └── ImageUpload.razor
+    ├── Controllers/
+    │   └── Api/
+    │       ├── PagesController.cs    # REST API for pages
+    │       ├── UploadController.cs   # Image file upload
+    │       ├── SearchController.cs
+    │       └── TagsController.cs
+    ├── wwwroot/
+    │   ├── js/
+    │   │   ├── tiptap-editor.src.js  # Source (Vite entry point)
+    │   │   └── tiptap-editor.js      # Built output (committed)
+    │   └── app.css                   # All styles
+    └── Program.cs                    # Entry: DI, migrations, middleware
 ```
 
-## Recent Changes: Image Block Feature Implementation
+## Editor Architecture
 
-### Overview
+### JS (tiptap-editor.src.js)
 
-Added complete image block support to the Yanoch editor, allowing users to upload, embed, and view images within pages.
+Entry point built by Vite. Exports Blazor-interop functions:
 
-### New Files Created
+| Function | Called from C# | Purpose |
+|---|---|---|
+| `initTipTap(elementId, content, dotNetRef, blockId)` | `OnAfterRenderAsync` | Create editor instance |
+| `destroyTipTap(elementId)` | `OnBeforeUnmount` / route change | Destroy + cleanup |
 
-#### 1. File Storage Service
+Editor config:
+- **Extensions:** StarterKit, Underline, Link, Image, TaskList, TaskItem, Placeholder, Markdown
+- **contentType:** `'markdown'` (TipTalk parses initial content as markdown)
+- **Markdown API:** `editor.getMarkdown()` (the `@tiptap/markdown` extension exposes this on the editor object directly, not via `editor.storage`)
 
-**`src/Yanoch.Application/Interfaces/IFileStorageService.cs`**
+### Per-instance State
+
+Instances tracked in a `Map<elementId, { editor, dotNetRef, blockId, firstUpdate, listeners }>`. The `firstUpdate` flag skips the initial `onUpdate` that fires during editor construction (initial content parse — not a user edit). All Blazor `invokeMethodAsync` calls use an `invokeCb` wrapper that silently swallows errors when the circuit is gone.
+
+### Slash Command Menu
+
+Custom implementation (not `@tiptap/suggestion`). Module-level singleton:
+
+- **Detection:** `onUpdate` callback calls `checkSlash(editor)` — checks if cursor is at start of line with `/`, opens menu.
+- **Navigation:** `handleKeyDown` in `editorProps` intercepts ArrowUp/Down/Enter/Tab/Escape when `slashActive` is true.
+- **Execution:** `runSlashItem` — saves editor ref, closes menu, deletes the `/` text, runs the command.
+- **Timing fix:** `closeSlash()` called *before* `view.dispatch()` to prevent re-entrant `onUpdate` → `checkSlash` → `closeSlash` race.
+- **Code block guard:** Slash menu not triggered inside `codeBlock` nodes.
+
+### Image Upload
+
+- Hidden `<input type="file">` created once (`ensureImageInput()`)
+- Triggered by: slash menu "Image" command, paste image, drag-drop, or `#btn-upload-image` button
+- Uploads to `POST /api/upload` → stored in `wwwroot/uploads/` by `LocalFileStorageService`
+
+### Known Issues / Edge Cases
+
+- `onUpdate` first-fire skipped via `firstUpdate` flag to prevent spurious content saves on page load
+- Blazor circuit disconnect handled gracefully by `invokeCb`
+- Outside-click listener tracked per-instance for proper cleanup
+
+## Backend
+
+### PageService
+
+- `GetContentAsync` / `SetContentAsync` — direct content read/write via repository
+- `SetContentAsync` triggers `UpdateBacklinksFromContent` — regex-extracts `[[wiki links]]` from markdown, creates/updates `Backlink` records
+- All DB reads use `AsNoTracking()` for freshness
+
+### PageRepository (content operations)
+
 ```csharp
-public interface IFileStorageService
-{
-    Task<string> SaveAsync(Stream fileStream, string fileName);
-    Task DeleteAsync(string fileUrl);
-}
+// Raw SQL to avoid EF Core change tracker conflicts
+await _db.Database.ExecuteSqlRawAsync(
+    "UPDATE \"Pages\" SET \"Content\" = {0}, \"UpdatedAt\" = {1} WHERE \"Id\" = {2}",
+    content, DateTime.UtcNow, pageId);
 ```
-
-**`src/Yanoch.Infrastructure/Services/LocalFileStorageService.cs`**
-- Implements local file storage to `wwwroot/uploads/`
-- Validates file types (png, jpg, jpeg, gif, webp, svg)
-- Enforces 10MB file size limit
-- Generates unique filenames to prevent conflicts
-
-#### 2. Upload API Controller
-
-**`src/Yanoch.Web/Controllers/Api/UploadController.cs`**
-- `POST /api/upload` endpoint (authorized)
-- Accepts `multipart/form-data` file uploads
-- Returns `{ url: "/uploads/..." }`
-- Includes proper error handling
-
-#### 3. Image Upload Component
-
-**`src/Yanoch.Web/Components/Shared/ImageUpload.razor`**
-- Reusable Blazor component for file uploads
-- Handles file selection with validation
-- Shows upload progress and error states
-- Returns image URL via `OnUploadComplete` callback
-
-### Modified Files
-
-#### 1. Block Editor Component
-
-**`src/Yanoch.Web/Components/Shared/BlockEditor.razor`**
-
-**Added:**
-- Image block icon (🖼️) in block type switch
-- Image rendering in view mode: `<img src="@Block.Content" />`
-- Image upload interface in edit mode with Change/Remove buttons
-- `HandleImageUpload()` and `RemoveImage()` methods
-
-**CSS Classes Added:**
-- `.image-render` - Styled image display
-- `.image-placeholder` - Empty state styling
-- `.image-upload-area` - Upload controls container
-
-#### 2. Editor Page
-
-**`src/Yanoch.Web/Components/Pages/Editor.razor`**
-
-**Added:**
-- "🖼️ Image" button in editor header
-- `AddImageBlock()` method for one-click image block creation
-- Modified `AddBlockAtEnd()` to accept block type parameter
-
-#### 3. CSS Styles
-
-**`src/Yanoch.Web/wwwroot/app.css`**
-
-**Added:**
-```css
-/* IMAGE BLOCK */
-.image-render {
-    max-width: 100%;
-    max-height: 600px;
-    border-radius: var(--radius);
-    margin: 4px 0;
-    cursor: pointer;
-}
-
-.image-render:hover {
-    opacity: 0.9;
-}
-
-.image-placeholder {
-    padding: 12px 0;
-    color: var(--text-tertiary);
-    font-style: italic;
-    cursor: pointer;
-}
-
-/* IMAGE UPLOAD COMPONENT */
-.image-upload-component {
-    display: inline-block;
-}
-
-.btn-upload, .btn-remove {
-    padding: 4px 12px;
-    border-radius: var(--radius);
-    font-size: 12px;
-    cursor: pointer;
-    border: 1px solid var(--border);
-    background: white;
-}
-
-.btn-upload:hover {
-    background: var(--sidebar-hover);
-    border-color: var(--accent);
-    color: var(--accent);
-}
-
-.btn-remove:hover {
-    background: #fef2f2;
-    border-color: var(--warning);
-    color: var(--warning);
-}
-
-.btn-add-image {
-    background: none;
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: 6px 12px;
-    font-size: 13px;
-    color: var(--text-primary);
-    cursor: pointer;
-}
-
-.btn-add-image:hover {
-    background: var(--sidebar-hover);
-    border-color: var(--accent);
-    color: var(--accent);
-}
-```
-
-#### 4. Dependency Injection
-
-**`src/Yanoch.Infrastructure/DependencyInjection.cs`**
-
-**Added:**
-```csharp
-services.AddScoped<Yanoch.Application.Interfaces.IFileStorageService, Services.LocalFileStorageService>();
-```
-
-#### 5. Project Configuration
-
-**Updated all `.csproj` files:**
-- Changed target framework from `net8.0` to `net10.0` for compatibility
-
-### Block Type Support
-
-The `BlockType` enum already included `Image = 12`, so no changes were needed to the domain model.
-
-## Usage
-
-### Creating an Image Block
-
-1. **Method 1**: Click the "🖼️ Image" button in the editor header
-2. **Method 2**: Add a regular block, then change its type to "image" (future enhancement)
-
-### Uploading an Image
-
-1. Click on an image block to enter edit mode
-2. Click "Change Image" button
-3. Select an image file (png, jpg, jpeg, gif, webp, svg)
-4. Image uploads and displays automatically
-
-### Managing Images
-
-- **Remove Image**: Click "Remove Image" button in edit mode
-- **Change Image**: Click "Change Image" button to upload a different image
-
-## Technical Details
-
-### File Storage
-
-- **Location**: `wwwroot/uploads/`
-- **Naming**: Unique GUID filenames to prevent conflicts
-- **Validation**: 10MB max size, specific file extensions only
-- **URL Format**: `/uploads/{guid}.{extension}`
-
-### Block Data Structure
-
-Image blocks use the standard `Block` model:
-- `Type`: "image"
-- `Content`: URL to the image file (e.g., "/uploads/abc123.jpg")
-- `Metadata`: (Future use for captions, alt text, etc.)
 
 ### API Endpoints
 
-**POST `/api/upload`**
-- **Authentication**: Required (authorized users only)
-- **Request**: `multipart/form-data` with file
-- **Response**: `{ url: string }`
-- **Status Codes**:
-  - `200 OK`: Success
-  - `400 Bad Request`: Invalid file or validation error
-  - `401 Unauthorized`: Not authenticated
+| Method | Route | Auth | Purpose |
+|---|---|---|---|
+| GET | `/api/pages/tree` | Yes | Root page tree |
+| GET | `/api/pages/{id}` | Yes | Page detail |
+| GET | `/api/pages/{id}/content` | Yes | Raw markdown content |
+| PUT | `/api/pages/{id}/content` | Yes | Save markdown |
+| POST | `/api/pages` | Yes | Create page |
+| PUT | `/api/pages/{id}` | Yes | Update metadata |
+| DELETE | `/api/pages/{id}` | Yes | Soft-delete |
+| POST | `/api/upload` | Yes | Image file upload |
 
-## Future Enhancements
+## DB Schema
 
-1. **Complete Upload API Integration**: Connect ImageUpload component to actual API
-2. **Image Captions**: Add caption support via block metadata
-3. **Drag-and-Drop Upload**: Implement drag-and-drop file upload
-4. **Image Resizing**: Add thumbnail generation
-5. **Cloud Storage**: Replace local storage with S3/MinIO
-6. **Block Type Switcher**: Add UI to change block types
-7. **Image Gallery**: Add image selection from existing uploads
+```sql
+Pages: Id, Title, Icon, CoverUrl, UserId, ParentPageId, SortOrder,
+       IsDeleted, CreatedAt, UpdatedAt, DeletedAt, Content (TEXT)
 
-## Build and Run
-
-```bash
-# Build the application
-cd D:\Sourcecodes\Yanoch
-dotnet build
-
-# Run the application
-dotnet run --project src/Yanoch.Web
-
-# Access at: http://localhost:5072
+Blocks: (table retained but unused — rollback safety)
 ```
 
-## Testing
+## Build & Run
 
-The implementation has been tested for:
-- ✅ Successful build
-- ✅ Application startup
-- ✅ Page rendering
-- ✅ Image block creation
-- ✅ Image block rendering
-- ✅ Upload interface functionality
+```bash
+# Frontend
+npm install
+npx vite build       # outputs src/dist/wwwroot/js/tiptap-editor.js
+cp src/dist/wwwroot/js/tiptap-editor.js src/Yanoch.Web/wwwroot/js/
 
-## Dependencies
+# Backend
+dotnet run --project src/Yanoch.Web
 
-- .NET 10.0 SDK
-- Entity Framework Core
-- SQLite (default) or PostgreSQL
-- Blazor Server
+# Or use the convenience wrapper:
+./build.sh    # JS build
+./run.sh      # JS build + dotnet run
+```
 
-## License
-
-This code is part of the Yanoch project and follows the project's licensing terms.
+The app runs at `http://localhost:5072`.
