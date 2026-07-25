@@ -22097,7 +22097,10 @@ var yA = {
 		return { type: { default: "info" } };
 	},
 	parseHTML() {
-		return [{ tag: "div[data-callout]" }];
+		return [{
+			tag: "div[data-callout]",
+			getAttrs: (e) => ({ type: (e.getAttribute("data-type") || "info").toLowerCase() })
+		}];
 	},
 	renderHTML({ HTMLAttributes: e }) {
 		let t = e.type || "info", n = SA[t] || SA.info;

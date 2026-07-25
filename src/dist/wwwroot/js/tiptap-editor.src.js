@@ -37,7 +37,12 @@ const Callout = Node.create({
     return { type: { default: 'info' } }
   },
   parseHTML() {
-    return [{ tag: 'div[data-callout]' }]
+    return [{
+      tag: 'div[data-callout]',
+      getAttrs: el => ({
+        type: (el.getAttribute('data-type') || 'info').toLowerCase(),
+      }),
+    }]
   },
   renderHTML({ HTMLAttributes }) {
     const type = HTMLAttributes.type || 'info'
