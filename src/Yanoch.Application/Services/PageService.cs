@@ -61,6 +61,11 @@ public class PageService : IPageService
             UserId = userId,
             Content = dto.Content ?? ""
         };
+        if (dto.TagIds != null)
+        {
+            foreach (var tagId in dto.TagIds)
+                page.PageTags.Add(new PageTag { PageId = page.Id, TagId = tagId });
+        }
         await _pages.CreateAsync(page);
         return MapToDto(page);
     }

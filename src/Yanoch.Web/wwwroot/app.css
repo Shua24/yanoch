@@ -1244,8 +1244,43 @@ body {
 }
 
 /* --- Wiki Link Menu --- */
-.wiki-menu button:hover {
+.wiki-menu {
+    background: var(--surface, #fff);
+    border: 1px solid var(--border, #e0e0e0);
+    border-radius: 8px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+    padding: 6px;
+    min-width: 180px;
+    max-width: 300px;
+}
+.wiki-menu button {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    padding: 6px 10px;
+    border: none;
+    border-radius: 4px;
+    background: transparent;
+    font-size: 14px;
+    cursor: pointer;
+    text-align: left;
+    color: var(--text-primary, #1d1d1f);
+}
+.wiki-menu button:hover,
+.wiki-menu button.active {
     background: var(--hover-bg, #f0f0f0);
+}
+.wiki-icon {
+    flex: 0 0 20px;
+    font-size: 16px;
+}
+.wiki-text {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 /* --- TipTap Editor --- */
@@ -1379,48 +1414,124 @@ body {
 .callout--purple  { background: rgba(160, 80, 200, 0.08);  border-left-color: #a050c8; }
 .callout--pink    { background: rgba(220, 80, 160, 0.08);  border-left-color: #dc50a0; }
 .callout--red     { background: rgba(229, 72, 77, 0.10);  border-left-color: var(--warning, #e5484d); }
-.callout-icon {
-  flex: 0 0 20px;
-  font-size: 18px;
-  margin-top: 2px;
-}
-.callout-picker {
+.callout-side {
   display: flex;
+  flex-direction: column;
+  align-items: center;
   gap: 4px;
-  flex-wrap: wrap;
   flex: 0 0 auto;
   margin-top: 2px;
-  max-width: 104px;
+  min-width: 28px;
 }
-.callout-dot {
+.callout-icon-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 18px;
+  padding: 2px;
+  border-radius: 4px;
+  line-height: 1;
+  transition: background 0.1s ease;
+}
+.callout-icon-btn:hover {
+  background: rgba(0,0,0,0.08);
+}
+.callout-color-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 2px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.1s ease;
+}
+.callout-color-btn:hover {
+  background: rgba(0,0,0,0.08);
+}
+.callout-color-dot {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 2px solid var(--border, #ccc);
+  box-sizing: border-box;
+}
+.callout--info      .callout-color-dot { background: #2383e2; }
+.callout--warning   .callout-color-dot { background: #e5484d; }
+.callout--success   .callout-color-dot { background: #2ea043; }
+.callout--error     .callout-color-dot { background: #e5484d; }
+.callout--gray      .callout-color-dot { background: #9b9b9b; }
+.callout--brown     .callout-color-dot { background: #a07850; }
+.callout--orange    .callout-color-dot { background: #ffa500; }
+.callout--yellow    .callout-color-dot { background: #ffd200; }
+.callout--green     .callout-color-dot { background: #00c864; }
+.callout--blue      .callout-color-dot { background: #2383e2; }
+.callout--purple    .callout-color-dot { background: #a050c8; }
+.callout--pink      .callout-color-dot { background: #dc50a0; }
+.callout--red       .callout-color-dot { background: #e5484d; }
+
+/* --- Callout context menus (emoji + color picker) --- */
+.callout-menu {
+  background: var(--surface, #fff);
+  border: 1px solid var(--border, #e0e0e0);
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+  padding: 8px;
+}
+.callout-menu-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+}
+.callout-menu-item {
+  background: none;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 20px;
+  padding: 4px;
+  line-height: 1;
+  text-align: center;
+  transition: background 0.1s ease;
+}
+.callout-menu-item:hover,
+.callout-menu-item.active {
+  background: rgba(0,0,0,0.08);
+}
+.callout-menu-colors {
+  grid-template-columns: 1fr;
+  gap: 0;
+}
+.callout-menu-color {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 10px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  font-size: 14px;
+  cursor: pointer;
+  text-align: left;
+  color: var(--text-primary, #1d1d1f);
+}
+.callout-menu-color:hover,
+.callout-menu-color.active {
+  background: var(--hover-bg, #f0f0f0);
+}
+.callout-swatch {
   display: inline-block;
   width: 14px;
   height: 14px;
   border-radius: 50%;
-  cursor: pointer;
-  border: 2px solid transparent;
-  transition: border-color 0.12s ease, transform 0.12s ease;
-  box-sizing: border-box;
+  flex: 0 0 auto;
 }
-.callout-dot:hover {
-  transform: scale(1.2);
+.callout-label {
+  flex: 1;
 }
-.callout-dot.active {
-  border-color: var(--text-primary, #1d1d1f);
-}
-.callout-dot.callout--info    { background: var(--accent, #2383e2); }
-.callout-dot.callout--warning { background: var(--warning, #e5484d); }
-.callout-dot.callout--success { background: #2ea043; }
-.callout-dot.callout--error   { background: var(--warning, #e5484d); }
-.callout-dot.callout--gray    { background: #9b9b9b; }
-.callout-dot.callout--brown   { background: #a07850; }
-.callout-dot.callout--orange  { background: #ffa500; }
-.callout-dot.callout--yellow  { background: #ffd200; }
-.callout-dot.callout--green   { background: #00c864; }
-.callout-dot.callout--blue    { background: var(--accent, #2383e2); }
-.callout-dot.callout--purple  { background: #a050c8; }
-.callout-dot.callout--pink    { background: #dc50a0; }
-.callout-dot.callout--red     { background: var(--warning, #e5484d); }
 .callout-content {
   flex: 1;
   min-width: 0;

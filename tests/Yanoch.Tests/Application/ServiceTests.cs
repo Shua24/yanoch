@@ -43,7 +43,7 @@ public class PageServiceTests
             Id = Guid.NewGuid(),
             Title = "Test",
             UserId = _userId,
-            Blocks = { new Block { Content = "hello", SortOrder = 0 } }
+            Content = "# Hello"
         };
         _pages.Setup(r => r.GetByIdAsync(page.Id, _userId)).ReturnsAsync(page);
 
@@ -51,14 +51,13 @@ public class PageServiceTests
 
         Assert.NotNull(result);
         Assert.Equal("Test", result!.Title);
-        Assert.Single(result.Blocks);
-        Assert.Equal("hello", result.Blocks.First().Content);
+        Assert.Equal("# Hello", result.Content);
     }
 
     [Fact]
-    public async Task Create_WithoutBlocks_ReturnsDto()
+    public async Task Create_WithContent_ReturnsDto()
     {
-        var dto = new CreatePageDto { Title = "New Page" };
+        var dto = new CreatePageDto { Title = "New Page", Content = "initial content" };
         Page? captured = null;
         _pages.Setup(r => r.CreateAsync(It.IsAny<Page>()))
             .Callback<Page>(p => captured = p)
@@ -68,33 +67,22 @@ public class PageServiceTests
 
         Assert.NotNull(captured);
         Assert.Equal("New Page", result.Title);
+        Assert.Equal("initial content", captured.Content);
         Assert.Equal(_userId, captured.UserId);
-        Assert.Empty(captured.Blocks);
     }
 
     [Fact]
-    public async Task Create_WithBlocks_SavesBlocks()
+    public async Task Create_EmptyContent_DefaultsToEmptyString()
     {
-        var blockId = Guid.NewGuid();
-        var dto = new CreatePageDto
-        {
-            Title = "With Blocks",
-            Blocks =
-            [
-                new CreateBlockDto { Id = blockId, Type = "text", Content = "hi", SortOrder = 0 }
-            ]
-        };
-
+        var dto = new CreatePageDto { Title = "No Content" };
         Page? captured = null;
         _pages.Setup(r => r.CreateAsync(It.IsAny<Page>()))
             .Callback<Page>(p => captured = p)
             .ReturnsAsync(() => captured!);
 
-        var result = await _svc.CreateAsync(dto, _userId);
+        await _svc.CreateAsync(dto, _userId);
 
-        Assert.Single(captured!.Blocks);
-        Assert.Equal("hi", captured.Blocks.First().Content);
-        Assert.Equal(blockId, captured.Blocks.First().Id);
+        Assert.Equal("", captured!.Content);
     }
 
     [Fact]
@@ -151,7 +139,7 @@ public class PageServiceTests
     }
 
     [Fact]
-    public async Task Update_WithoutBlocks_CallsUpdate()
+    public async Task Update_UpdatesTitle()
     {
         var page = new Page { Id = Guid.NewGuid(), Title = "Old", UserId = _userId };
         _pages.Setup(r => r.GetByIdAsync(page.Id, _userId)).ReturnsAsync(page);
@@ -165,39 +153,37 @@ public class PageServiceTests
     }
 
     [Fact]
-    public async Task Update_WithBlocks_CallsUpdateBlocksAsync()
+    public async Task Update_WithNewTags_ReplacesTags()
     {
         var pageId = Guid.NewGuid();
+        var tagId = Guid.NewGuid();
         var page = new Page { Id = pageId, Title = "P", UserId = _userId };
-        var blockDto = new CreateBlockDto { Id = Guid.NewGuid(), Type = "text", Content = "updated", SortOrder = 0 };
-
         _pages.Setup(r => r.GetByIdAsync(pageId, _userId)).ReturnsAsync(page);
-        _pages.Setup(r => r.UpdateBlocksAsync(pageId, It.IsAny<List<Block>>())).Returns(Task.CompletedTask);
-        _backlinks.Setup(r => r.DeleteBySourcePageAsync(pageId)).Returns(Task.CompletedTask);
+        _pages.Setup(r => r.UpdateAsync(It.IsAny<Page>())).Returns(Task.CompletedTask);
+        _pages.Setup(r => r.GetByIdAsync(pageId, _userId)).ReturnsAsync(page);
 
-        var result = await _svc.UpdateAsync(pageId, new UpdatePageDto { Blocks = [blockDto] }, _userId);
+        var result = await _svc.UpdateAsync(pageId, new UpdatePageDto { TagIds = [tagId] }, _userId);
 
         Assert.NotNull(result);
-        _pages.Verify(r => r.UpdateBlocksAsync(pageId, It.IsAny<List<Block>>()), Times.Once);
+        Assert.Contains(page.PageTags, pt => pt.TagId == tagId);
     }
 
     [Fact]
-    public async Task Update_WithBlocks_ExtractsBacklinks()
+    public async Task SetContentAsync_UpdatesContentAndExtractsBacklinks()
     {
         var pageId = Guid.NewGuid();
         var targetId = Guid.NewGuid();
         var page = new Page { Id = pageId, Title = "Source", UserId = _userId };
-        var target = new Page { Id = targetId, Title = "Target", UserId = _userId };
-        var blockDto = new CreateBlockDto { Content = "see [[Target]]", SortOrder = 0 };
+        var target = new Page { Id = targetId, Title = "Target", UserId = _userId, ParentPageId = null };
 
-        _pages.Setup(r => r.GetByIdAsync(pageId, _userId)).ReturnsAsync(page);
-        _pages.Setup(r => r.UpdateBlocksAsync(pageId, It.IsAny<List<Block>>())).Returns(Task.CompletedTask);
+        _pages.Setup(r => r.SetContentAsync(pageId, "Hello [[Target]]")).Returns(Task.CompletedTask);
+        _pages.Setup(r => r.GetByIdAsync(pageId, Guid.Empty)).ReturnsAsync(page);
         _backlinks.Setup(r => r.DeleteBySourcePageAsync(pageId)).Returns(Task.CompletedTask);
         _pages.Setup(r => r.GetRootPagesAsync(_userId)).ReturnsAsync([page, target]);
         _pages.Setup(r => r.GetByParentAsync(It.IsAny<Guid>(), _userId)).ReturnsAsync([]);
         _backlinks.Setup(r => r.CreateAsync(It.IsAny<Backlink>())).Returns(Task.CompletedTask);
 
-        await _svc.UpdateAsync(pageId, new UpdatePageDto { Blocks = [blockDto] }, _userId);
+        await _svc.SetContentAsync(pageId, "Hello [[Target]]");
 
         _backlinks.Verify(r => r.CreateAsync(It.Is<Backlink>(b => b.TargetPageId == targetId)), Times.Once);
     }
@@ -213,56 +199,6 @@ public class PageServiceTests
         Assert.Single(result);
         Assert.Equal("Found", result[0].Title);
         Assert.Equal("📄", result[0].Icon);
-    }
-
-    [Fact]
-    public async Task AddBlock_DelegatesToRepo()
-    {
-        var pageId = Guid.NewGuid();
-        var dto = new CreateBlockDto { Type = "code", Content = "x = 1", SortOrder = 0 };
-        _pages.Setup(r => r.AddBlockAsync(It.IsAny<Block>())).Returns(Task.CompletedTask);
-
-        await _svc.AddBlockAsync(dto, pageId);
-
-        _pages.Verify(r => r.AddBlockAsync(It.Is<Block>(b => b.Content == "x = 1" && b.PageId == pageId)), Times.Once);
-    }
-
-    [Fact]
-    public async Task DeleteBlock_DelegatesToRepo()
-    {
-        var pageId = Guid.NewGuid();
-        var blockId = Guid.NewGuid();
-        var page = new Page { Id = pageId, UserId = _userId };
-        _pages.Setup(r => r.GetByIdAsync(pageId, _userId)).ReturnsAsync(page);
-        _pages.Setup(r => r.DeleteBlockAsync(blockId, pageId)).Returns(Task.CompletedTask);
-
-        await _svc.DeleteBlockAsync(pageId, blockId, _userId);
-
-        _pages.Verify(r => r.DeleteBlockAsync(blockId, pageId), Times.Once);
-    }
-
-    [Fact]
-    public async Task RenumberBlocks_DelegatesToRepo()
-    {
-        var pageId = Guid.NewGuid();
-        var ids = new List<Guid> { Guid.NewGuid(), Guid.NewGuid() };
-        _pages.Setup(r => r.RenumberBlocksAsync(pageId, ids)).Returns(Task.CompletedTask);
-
-        await _svc.RenumberBlocksAsync(pageId, ids);
-
-        _pages.Verify(r => r.RenumberBlocksAsync(pageId, ids), Times.Once);
-    }
-
-    [Fact]
-    public async Task UpdateBlockContent_DelegatesToRepo()
-    {
-        var pageId = Guid.NewGuid();
-        var blockId = Guid.NewGuid();
-        _pages.Setup(r => r.UpdateBlockContentAsync(blockId, "new", pageId)).Returns(Task.CompletedTask);
-
-        await _svc.UpdateBlockContentAsync(pageId, blockId, "new", _userId);
-
-        _pages.Verify(r => r.UpdateBlockContentAsync(blockId, "new", pageId), Times.Once);
     }
 
     [Fact]
@@ -296,7 +232,7 @@ public class PageServiceTests
     {
         var pageId = Guid.NewGuid();
         var page = new Page { Id = pageId, UserId = _userId };
-        var version = new PageVersion { Id = Guid.NewGuid(), VersionNumber = 1, Title = "v1", CreatedAt = DateTime.UtcNow };
+        var version = new PageVersion { Id = Guid.NewGuid(), VersionNumber = 1, Title = "v1", Content = "content", CreatedAt = DateTime.UtcNow };
 
         _pages.Setup(r => r.GetByIdAsync(pageId, _userId)).ReturnsAsync(page);
         _versions.Setup(r => r.GetByPageAsync(pageId)).ReturnsAsync([version]);
@@ -318,7 +254,7 @@ public class PageServiceTests
     }
 
     [Fact]
-    public async Task RestoreVersion_RestoresTitleAndBlocks()
+    public async Task RestoreVersion_RestoresTitleAndContent()
     {
         var pageId = Guid.NewGuid();
         var versionId = Guid.NewGuid();
@@ -328,17 +264,19 @@ public class PageServiceTests
             Id = versionId,
             PageId = pageId,
             Title = "restored",
-            BlocksJson = "[{\"Content\":\"restored block\"}]"
+            Content = "# Restored content"
         };
 
         _pages.Setup(r => r.GetByIdAsync(pageId, _userId)).ReturnsAsync(page);
         _versions.Setup(r => r.GetByIdAsync(versionId)).ReturnsAsync(version);
-        _pages.Setup(r => r.ReplaceBlocksAsync(pageId, It.IsAny<List<Block>>())).Returns(Task.CompletedTask);
+        _pages.Setup(r => r.UpdateAsync(It.IsAny<Page>())).Returns(Task.CompletedTask);
         _pages.Setup(r => r.GetByIdAsync(pageId, _userId)).ReturnsAsync(page);
 
         var result = await _svc.RestoreVersionAsync(pageId, versionId, _userId);
 
         Assert.NotNull(result);
+        Assert.Equal("restored", page.Title);
+        Assert.Equal("# Restored content", page.Content);
     }
 
     [Fact]

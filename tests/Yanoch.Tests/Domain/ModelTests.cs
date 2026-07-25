@@ -1,4 +1,3 @@
-using Yanoch.Domain.Enums;
 using Yanoch.Domain.Models;
 
 namespace Yanoch.Tests.Domain;
@@ -19,7 +18,6 @@ public class PageTests
         Assert.Equal(0, p.SortOrder);
         Assert.False(p.IsDeleted);
         Assert.Empty(p.Children);
-        Assert.Empty(p.Blocks);
         Assert.Empty(p.PageTags);
         Assert.Empty(p.Versions);
         Assert.Empty(p.Backlinks);
@@ -35,34 +33,12 @@ public class PageTests
         Assert.True(p.IsDeleted);
         Assert.NotNull(p.DeletedAt);
     }
-}
-
-public class BlockTests
-{
-    [Fact]
-    public void Block_Defaults()
-    {
-        var b = new Block();
-        Assert.NotEqual(Guid.Empty, b.Id);
-        Assert.Equal("text", b.Type);
-        Assert.Equal("", b.Content);
-        Assert.Null(b.Metadata);
-        Assert.Equal(0, b.SortOrder);
-        Assert.False(b.IsDeleted);
-        Assert.Null(b.ParentBlockId);
-        Assert.Empty(b.Children);
-    }
 
     [Fact]
-    public void Block_NestedChildren()
+    public void Page_ContentProperty()
     {
-        var parent = new Block { Id = Guid.NewGuid(), Content = "parent" };
-        var child = new Block { Id = Guid.NewGuid(), Content = "child", ParentBlockId = parent.Id };
-        parent.Children.Add(child);
-
-        Assert.Single(parent.Children);
-        Assert.Equal("child", parent.Children.First().Content);
-        Assert.Equal(parent.Id, child.ParentBlockId);
+        var p = new Page { Content = "# Hello\n\nWorld." };
+        Assert.Equal("# Hello\n\nWorld.", p.Content);
     }
 }
 
@@ -109,7 +85,7 @@ public class PageVersionTests
         Assert.NotEqual(Guid.Empty, v.Id);
         Assert.Equal(0, v.VersionNumber);
         Assert.Equal("", v.Title);
-        Assert.Equal("", v.BlocksJson);
+        Assert.Equal("", v.Content);
         Assert.Null(v.Description);
     }
 }
@@ -125,25 +101,5 @@ public class PageTagTests
 
         Assert.Equal(pageId, pt.PageId);
         Assert.Equal(tagId, pt.TagId);
-    }
-}
-
-public class BlockTypeTests
-{
-    [Fact]
-    public void BlockType_HasExpectedValues()
-    {
-        Assert.Equal(0, (int)BlockType.Text);
-        Assert.Equal(1, (int)BlockType.Heading1);
-        Assert.Equal(8, (int)BlockType.Code);
-        Assert.Equal(12, (int)BlockType.Image);
-        Assert.Equal(17, (int)BlockType.Embed);
-    }
-
-    [Fact]
-    public void BlockType_CoversAllNotionTypes()
-    {
-        var values = Enum.GetValues<BlockType>();
-        Assert.Equal(18, values.Length);
     }
 }

@@ -299,7 +299,7 @@
                 {
                     Title = page.Title,
                     Icon = page.Icon,
-                    Content = "",
+                    Content = page.Content ?? "",
                 }, currentUserId);
                 if (newPage != null)
                 {

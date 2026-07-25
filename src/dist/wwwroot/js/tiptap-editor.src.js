@@ -1,4 +1,4 @@
-import { Editor, Node } from '@tiptap/core'
+import { Editor, Node, createBlockMarkdownSpec } from '@tiptap/core'
 import StarterKit from '@tiptap/starter-kit'
 import Underline from '@tiptap/extension-underline'
 import Link from '@tiptap/extension-link'
@@ -7,61 +7,93 @@ import TaskList from '@tiptap/extension-task-list'
 import TaskItem from '@tiptap/extension-task-item'
 import { Markdown } from '@tiptap/markdown'
 import Placeholder from '@tiptap/extension-placeholder'
+import GapCursor from '@tiptap/extension-gapcursor'
 import { DragHandle } from '@tiptap/extension-drag-handle'
 
 // ─── Callout type defs ─────────────────────────────────────────
 const calloutTypes = [
-  { id: 'info',    icon: 'ℹ️',  label: 'Info' },
-  { id: 'warning', icon: '⚠️', label: 'Warning' },
-  { id: 'success', icon: '✅', label: 'Success' },
-  { id: 'error',   icon: '❌', label: 'Error' },
-  { id: 'gray',    icon: '⚪', label: 'Gray' },
-  { id: 'brown',   icon: '🟤', label: 'Brown' },
-  { id: 'orange',  icon: '🟠', label: 'Orange' },
-  { id: 'yellow',  icon: '🟡', label: 'Yellow' },
-  { id: 'green',   icon: '🟢', label: 'Green' },
-  { id: 'blue',    icon: '🔵', label: 'Blue' },
-  { id: 'purple',  icon: '🟣', label: 'Purple' },
-  { id: 'pink',    icon: '🩷', label: 'Pink' },
-  { id: 'red',     icon: '🔴', label: 'Red' },
+  { id: 'info',    icon: '💡',  label: 'Info',    color: '#2383e2' },
+  { id: 'warning', icon: '⚠️', label: 'Warning', color: '#e5484d' },
+  { id: 'success', icon: '✅', label: 'Success', color: '#2ea043' },
+  { id: 'error',   icon: '❌', label: 'Error',   color: '#e5484d' },
+  { id: 'gray',    icon: '⚪', label: 'Gray',    color: '#9b9b9b' },
+  { id: 'brown',   icon: '🟤', label: 'Brown',   color: '#a07850' },
+  { id: 'orange',  icon: '🟠', label: 'Orange',  color: '#ffa500' },
+  { id: 'yellow',  icon: '🟡', label: 'Yellow',  color: '#ffd200' },
+  { id: 'green',   icon: '🟢', label: 'Green',   color: '#00c864' },
+  { id: 'blue',    icon: '🔵', label: 'Blue',    color: '#2383e2' },
+  { id: 'purple',  icon: '🟣', label: 'Purple',  color: '#a050c8' },
+  { id: 'pink',    icon: '🩷', label: 'Pink',    color: '#dc50a0' },
+  { id: 'red',     icon: '🔴', label: 'Red',     color: '#e5484d' },
 ]
 const typeById = Object.fromEntries(calloutTypes.map(t => [t.id, t]))
 
+// ─── Callout emoji palette ─────────────────────────────────────
+const calloutEmojis = [
+  '💡','ℹ️','❓','🔥','⭐','🎯','📌','📎','✏️','📖',
+  '❤️','💚','💙','💜','🧡','🖤','🤍','💛','💗','🤎',
+  '✅','❌','⚠️','🚀','📝','🔒','🔓','👀','💪','🧠',
+  '🎨','🎵','📷','🔧','⚙️','🔗','📊','📁','🏠','🌍',
+  '☀️','🌙','☁️','🌈','💧','🌱','🌸','🍀','🎉','🔴',
+]
+
 // ─── Callout node ─────────────────────────────────────────────
+// Markdown round-trip via ::callout {type:"info" icon:"💡"} ::: fenced syntax
+const calloutMd = createBlockMarkdownSpec({
+  nodeName: 'callout',
+  name: 'callout',
+  content: 'block',
+  defaultAttributes: { type: 'info' },
+  allowedAttributes: ['type', 'icon'],
+})
+
+// ─── Update a callout node attribute from a mounted DOM element ─
+function updateCalloutAttr(editor, calloutEl, attr, value) {
+  const { state, view } = editor
+  const pos = view.posAtDOM(calloutEl, 0)
+  if (pos == null) return
+  const $pos = state.doc.resolve(pos)
+  let depth = $pos.depth
+  while (depth >= 0 && $pos.node(depth).type.name !== 'callout') depth--
+  if (depth < 0) return
+  const node = $pos.node(depth)
+  view.dispatch(state.tr.setNodeMarkup($pos.before(depth), null, { ...node.attrs, [attr]: value }).scrollIntoView())
+}
+
 const Callout = Node.create({
   name: 'callout',
   content: 'block+',
   group: 'block',
   defining: true,
   addAttributes() {
-    return { type: { default: 'info' } }
+    return {
+      type: { default: 'info' },
+      icon: { default: '' },
+    }
   },
   parseHTML() {
     return [{
       tag: 'div[data-callout]',
       getAttrs: el => ({
         type: (el.getAttribute('data-type') || 'info').toLowerCase(),
+        icon: el.getAttribute('data-icon') || '',
       }),
     }]
   },
   renderHTML({ HTMLAttributes }) {
     const type = HTMLAttributes.type || 'info'
-    const t = typeById[type] || typeById.info
-    return ['div', { 'data-callout': '', 'data-type': type, class: 'callout callout--' + type },
-      ['div', { class: 'callout-icon', contenteditable: 'false' }, t.icon],
-      ['div', { class: 'callout-picker', contenteditable: 'false' },
-        ...calloutTypes.map(ct =>
-          ['span', {
-            class: 'callout-dot callout--' + ct.id + (type === ct.id ? ' active' : ''),
-            'data-type': ct.id,
-            title: ct.label,
-          }, '']
-        ),
+    const defaultIcon = (typeById[type] || typeById.info).icon
+    const icon = HTMLAttributes.icon || defaultIcon
+    return ['div', { 'data-callout': '', 'data-type': type, 'data-icon': icon, class: 'callout callout--' + type },
+      ['div', { class: 'callout-side', contenteditable: 'false' },
+        ['button', { class: 'callout-icon-btn', 'data-callout-icon': '', type: 'button' }, icon],
+        ['button', { class: 'callout-color-btn', 'data-callout-color': '', type: 'button' },
+          ['span', { class: 'callout-color-dot' }, ''],
+        ],
       ],
       ['div', { class: 'callout-content' }, 0],
     ]
   },
-
   addCommands() {
     return {
       setCallout: (attrs = {}) => ({ commands }) => {
@@ -69,6 +101,8 @@ const Callout = Node.create({
       },
     }
   },
+  // Markdown bridge — ::callout {type:"info" icon:"💡"} ... :::
+  ...calloutMd,
 })
 
 // ─── Callout type change handler ────────────────────────────────
@@ -94,11 +128,118 @@ function changeCalloutType(e) {
   view.dispatch(state.tr.setNodeMarkup($pos.before(depth), null, { ...node.attrs, type }).scrollIntoView())
 }
 
-// Delegate clicks on callout dots
-function setupCalloutPicker() {
+// ─── Callout context menus (emoji + color) ───────────────────────
+let calloutMenuEl = null
+let calloutMenuTarget = null // 'icon' or 'color'
+let calloutMenuCalloutEl = null
+
+function closeCalloutMenu() {
+  if (calloutMenuEl) { calloutMenuEl.style.display = 'none'; calloutMenuEl.innerHTML = '' }
+  calloutMenuTarget = null
+  calloutMenuCalloutEl = null
+}
+
+function openCalloutIconMenu(btn, calloutEl) {
+  const editor = findEditorForElement(calloutEl)
+  if (!editor) return
+  const currentIcon = calloutEl.getAttribute('data-icon') || ''
+  if (!calloutMenuEl) {
+    calloutMenuEl = document.createElement('div')
+    calloutMenuEl.className = 'callout-menu'
+    document.body.appendChild(calloutMenuEl)
+  }
+  const rect = btn.getBoundingClientRect()
+  calloutMenuEl.style.cssText = 'position:fixed;z-index:100000;display:block;left:' + Math.max(0, rect.left) + 'px;top:' + (rect.bottom + 4) + 'px;max-height:260px;overflow-y:auto;width:280px;'
+  calloutMenuTarget = 'icon'
+  calloutMenuCalloutEl = calloutEl
+
+  calloutMenuEl.innerHTML = '<div class="callout-menu-grid">' +
+    calloutEmojis.map(e =>
+      '<button class="callout-menu-item' + (e === currentIcon ? ' active' : '') + '" data-value="' + e + '">' + e + '</button>'
+    ).join('') + '</div>'
+
+  calloutMenuEl.querySelectorAll('.callout-menu-item').forEach(btn => {
+    btn.onclick = () => {
+      const emoji = btn.dataset.value
+      const ed = findEditorForElement(calloutEl)
+      if (ed) updateCalloutAttr(ed, calloutEl, 'icon', emoji)
+      closeCalloutMenu()
+    }
+  })
+}
+
+function openCalloutColorMenu(btn, calloutEl) {
+  const editor = findEditorForElement(calloutEl)
+  if (!editor) return
+  const currentType = calloutEl.getAttribute('data-type') || 'info'
+  if (!calloutMenuEl) {
+    calloutMenuEl = document.createElement('div')
+    calloutMenuEl.className = 'callout-menu'
+    document.body.appendChild(calloutMenuEl)
+  }
+  const rect = btn.getBoundingClientRect()
+  calloutMenuEl.style.cssText = 'position:fixed;z-index:100000;display:block;left:' + Math.max(0, rect.left) + 'px;top:' + (rect.bottom + 4) + 'px;'
+  calloutMenuTarget = 'color'
+  calloutMenuCalloutEl = calloutEl
+
+  calloutMenuEl.innerHTML = '<div class="callout-menu-grid callout-menu-colors">' +
+    calloutTypes.map(ct =>
+      '<button class="callout-menu-color' + (ct.id === currentType ? ' active' : '') + '" data-value="' + ct.id + '" title="' + ct.label + '">' +
+        '<span class="callout-swatch" style="background:' + ct.color + '"></span>' +
+        '<span class="callout-label">' + ct.label + '</span>' +
+      '</button>'
+    ).join('') + '</div>'
+
+  calloutMenuEl.querySelectorAll('.callout-menu-color').forEach(btn => {
+    btn.onclick = () => {
+      const type = btn.dataset.value
+      const ed = findEditorForElement(calloutEl)
+      if (ed) updateCalloutAttr(ed, calloutEl, 'type', type)
+      closeCalloutMenu()
+    }
+  })
+}
+
+function findEditorForElement(el) {
+  return Array.from(instances.values()).find(i => i.editor?.view?.dom?.contains(el))?.editor || null
+}
+
+function setupCalloutMenus() {
   document.addEventListener('click', function handler(e) {
-    const dot = e.target.closest('.callout-dot')
-    if (dot) changeCalloutType(e)
+    // Icon button click
+    const iconBtn = e.target.closest('[data-callout-icon]')
+    if (iconBtn) {
+      e.preventDefault()
+      const calloutEl = iconBtn.closest('[data-callout]')
+      if (!calloutEl) return
+      if (calloutMenuTarget === 'icon' && calloutMenuCalloutEl === calloutEl && calloutMenuEl?.style.display !== 'none') {
+        closeCalloutMenu()
+        return
+      }
+      closeCalloutMenu()
+      openCalloutIconMenu(iconBtn, calloutEl)
+      return
+    }
+
+    // Color button click
+    const colorBtn = e.target.closest('[data-callout-color]')
+    if (colorBtn) {
+      e.preventDefault()
+      const calloutEl = colorBtn.closest('[data-callout]')
+      if (!calloutEl) return
+      if (calloutMenuTarget === 'color' && calloutMenuCalloutEl === calloutEl && calloutMenuEl?.style.display !== 'none') {
+        closeCalloutMenu()
+        return
+      }
+      closeCalloutMenu()
+      openCalloutColorMenu(colorBtn, calloutEl)
+      return
+    }
+
+    // Click outside the callout menu — close it
+    if (calloutMenuTarget && calloutMenuEl && !calloutMenuEl.contains(e.target)) {
+      closeCalloutMenu()
+    }
   })
 }
 
@@ -162,8 +303,8 @@ function getLineText(doc, pos) {
   }
 }
 
-function scrollActiveIntoView() {
-  const active = slashMenuEl?.querySelector('.slash-item.active')
+function scrollActiveIntoView(el) {
+  const active = el?.querySelector('.active')
   if (active) active.scrollIntoView({ block: 'nearest' })
 }
 
@@ -182,7 +323,7 @@ function renderSlash() {
     btn.onclick = e => { e.stopPropagation(); slashIdx = idx; runSlashItem() }
     btn.onmouseenter = () => { slashIdx = idx; renderSlash() }
   })
-  scrollActiveIntoView()
+  scrollActiveIntoView(slashMenuEl)
 }
 
 function closeSlash() {
@@ -255,6 +396,158 @@ function runSlashItem() {
   }
 }
 
+// ─── Wiki-link [[ autocomplete ───────────────────────────────────
+let wikiMenuEl = null
+let wikiActive = false
+let wikiFrom = -1
+let wikiQuery = ''
+let wikiIdx = 0
+let wikiItems = []
+let wikiEditor = null
+let wikiSearchTimeout = null
+
+function renderWiki() {
+  if (!wikiMenuEl) return
+  const q = wikiQuery.toLowerCase()
+  const filtered = wikiItems.filter(i =>
+    i.title.toLowerCase().includes(q) ||
+    (i.snippet && i.snippet.toLowerCase().includes(q))
+  )
+  if (!filtered.length) { wikiMenuEl.style.display = 'none'; return }
+  wikiMenuEl.innerHTML = filtered.map((it, i) =>
+    `<button class="wiki-item${i === wikiIdx ? ' active' : ''}" data-idx="${i}">` +
+    `<span class="wiki-icon">${it.icon || '📄'}</span>` +
+    `<span class="wiki-text"><strong>${it.title}</strong></span></button>`
+  ).join('')
+  wikiMenuEl.querySelectorAll('.wiki-item').forEach(btn => {
+    const idx = parseInt(btn.dataset.idx, 10)
+    if (isNaN(idx)) return
+    btn.onclick = e => { e.stopPropagation(); wikiIdx = idx; runWikiItem() }
+    btn.onmouseenter = () => { wikiIdx = idx; renderWiki() }
+  })
+  wikiMenuEl.style.display = 'block'
+  scrollActiveIntoView(wikiMenuEl)
+}
+
+function closeWiki() {
+  if (wikiMenuEl) { wikiMenuEl.style.display = 'none'; wikiMenuEl.innerHTML = '' }
+  wikiActive = false
+  wikiFrom = -1
+  wikiQuery = ''
+  wikiIdx = 0
+  wikiItems = []
+  wikiEditor = null
+  if (wikiSearchTimeout) { clearTimeout(wikiSearchTimeout); wikiSearchTimeout = null }
+}
+
+function openWiki(editor, fromPos) {
+  wikiEditor = editor
+  wikiFrom = fromPos
+  wikiQuery = ''
+  wikiIdx = 0
+  wikiItems = []
+  if (!wikiMenuEl) {
+    wikiMenuEl = document.createElement('div')
+    wikiMenuEl.className = 'wiki-menu'
+    wikiMenuEl.style.cssText = 'position:fixed;z-index:100000;max-height:240px;overflow-y:auto;'
+    document.body.appendChild(wikiMenuEl)
+  }
+  const { view } = editor
+  const coords = view.coordsAtPos(fromPos)
+  wikiMenuEl.style.left = Math.max(0, coords.left) + 'px'
+  wikiMenuEl.style.top = (coords.bottom + 4) + 'px'
+  wikiActive = true
+  fetchWikiSuggestions('')
+}
+
+function fetchWikiSuggestions(query) {
+  if (wikiSearchTimeout) clearTimeout(wikiSearchTimeout)
+  wikiSearchTimeout = setTimeout(async () => {
+    wikiSearchTimeout = null
+    try {
+      const r = await fetch('/api/search?q=' + encodeURIComponent(query), { credentials: 'same-origin' })
+      if (!r.ok) return
+      const data = await r.json()
+      if (!wikiActive) return
+      wikiItems = (data.pages && Array.isArray(data.pages)) ? data.pages : []
+      renderWiki()
+    } catch { /* network err — close */ if (wikiActive) closeWiki() }
+  }, 200)
+}
+
+function runWikiItem() {
+  if (!wikiActive || !wikiMenuEl || !wikiEditor) return
+  const q = wikiQuery.toLowerCase()
+  const filtered = wikiItems.filter(i =>
+    i.title.toLowerCase().includes(q) ||
+    (i.snippet && i.snippet.toLowerCase().includes(q))
+  )
+  const item = filtered[wikiIdx]
+  if (!item) { closeWiki(); return }
+  const ed = wikiEditor
+  const from = wikiFrom
+  closeWiki()
+  // The text at cursor: [[partial → complete to [[Full Title]]
+  try {
+    const { view } = ed
+    const currentText = view.state.doc.textBetween(from, view.state.selection.from)
+    const replaceText = '[[' + item.title + ']]'
+    view.dispatch(view.state.tr.replaceWith(
+      from, view.state.selection.from,
+      view.state.schema.text(replaceText)
+    ))
+    ed.commands.focus()
+  } catch { /* ignore */ }
+}
+
+function checkWiki(editor) {
+  if (!editor || !editor.isFocused) return
+  const { doc, selection } = editor.state
+  const { $from } = selection
+  const inCodeBlock = $from.parent.type.name === 'codeBlock'
+  if (inCodeBlock) { if (wikiActive) closeWiki(); return }
+
+  const from = $from.pos
+  // Look back up to 100 chars for [[query pattern
+  const start = Math.max(0, from - 100)
+  const textBefore = doc.textBetween(start, from)
+
+  // Find last [[ in textBefore; must not have ]] after it
+  const lastOpen = textBefore.lastIndexOf('[[')
+  if (lastOpen !== -1) {
+    const afterOpen = textBefore.slice(lastOpen + 2)
+    if (afterOpen.indexOf(']]') === -1) {
+      // We are inside [[ ... (unclosed)
+      const query = afterOpen
+      const absPos = start + lastOpen
+
+      if (!wikiActive) {
+        openWiki(editor, absPos + 2) // pos after [[
+      }
+
+      if (query !== wikiQuery) {
+        wikiQuery = query
+        wikiIdx = 0
+        fetchWikiSuggestions(query)
+      }
+      return
+    }
+  }
+
+  // Close wiki if we moved away from the [[ context
+  if (wikiActive) {
+    // Check if wikiFrom is still on the same line and [[ is still there
+    if (wikiFrom > 0) {
+      const aroundWiki = doc.textBetween(Math.max(0, wikiFrom - 2), Math.min(doc.content.size, wikiFrom + 50))
+      if (!aroundWiki.startsWith('[[') || aroundWiki.includes(']]')) { closeWiki(); return }
+      // Only close if cursor moved before wikiFrom
+      if (from < wikiFrom) { closeWiki(); return }
+    } else {
+      closeWiki()
+    }
+  }
+}
+
 // ─── Per-instance state ─────────────────────────────────────────
 const instances = new Map()
 
@@ -272,24 +565,49 @@ function triggerImageUpload(editor) {
 
 function handleKeyDown() {
   return (view, event) => {
-    if (!slashActive) return false
-    const items = slashItems.filter(i => i.title.toLowerCase().includes(slashQuery) || i.desc.toLowerCase().includes(slashQuery))
-    const handled = ['ArrowDown', 'ArrowUp', 'Enter', 'Tab', 'Escape']
-    if (!items.length && !handled.includes(event.key)) return false
-    switch (event.key) {
-      case 'ArrowDown':
-        if (!items.length) return true
-        event.preventDefault(); slashIdx = (slashIdx + 1) % items.length; renderSlash(); return true
-      case 'ArrowUp':
-        if (!items.length) return true
-        event.preventDefault(); slashIdx = (slashIdx - 1 + items.length) % items.length; renderSlash(); return true
-      case 'Enter': case 'Tab':
-        event.preventDefault(); runSlashItem(); return true
-      case 'Escape':
-        event.preventDefault(); closeSlash(); return true
-      default:
-        return false
+    // Wiki menu takes priority
+    if (wikiActive && wikiMenuEl && wikiMenuEl.style.display !== 'none') {
+      const q = wikiQuery.toLowerCase()
+      const filtered = wikiItems.filter(i =>
+        i.title.toLowerCase().includes(q) ||
+        (i.snippet && i.snippet.toLowerCase().includes(q))
+      )
+      switch (event.key) {
+        case 'ArrowDown':
+          if (!filtered.length) return true
+          event.preventDefault(); wikiIdx = (wikiIdx + 1) % filtered.length; renderWiki(); return true
+        case 'ArrowUp':
+          if (!filtered.length) return true
+          event.preventDefault(); wikiIdx = (wikiIdx - 1 + filtered.length) % filtered.length; renderWiki(); return true
+        case 'Enter': case 'Tab':
+          event.preventDefault(); runWikiItem(); return true
+        case 'Escape':
+          event.preventDefault(); closeWiki(); return true
+      }
     }
+
+    // Slash menu second
+    if (slashActive) {
+      const items = slashItems.filter(i => i.title.toLowerCase().includes(slashQuery) || i.desc.toLowerCase().includes(slashQuery))
+      const handled = ['ArrowDown', 'ArrowUp', 'Enter', 'Tab', 'Escape']
+      if (!items.length && !handled.includes(event.key)) return false
+      switch (event.key) {
+        case 'ArrowDown':
+          if (!items.length) return true
+          event.preventDefault(); slashIdx = (slashIdx + 1) % items.length; renderSlash(); return true
+        case 'ArrowUp':
+          if (!items.length) return true
+          event.preventDefault(); slashIdx = (slashIdx - 1 + items.length) % items.length; renderSlash(); return true
+        case 'Enter': case 'Tab':
+          event.preventDefault(); runSlashItem(); return true
+        case 'Escape':
+          event.preventDefault(); closeSlash(); return true
+        default:
+          return false
+      }
+    }
+
+    return false
   }
 }
 
@@ -325,6 +643,7 @@ export function createEditor(elementId, content, dotNetRef, blockId) {
       TaskList,
       TaskItem.configure({ nested: true }),
       Placeholder.configure({ placeholder: "Type '/' for commands…" }),
+      GapCursor,
       Markdown.configure({
         html: true,
         transformCopiedText: true,
@@ -389,13 +708,16 @@ export function createEditor(elementId, content, dotNetRef, blockId) {
       if (inst.firstUpdate) { inst.firstUpdate = false; return }
       invokeCb(inst.dotNetRef, 'OnMarkdownChanged', inst.blockId, ed.getMarkdown())
       checkSlash(ed)
+      checkWiki(ed)
     },
     onSelectionUpdate: ({ editor: ed }) => {
       if (slashActive) checkSlash(ed)
+      if (wikiActive) checkWiki(ed)
     },
     onFocus: () => invokeCb(inst.dotNetRef, 'OnFocus', inst.blockId),
     onBlur: () => {
       if (slashActive) closeSlash()
+      if (wikiActive) closeWiki()
       invokeCb(inst.dotNetRef, 'OnBlur', inst.blockId)
     },
   })
@@ -418,9 +740,15 @@ export function createEditor(elementId, content, dotNetRef, blockId) {
     uploadBtn.onclick = () => inp.click()
   }
 
-  // Outside-click handler
+  // Outside-click handlers
   const onOutsideClick = function(e) {
+    if (calloutMenuTarget && calloutMenuEl && !calloutMenuEl.contains(e.target) &&
+        !e.target.closest('[data-callout-icon]') && !e.target.closest('[data-callout-color]')) {
+      const calloutEl = e.target.closest('[data-callout]')
+      if (!calloutEl || calloutEl !== calloutMenuCalloutEl) closeCalloutMenu()
+    }
     if (slashActive && slashMenuEl && !slashMenuEl.contains(e.target) && !el.contains(e.target)) closeSlash()
+    if (wikiActive && wikiMenuEl && !wikiMenuEl.contains(e.target) && !el.contains(e.target)) closeWiki()
   }
   document.addEventListener('mousedown', onOutsideClick)
   inst.listeners.push({ type: 'mousedown', handler: onOutsideClick })
@@ -435,7 +763,7 @@ export function destroyEditor(elementId) {
   inst.listeners.forEach(l => document.removeEventListener(l.type, l.handler))
   inst.listeners = []
   // Kill Blazor ref BEFORE destroying editor — editor.destroy() fires
-  // onBlur/onUpdate callbacks that would invoke on a stale/stale ref
+  // onBlur/onUpdate callbacks that would invoke on a stale ref
   inst.dotNetRef = null
   if (inst.editor) { inst.editor.destroy(); inst.editor = null }
   instances.delete(elementId)
@@ -455,4 +783,4 @@ window.setTipTapContent = setContent
 window.setTipTapEditable = setEditable
 window.focusTipTap = focusEditor
 window.blurTipTap = blurEditor
-setupCalloutPicker()
+setupCalloutMenus()

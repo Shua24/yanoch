@@ -1,4 +1,4 @@
-# Yanoch — Handoff Document
+# Yanoch — Handoff Document (Updated 2026-07-26)
 
 ## Current State
 
@@ -229,23 +229,26 @@ npm install @tiptap/extension-table @tiptap/extension-table-row @tiptap/extensio
 
 ### Implementation Order & Dependencies
 
-| Step | Feature | Depends on | Effort |
-|------|---------|-----------|--------|
-| 1 | Drag Handle + Gap Cursor | Nothing | Low (2 files, 10 lines) |
-| 2 | Table | Nothing (package install) | Low |
-| 3 | Callout | Nothing | Medium |
-| 4 | Toggle | Callout patterns (custom node) | Low/med |
+| Step | Feature | Depends on | Effort | Status |
+|------|---------|-----------|--------|--------|
+| 1 | GapCursor | Nothing | Low | ✅ Done |
+| 2 | Drag Handle | Nothing | Low | ✅ Done (was already) |
+| 3 | Callout (markdown round-trip) | Nothing | Medium | ✅ Done — `:::` fenced syntax via `createBlockMarkdownSpec` |
+| 4 | Wiki-link `[[` autocomplete | Nothing | Medium | ✅ Done — pure DOM popup, fetches /api/search |
+| 5 | Table | Package install | Low | ⬜ Not started |
+| 6 | Toggle | Callout patterns | Low/med | ⬜ Future |
 
-Step 1 and 2 are independent and can be done in parallel. Step 3 leverages patterns from 1-2.
+Steps 1-4 are complete. Steps 3-4 were missing from the initial implementation.
 
 ---
 
 ## Known Issues / Edge Cases
 
-1. **Migration pending**: Existing `Block` data not yet migrated to `Page.Content`. `Block` table and `BlockEditor.razor` still exist for rollback.
+1. **Migration pending**: Existing `Block` data not yet migrated to `Page.Content`. Old `Block` table still exists in initial migration; legacy `BlockEditor.razor` removed.
 2. **Old pages** show legacy block renderer; new pages use TipTap. Migration service not yet written.
-3. **Callout / toggle blocks** not in TipTap — see plan above.
+3. **Table block** not yet implemented — see plan above.
 4. **Vite build required** after any change to `tiptap-editor.src.js` — not automatic with `dotnet run`.
+5. **SQLite vulnerability warning** — `SQLitePCLRaw.lib.e_sqlite3` 2.1.11 CVE; update package when available.
 
 ---
 
