@@ -8,6 +8,7 @@ import TaskItem from '@tiptap/extension-task-item'
 import { Markdown } from '@tiptap/markdown'
 import Placeholder from '@tiptap/extension-placeholder'
 import { DragHandle } from '@tiptap/extension-drag-handle'
+import { Node } from '@tiptap/core'
 
 // ─── Slash item definitions ──────────────────────────────────────
 const slashItems = [
@@ -22,7 +23,50 @@ const slashItems = [
   { title: 'Code Block',    desc: 'Code fence',                icon: '</>', run: e => e.chain().focus().clearNodes().toggleCodeBlock().run() },
   { title: 'Divider',       desc: 'Horizontal rule',           icon: '—',   run: e => e.chain().focus().setHorizontalRule().run() },
   { title: 'Image',         desc: 'Upload an image',            icon: '🖼️',  run: e => { triggerImageUpload(e); } },
+  { title: 'Callout',       desc: 'Colored callout',            icon: '📌',  run: e => e.chain().focus().clearNodes().setCallout().run() },
 ]
+
+// ─── Callout node ─────────────────────────────────────────────
+const Callout = Node.create({
+  name: 'callout',
+  content: 'block+',
+  group: 'block',
+  defining: true,
+  addAttributes() {
+    return {
+      type: { default: 'info' },
+    }
+  },
+  parseHTML() {
+    return [{ tag: 'div[data-callout]' }]
+  },
+  renderHTML({ HTMLAttributes }) {
+    const type = HTMLAttributes.type || 'info'
+    const icon = { info: 'ℹ️', warning: '⚠️', success: '✅', error: '❌' }[type] || '📌'
+    return ['div', { 'data-callout': '', 'data-type': type, class: 'callout callout--' + type },
+      ['div', { class: 'callout-icon' }, icon],
+      ['div', { class: 'callout-content' }, 0]
+    ]
+  },
+  addCommands() {
+    return {
+      setCallout: (attrs = {}) => ({ commands }) => {
+        return commands.insertContent({ type: this.name, attrs })
+      },
+    }
+  },
+  addInputRules() {
+    return [
+      {
+        find: /^> \[!(\w+)\]\s$/,
+        handler: ({ range, match }) => {
+          const type = match[1] || 'info'
+          return range.from + range.text.length
+        },
+      },
+    ]
+  },
+})
 
 // ─── Image upload (one-off) ─────────────────────────────────────
 let imageInputEl = null
@@ -243,6 +287,7 @@ export function createEditor(elementId, content, dotNetRef, blockId) {
           return el
         },
       }),
+      Callout,
     ],
     content: content || '',
     contentType: 'markdown',
