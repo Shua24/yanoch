@@ -1384,19 +1384,43 @@ body {
   font-size: 18px;
   margin-top: 2px;
 }
-.callout-type-picker {
+.callout-picker {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
   flex: 0 0 auto;
-  padding: 2px 6px;
-  font-size: 12px;
-  border: 1px solid rgba(0,0,0,0.1);
-  border-radius: 4px;
-  background: white;
-  cursor: pointer;
   margin-top: 2px;
+  max-width: 104px;
 }
-.callout-type-picker:hover {
-  border-color: rgba(0,0,0,0.2);
+.callout-dot {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  cursor: pointer;
+  border: 2px solid transparent;
+  transition: border-color 0.12s ease, transform 0.12s ease;
+  box-sizing: border-box;
 }
+.callout-dot:hover {
+  transform: scale(1.2);
+}
+.callout-dot.active {
+  border-color: var(--text-primary, #1d1d1f);
+}
+.callout-dot.callout--info    { background: var(--accent, #2383e2); }
+.callout-dot.callout--warning { background: var(--warning, #e5484d); }
+.callout-dot.callout--success { background: #2ea043; }
+.callout-dot.callout--error   { background: var(--warning, #e5484d); }
+.callout-dot.callout--gray    { background: #9b9b9b; }
+.callout-dot.callout--brown   { background: #a07850; }
+.callout-dot.callout--orange  { background: #ffa500; }
+.callout-dot.callout--yellow  { background: #ffd200; }
+.callout-dot.callout--green   { background: #00c864; }
+.callout-dot.callout--blue    { background: var(--accent, #2383e2); }
+.callout-dot.callout--purple  { background: #a050c8; }
+.callout-dot.callout--pink    { background: #dc50a0; }
+.callout-dot.callout--red     { background: var(--warning, #e5484d); }
 .callout-content {
   flex: 1;
   min-width: 0;

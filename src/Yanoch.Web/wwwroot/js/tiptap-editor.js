@@ -22024,6 +22024,136 @@ var yA = {
 	}
 }), xA = [
 	{
+		id: "info",
+		icon: "ℹ️",
+		label: "Info"
+	},
+	{
+		id: "warning",
+		icon: "⚠️",
+		label: "Warning"
+	},
+	{
+		id: "success",
+		icon: "✅",
+		label: "Success"
+	},
+	{
+		id: "error",
+		icon: "❌",
+		label: "Error"
+	},
+	{
+		id: "gray",
+		icon: "⚪",
+		label: "Gray"
+	},
+	{
+		id: "brown",
+		icon: "🟤",
+		label: "Brown"
+	},
+	{
+		id: "orange",
+		icon: "🟠",
+		label: "Orange"
+	},
+	{
+		id: "yellow",
+		icon: "🟡",
+		label: "Yellow"
+	},
+	{
+		id: "green",
+		icon: "🟢",
+		label: "Green"
+	},
+	{
+		id: "blue",
+		icon: "🔵",
+		label: "Blue"
+	},
+	{
+		id: "purple",
+		icon: "🟣",
+		label: "Purple"
+	},
+	{
+		id: "pink",
+		icon: "🩷",
+		label: "Pink"
+	},
+	{
+		id: "red",
+		icon: "🔴",
+		label: "Red"
+	}
+], SA = Object.fromEntries(xA.map((e) => [e.id, e])), CA = rf.create({
+	name: "callout",
+	content: "block+",
+	group: "block",
+	defining: !0,
+	addAttributes() {
+		return { type: { default: "info" } };
+	},
+	parseHTML() {
+		return [{ tag: "div[data-callout]" }];
+	},
+	renderHTML({ HTMLAttributes: e }) {
+		let t = e.type || "info", n = SA[t] || SA.info;
+		return [
+			"div",
+			{
+				"data-callout": "",
+				"data-type": t,
+				class: "callout callout--" + t
+			},
+			[
+				"div",
+				{
+					class: "callout-icon",
+					contenteditable: "false"
+				},
+				n.icon
+			],
+			[
+				"select",
+				{
+					class: "callout-type-picker",
+					contenteditable: "false",
+					onchange: "changeCalloutType(this)"
+				},
+				...xA.map((e) => [
+					"option",
+					{
+						value: e.id,
+						selected: t === e.id
+					},
+					e.label
+				])
+			],
+			[
+				"div",
+				{ class: "callout-content" },
+				0
+			]
+		];
+	},
+	addCommands() {
+		return { setCallout: (e = {}) => ({ commands: t }) => t.wrapIn(this.name, e) };
+	}
+});
+function wA(e) {
+	let t = e.closest("[data-callout]");
+	if (!t) return;
+	let n = e.value;
+	if (t.dataset.type === n) return;
+	t.dataset.type = n, t.className = "callout callout--" + n;
+	let r = t.querySelector(".callout-icon");
+	r && (r.textContent = SA[n]?.icon || "📌");
+}
+var TA = [
+	{
 		title: "Text",
 		desc: "Plain paragraph",
 		icon: "Aa",
@@ -22088,121 +22218,20 @@ var yA = {
 		desc: "Upload an image",
 		icon: "🖼️",
 		run: (e) => {
-			BA(e);
+			HA(e);
 		}
 	},
 	{
 		title: "Callout",
-		desc: "Colored callout",
+		desc: "Colored callout box",
 		icon: "📌",
 		run: (e) => e.chain().focus().clearNodes().setCallout().run()
 	}
-], SA = rf.create({
-	name: "callout",
-	content: "block+",
-	group: "block",
-	defining: !0,
-	addAttributes() {
-		return { type: { default: "info" } };
-	},
-	parseHTML() {
-		return [{ tag: "div[data-callout]" }];
-	},
-	renderHTML({ HTMLAttributes: e }) {
-		let t = e.type || "info", n = {
-			info: "ℹ️",
-			warning: "⚠️",
-			success: "✅",
-			error: "❌"
-		}[t] || "📌";
-		return [
-			"div",
-			{
-				"data-callout": "",
-				"data-type": t,
-				class: "callout callout--" + t
-			},
-			[
-				"div",
-				{ class: "callout-icon" },
-				n
-			],
-			[
-				"select",
-				{
-					class: "callout-type-picker",
-					"data-type": t,
-					onchange: "changeCalloutType(this)"
-				},
-				[
-					"option",
-					{
-						value: "info",
-						selected: t === "info"
-					},
-					"Info"
-				],
-				[
-					"option",
-					{
-						value: "warning",
-						selected: t === "warning"
-					},
-					"Warning"
-				],
-				[
-					"option",
-					{
-						value: "success",
-						selected: t === "success"
-					},
-					"Success"
-				],
-				[
-					"option",
-					{
-						value: "error",
-						selected: t === "error"
-					},
-					"Error"
-				]
-			],
-			[
-				"div",
-				{ class: "callout-content" },
-				0
-			]
-		];
-	},
-	addCommands() {
-		return { setCallout: (e = {}) => ({ commands: t }) => t.wrapIn(this.name, e) };
-	},
-	addInputRules() {
-		return [{
-			find: /^> \[!(\w+)\]\s$/,
-			handler: ({ range: e, match: t }) => (t[1], e.from + e.text.length)
-		}];
-	}
-});
-function CA(e) {
-	let t = e.closest("[data-callout]");
-	if (!t) return;
-	let n = e.value;
-	if (t.dataset.type === n) return;
-	t.dataset.type = n, t.className = t.className.replace(/callout--\w+/g, "") + " callout--" + n;
-	let r = t.querySelector(".callout-icon");
-	r && (r.textContent = {
-		info: "ℹ️",
-		warning: "⚠️",
-		success: "✅",
-		error: "❌"
-	}[n] || "📌");
+], EA = null;
+function DA() {
+	return EA || (EA = document.createElement("input"), EA.type = "file", EA.accept = "image/*", EA.style.cssText = "display:none", document.body.appendChild(EA), EA);
 }
-var wA = null;
-function TA() {
-	return wA || (wA = document.createElement("input"), wA.type = "file", wA.accept = "image/*", wA.style.cssText = "display:none", document.body.appendChild(wA), wA);
-}
-async function EA(e) {
+async function OA(e) {
 	let t = new FormData();
 	t.append("file", e);
 	try {
@@ -22216,8 +22245,8 @@ async function EA(e) {
 		return console.error("Upload error:", e), null;
 	}
 }
-var $ = null, DA = !1, OA = 0, kA = -1, AA = "", jA = null;
-function MA(e, t) {
+var $ = null, kA = !1, AA = 0, jA = -1, MA = "", NA = null;
+function PA(e, t) {
 	let n = e.resolve(t);
 	if (!n) return "";
 	try {
@@ -22226,84 +22255,84 @@ function MA(e, t) {
 		return "";
 	}
 }
-function NA() {
+function FA() {
 	let e = $?.querySelector(".slash-item.active");
 	e && e.scrollIntoView({ block: "nearest" });
 }
-function PA() {
+function IA() {
 	if (!$) return;
-	let e = AA.toLowerCase(), t = xA.filter((t) => t.title.toLowerCase().includes(e) || t.desc.toLowerCase().includes(e));
-	$.innerHTML = t.map((e, t) => `<button class="slash-item${t === OA ? " active" : ""}" data-idx="${t}"><span class="slash-icon">${e.icon}</span><span class="slash-text"><strong>${e.title}</strong><span class="slash-desc">${e.desc}</span></span></button>`).join(""), $.querySelectorAll(".slash-item").forEach((e) => {
+	let e = MA.toLowerCase(), t = TA.filter((t) => t.title.toLowerCase().includes(e) || t.desc.toLowerCase().includes(e));
+	$.innerHTML = t.map((e, t) => `<button class="slash-item${t === AA ? " active" : ""}" data-idx="${t}"><span class="slash-icon">${e.icon}</span><span class="slash-text"><strong>${e.title}</strong><span class="slash-desc">${e.desc}</span></span></button>`).join(""), $.querySelectorAll(".slash-item").forEach((e) => {
 		let t = parseInt(e.dataset.idx, 10);
 		isNaN(t) || (e.onclick = (e) => {
-			e.stopPropagation(), OA = t, RA();
+			e.stopPropagation(), AA = t, BA();
 		}, e.onmouseenter = () => {
-			OA = t, PA();
+			AA = t, IA();
 		});
-	}), NA();
+	}), FA();
 }
-function FA() {
-	$ && ($.style.display = "none", $.innerHTML = ""), DA = !1, kA = -1, AA = "", jA = null;
+function LA() {
+	$ && ($.style.display = "none", $.innerHTML = ""), kA = !1, jA = -1, MA = "", NA = null;
 }
-function IA(e) {
-	jA = e;
+function RA(e) {
+	NA = e;
 	let { view: t, state: n } = e, { from: r } = n.selection;
-	kA = n.doc.resolve(r).start(), $ || ($ = document.createElement("div"), $.className = "slash-menu", $.style.cssText = "position:fixed;z-index:100000;", document.body.appendChild($));
+	jA = n.doc.resolve(r).start(), $ || ($ = document.createElement("div"), $.className = "slash-menu", $.style.cssText = "position:fixed;z-index:100000;", document.body.appendChild($));
 	let i = t.coordsAtPos(r);
-	$.style.left = Math.max(0, i.left) + "px", $.style.top = i.bottom + 4 + "px", $.style.display = "block", OA = 0, AA = "", DA = !0, PA();
+	$.style.left = Math.max(0, i.left) + "px", $.style.top = i.bottom + 4 + "px", $.style.display = "block", AA = 0, MA = "", kA = !0, IA();
 }
-function LA(e) {
+function zA(e) {
 	if (!e) return;
 	let { doc: t, selection: n } = e.state, { $from: r } = n;
 	if (r.parent.type.name === "codeBlock") {
-		DA && FA();
+		kA && LA();
 		return;
 	}
 	if (!e.isFocused) return;
-	let i = r.pos, a = MA(t, i);
-	if (a === "/" && !DA) {
-		IA(e);
+	let i = r.pos, a = PA(t, i);
+	if (a === "/" && !kA) {
+		RA(e);
 		return;
 	}
-	if (DA) if (a.startsWith("/")) {
+	if (kA) if (a.startsWith("/")) {
 		let e = a.slice(1);
-		e !== AA && (AA = e, OA = 0, PA());
-	} else FA();
+		e !== MA && (MA = e, AA = 0, IA());
+	} else LA();
 }
-function RA() {
-	if (!DA || !$) return;
-	let e = xA.filter((e) => e.title.toLowerCase().includes(AA) || e.desc.toLowerCase().includes(AA))[OA];
+function BA() {
+	if (!kA || !$) return;
+	let e = TA.filter((e) => e.title.toLowerCase().includes(MA) || e.desc.toLowerCase().includes(MA))[AA];
 	if (!e) {
-		FA();
+		LA();
 		return;
 	}
-	let t = jA;
+	let t = NA;
 	if (!t) {
-		FA();
+		LA();
 		return;
 	}
-	let { view: n } = t, r = n.state.selection.from, i = kA;
-	FA();
+	let { view: n } = t, r = n.state.selection.from, i = jA;
+	LA();
 	try {
 		n.dispatch(n.state.tr.delete(i, r)), e.run(t), t.commands.focus();
 	} catch (e) {
 		console.error("runSlashItem error:", e);
 	}
 }
-var zA = /* @__PURE__ */ new Map();
-function BA(e) {
-	let t = TA();
+var VA = /* @__PURE__ */ new Map();
+function HA(e) {
+	let t = DA();
 	t.onchange = async () => {
 		let n = t.files?.[0];
 		if (!n) return;
-		let r = await EA(n);
+		let r = await OA(n);
 		r && e.chain().focus().setImage({ src: r }).run(), t.value = "";
 	}, t.click();
 }
-function VA() {
+function UA() {
 	return (e, t) => {
-		if (!DA) return !1;
-		let n = xA.filter((e) => e.title.toLowerCase().includes(AA) || e.desc.toLowerCase().includes(AA));
+		if (!kA) return !1;
+		let n = TA.filter((e) => e.title.toLowerCase().includes(MA) || e.desc.toLowerCase().includes(MA));
 		if (!n.length && ![
 			"ArrowDown",
 			"ArrowUp",
@@ -22312,22 +22341,22 @@ function VA() {
 			"Escape"
 		].includes(t.key)) return !1;
 		switch (t.key) {
-			case "ArrowDown": return n.length ? (t.preventDefault(), OA = (OA + 1) % n.length, PA(), !0) : !0;
-			case "ArrowUp": return n.length ? (t.preventDefault(), OA = (OA - 1 + n.length) % n.length, PA(), !0) : !0;
+			case "ArrowDown": return n.length ? (t.preventDefault(), AA = (AA + 1) % n.length, IA(), !0) : !0;
+			case "ArrowUp": return n.length ? (t.preventDefault(), AA = (AA - 1 + n.length) % n.length, IA(), !0) : !0;
 			case "Enter":
-			case "Tab": return t.preventDefault(), RA(), !0;
-			case "Escape": return t.preventDefault(), FA(), !0;
+			case "Tab": return t.preventDefault(), BA(), !0;
+			case "Escape": return t.preventDefault(), LA(), !0;
 			default: return !1;
 		}
 	};
 }
-function HA(e, t, ...n) {
+function WA(e, t, ...n) {
 	if (e) try {
 		e.invokeMethodAsync(t, ...n).catch(() => {});
 	} catch {}
 }
-function UA(e, t, n, r) {
-	WA(e);
+function GA(e, t, n, r) {
+	KA(e);
 	let i = document.getElementById(e);
 	if (!i) return null;
 	let a = {
@@ -22361,15 +22390,19 @@ function UA(e, t, n, r) {
 			D_,
 			O_.configure({ nested: !0 }),
 			by.configure({ placeholder: "Type '/' for commands…" }),
-			yy.configure({ html: !1 }),
+			yy.configure({
+				html: !0,
+				transformCopiedText: !0,
+				transformPastedText: !0
+			}),
 			bA.configure({
 				nested: !0,
 				render() {
 					let e = document.createElement("div");
-					return e.classList.add("drag-handle"), e.innerHTML = "⠿", e.title = "Drag to reorder", e;
+					return e.classList.add("drag-handle"), e.innerHTML = "⣿", e.title = "Drag to reorder", e;
 				}
 			}),
-			SA
+			CA
 		],
 		content: t || "",
 		contentType: "markdown",
@@ -22378,10 +22411,10 @@ function UA(e, t, n, r) {
 				class: "tiptap-editor",
 				"data-block-id": r
 			},
-			handleKeyDown: VA(),
+			handleKeyDown: UA(),
 			handlePaste(e, t) {
 				let n = t.clipboardData?.files;
-				if (n && n[0]?.type.startsWith("image/")) return t.preventDefault(), EA(n[0]).then((t) => {
+				if (n && n[0]?.type.startsWith("image/")) return t.preventDefault(), OA(n[0]).then((t) => {
 					t && e.dispatch(e.state.tr.replaceSelectionWith(e.state.schema.nodes.image.create(null, { src: t })));
 				}), !0;
 				let r = t.clipboardData?.getData("text/plain");
@@ -22395,7 +22428,7 @@ function UA(e, t, n, r) {
 						left: t.clientX,
 						top: t.clientY
 					});
-					return r && EA(n[0]).then((t) => {
+					return r && OA(n[0]).then((t) => {
 						t && e.dispatch(e.state.tr.insert(r.pos, e.state.schema.nodes.image.create(null, { src: t })));
 					}), !0;
 				}
@@ -22407,56 +22440,56 @@ function UA(e, t, n, r) {
 				a.firstUpdate = !1;
 				return;
 			}
-			HA(a.dotNetRef, "OnMarkdownChanged", a.blockId, e.getMarkdown()), LA(e);
+			WA(a.dotNetRef, "OnMarkdownChanged", a.blockId, e.getMarkdown()), zA(e);
 		},
 		onSelectionUpdate: ({ editor: e }) => {
-			DA && LA(e);
+			kA && zA(e);
 		},
-		onFocus: () => HA(a.dotNetRef, "OnFocus", a.blockId),
+		onFocus: () => WA(a.dotNetRef, "OnFocus", a.blockId),
 		onBlur: () => {
-			DA && FA(), HA(a.dotNetRef, "OnBlur", a.blockId);
+			kA && LA(), WA(a.dotNetRef, "OnBlur", a.blockId);
 		}
 	});
 	a.editor = o;
 	let s = document.getElementById("btn-upload-image");
 	if (s) {
-		let t = TA();
+		let t = DA();
 		t.onchange = async () => {
 			let n = t.files?.[0];
 			if (!n) return;
-			let r = zA.get(e)?.editor;
+			let r = VA.get(e)?.editor;
 			if (!r) return;
-			let i = await EA(n);
+			let i = await OA(n);
 			i && r.chain().focus().setImage({ src: i }).run(), t.value = "";
 		}, s.onclick = () => t.click();
 	}
 	let c = function(e) {
-		DA && $ && !$.contains(e.target) && !i.contains(e.target) && FA();
+		kA && $ && !$.contains(e.target) && !i.contains(e.target) && LA();
 	};
 	return document.addEventListener("mousedown", c), a.listeners.push({
 		type: "mousedown",
 		handler: c
-	}), zA.set(e, a), o;
+	}), VA.set(e, a), o;
 }
-function WA(e) {
-	let t = zA.get(e);
-	t && (t.listeners.forEach((e) => document.removeEventListener(e.type, e.handler)), t.listeners = [], t.dotNetRef = null, t.editor &&= (t.editor.destroy(), null), zA.delete(e));
+function KA(e) {
+	let t = VA.get(e);
+	t && (t.listeners.forEach((e) => document.removeEventListener(e.type, e.handler)), t.listeners = [], t.dotNetRef = null, t.editor &&= (t.editor.destroy(), null), VA.delete(e));
 }
-function GA(e) {
-	return zA.get(e)?.editor?.getMarkdown() ?? "";
+function qA(e) {
+	return VA.get(e)?.editor?.getMarkdown() ?? "";
 }
-function KA(e, t) {
-	zA.get(e)?.editor?.commands.setContent(t, !1, "markdown");
+function JA(e, t) {
+	VA.get(e)?.editor?.commands.setContent(t, !1, "markdown");
 }
-function qA(e, t) {
-	zA.get(e)?.editor?.setEditable(t);
+function YA(e, t) {
+	VA.get(e)?.editor?.setEditable(t);
 }
-function JA(e) {
-	zA.get(e)?.editor?.commands.focus();
+function XA(e) {
+	VA.get(e)?.editor?.commands.focus();
 }
-function YA(e) {
-	zA.get(e)?.editor?.commands.blur();
+function ZA(e) {
+	VA.get(e)?.editor?.commands.blur();
 }
-window.initTipTap = UA, window.destroyTipTap = WA, window.getTipTapMarkdown = GA, window.setTipTapContent = KA, window.setTipTapEditable = qA, window.focusTipTap = JA, window.blurTipTap = YA, window.changeCalloutType = CA;
+window.initTipTap = GA, window.destroyTipTap = KA, window.getTipTapMarkdown = qA, window.setTipTapContent = JA, window.setTipTapEditable = YA, window.focusTipTap = XA, window.blurTipTap = ZA, window.changeCalloutType = wA;
 //#endregion
-export { YA as blurEditor, UA as createEditor, WA as destroyEditor, JA as focusEditor, GA as getMarkdown, KA as setContent, qA as setEditable };
+export { ZA as blurEditor, GA as createEditor, KA as destroyEditor, XA as focusEditor, qA as getMarkdown, JA as setContent, YA as setEditable };

@@ -44,9 +44,13 @@ const Callout = Node.create({
     const t = typeById[type] || typeById.info
     return ['div', { 'data-callout': '', 'data-type': type, class: 'callout callout--' + type },
       ['div', { class: 'callout-icon', contenteditable: 'false' }, t.icon],
-      ['select', { class: 'callout-type-picker', contenteditable: 'false', onchange: 'changeCalloutType(this)' },
+      ['div', { class: 'callout-picker', contenteditable: 'false' },
         ...calloutTypes.map(ct =>
-          ['option', { value: ct.id, selected: type === ct.id }, ct.label]
+          ['span', {
+            class: 'callout-dot callout--' + ct.id + (type === ct.id ? ' active' : ''),
+            'data-type': ct.id,
+            title: ct.label,
+          }, '']
         ),
       ],
       ['div', { class: 'callout-content' }, 0],
@@ -63,18 +67,28 @@ const Callout = Node.create({
 })
 
 // ─── Callout type change handler ────────────────────────────────
-function changeCalloutType(selectEl) {
-  const calloutEl = selectEl.closest('[data-callout]')
-  if (!calloutEl) return
-  const type = selectEl.value
-  const oldType = calloutEl.dataset.type
-  if (oldType === type) return
-  calloutEl.dataset.type = type
-  calloutEl.className = 'callout callout--' + type
-  const iconEl = calloutEl.querySelector('.callout-icon')
-  if (iconEl) {
-    iconEl.textContent = typeById[type]?.icon || '📌'
-  }
+function changeCalloutType(e) {
+  const dot = e.target.closest('.callout-dot')
+  if (!dot) return
+  const type = dot.dataset.type
+  const calloutEl = dot.closest('[data-callout]')
+  if (!calloutEl || calloutEl.dataset.type === type) return
+
+  // Update ProseMirror node attribute (persists through re-renders)
+  const instance = Array.from(instances.values()).find(i => i.editor?.view?.dom?.contains(calloutEl))
+  if (!instance) return
+  const editor = instance.editor
+  const pos = editor.view.posAtDOM(calloutEl, 0)
+  if (pos == null) return
+  editor.chain().focus().setNodeAttribute(pos, 'type', type).run()
+}
+
+// Delegate clicks on callout dots
+function setupCalloutPicker() {
+  document.addEventListener('click', function handler(e) {
+    const dot = e.target.closest('.callout-dot')
+    if (dot) changeCalloutType(e)
+  })
 }
 
 // ─── Slash item definitions ──────────────────────────────────────
@@ -430,4 +444,4 @@ window.setTipTapContent = setContent
 window.setTipTapEditable = setEditable
 window.focusTipTap = focusEditor
 window.blurTipTap = blurEditor
-window.changeCalloutType = changeCalloutType
+setupCalloutPicker()
