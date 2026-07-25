@@ -115,6 +115,12 @@ Editor config:
 
 Instances tracked in a `Map<elementId, { editor, dotNetRef, blockId, firstUpdate, listeners }>`. The `firstUpdate` flag skips the initial `onUpdate` that fires during editor construction (initial content parse — not a user edit). All Blazor `invokeMethodAsync` calls use an `invokeCb` wrapper that silently swallows errors when the circuit is gone.
 
+### Callout Context Menus
+
+- **Icon button** (left side): click opens a 7×N emoji grid context menu (50 emojis). Click same button again to close. Click outside to close.
+- **Color button** (below icon): click opens a labeled color picker context menu (13 colors). Click same button again to close. Click outside to close.
+- Both attributes persist in markdown: `:::callout {type="warning" icon="🔥"} ... :::` — clean round-trip via `createBlockMarkdownSpec`.
+
 ### Slash Command Menu
 
 Custom implementation (not `@tiptap/suggestion`). Module-level singleton:
