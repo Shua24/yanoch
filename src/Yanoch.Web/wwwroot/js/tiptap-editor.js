@@ -22135,10 +22135,7 @@ var yA = {
 		];
 	},
 	addCommands() {
-		return { setCallout: (e = {}) => ({ commands: t }) => t.insertContent({
-			type: this.name,
-			attrs: e
-		}) };
+		return { setCallout: (e = {}) => ({ commands: t }) => t.wrapIn(this.name, e) };
 	},
 	addInputRules() {
 		return [{

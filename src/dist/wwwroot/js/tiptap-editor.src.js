@@ -45,6 +45,12 @@ const Callout = Node.create({
     const icon = { info: 'ℹ️', warning: '⚠️', success: '✅', error: '❌' }[type] || '📌'
     return ['div', { 'data-callout': '', 'data-type': type, class: 'callout callout--' + type },
       ['div', { class: 'callout-icon' }, icon],
+      ['select', { class: 'callout-type-picker', 'data-type': type, onchange: 'changeCalloutType(this)' },
+        ['option', { value: 'info', selected: type === 'info' }, 'Info'],
+        ['option', { value: 'warning', selected: type === 'warning' }, 'Warning'],
+        ['option', { value: 'success', selected: type === 'success' }, 'Success'],
+        ['option', { value: 'error', selected: type === 'error' }, 'Error']
+      ],
       ['div', { class: 'callout-content' }, 0]
     ]
   },
@@ -67,6 +73,22 @@ const Callout = Node.create({
     ]
   },
 })
+
+// ─── Callout type change handler ────────────────────────────────
+function changeCalloutType(selectEl) {
+  const calloutEl = selectEl.closest('[data-callout]')
+  if (!calloutEl) return
+  const type = selectEl.value
+  const oldType = calloutEl.dataset.type
+  if (oldType === type) return
+  calloutEl.dataset.type = type
+  calloutEl.className = calloutEl.className.replace(/callout--\w+/g, '') + ' callout--' + type
+  const iconEl = calloutEl.querySelector('.callout-icon')
+  if (iconEl) {
+    const icons = { info: 'ℹ️', warning: '⚠️', success: '✅', error: '❌' }
+    iconEl.textContent = icons[type] || '📌'
+  }
+}
 
 // ─── Image upload (one-off) ─────────────────────────────────────
 let imageInputEl = null
