@@ -424,3 +424,4 @@ window.setTipTapContent = setContent
 window.setTipTapEditable = setEditable
 window.focusTipTap = focusEditor
 window.blurTipTap = blurEditor
+window.changeCalloutType = changeCalloutType

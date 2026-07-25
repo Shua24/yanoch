@@ -22128,6 +22128,46 @@ var yA = {
 				n
 			],
 			[
+				"select",
+				{
+					class: "callout-type-picker",
+					"data-type": t,
+					onchange: "changeCalloutType(this)"
+				},
+				[
+					"option",
+					{
+						value: "info",
+						selected: t === "info"
+					},
+					"Info"
+				],
+				[
+					"option",
+					{
+						value: "warning",
+						selected: t === "warning"
+					},
+					"Warning"
+				],
+				[
+					"option",
+					{
+						value: "success",
+						selected: t === "success"
+					},
+					"Success"
+				],
+				[
+					"option",
+					{
+						value: "error",
+						selected: t === "error"
+					},
+					"Error"
+				]
+			],
+			[
 				"div",
 				{ class: "callout-content" },
 				0
