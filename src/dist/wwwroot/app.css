@@ -1174,7 +1174,7 @@ body {
 
 
 
-.title-input::placeholder { color: var(--text-tertiary); }
+.title-input:empty:before { content: attr(data-placeholder); color: var(--text-tertiary); cursor: text; }
 
 
 
@@ -1198,7 +1198,7 @@ body {
 
 
 
-.editor-blocks { min-height: 200px; }
+.editor-blocks { min-height: 200px; counter-reset: numbered-item; }
 
 
 
@@ -1218,11 +1218,11 @@ body {
 
 
 
-    gap: 4px;
+    gap: 2px;
 
 
 
-    padding: 2px 0;
+    padding: 0;
 
 
 
@@ -1354,7 +1354,7 @@ body {
 
 
 
-.block-content { flex: 1; min-width: 0; overflow: hidden; }
+.block-content { flex: 1; min-width: 0; }
 
 
 
@@ -1364,7 +1364,7 @@ body {
 
 .block-input {
 
-
+    display: block;
 
     width: 100%;
 
@@ -1659,7 +1659,12 @@ body {
 
 
 
-.text-render, .bullet-item, .numbered-item { padding: 4px 0; line-height: 1.6; word-wrap: break-word; overflow-wrap: break-word; word-break: break-word; white-space: pre-wrap; }
+.text-render { padding: 4px 0; line-height: 1.6; word-wrap: break-word; overflow-wrap: break-word; word-break: break-word; white-space: pre-wrap; }
+
+.bullet-item, .numbered-item { line-height: 1.25; word-wrap: break-word; overflow-wrap: break-word; word-break: break-word; white-space: pre-wrap; }
+
+.num-label { counter-increment: numbered-item; }
+.num-label::before { content: counter(numbered-item) "."; }
 
 
 
@@ -2011,61 +2016,6 @@ body {
 
 
 
-
-/* --- TipTap Editor --- */
-.editor-tiptap {
-    min-height: 300px;
-}
-.tiptap-editor {
-    outline: none;
-    min-height: 200px;
-    padding: 4px 0;
-    font-size: 15px;
-    line-height: 1.6;
-    color: var(--text-primary);
-}
-.tiptap-editor h1 { font-size: 28px; font-weight: 700; margin: 8px 0; }
-.tiptap-editor h2 { font-size: 22px; font-weight: 600; margin: 6px 0; }
-.tiptap-editor h3 { font-size: 18px; font-weight: 600; margin: 4px 0; }
-.tiptap-editor p { margin: 4px 0; }
-.tiptap-editor ul, .tiptap-editor ol { padding-left: 24px; margin: 4px 0; }
-.tiptap-editor li { margin: 2px 0; }
-.tiptap-editor pre {
-    background: var(--code-bg);
-    padding: 16px;
-    border-radius: var(--radius);
-    font-family: "SF Mono", "Fira Code", "Fira Mono", monospace;
-    font-size: 13px;
-    line-height: 1.5;
-    overflow-x: auto;
-    margin: 8px 0;
-}
-.tiptap-editor code {
-    font-family: "SF Mono", "Fira Code", "Fira Mono", monospace;
-    font-size: 13px;
-    background: var(--code-bg);
-    padding: 2px 4px;
-    border-radius: 3px;
-}
-.tiptap-editor pre code {
-    background: none;
-    padding: 0;
-}
-.tiptap-editor blockquote {
-    padding-left: 16px;
-    border-left: 3px solid var(--quote-border);
-    color: var(--text-secondary);
-    font-style: italic;
-    margin: 8px 0;
-}
-.tiptap-editor hr {
-    margin: 12px 0;
-    border: none;
-    border-top: 1px solid var(--border);
-}
-.tiptap-editor a { color: var(--accent); text-decoration: none; }
-.tiptap-editor a:hover { text-decoration: underline; }
-.tiptap-editor s { text-decoration: line-through; }
 
 /* --- Block Context Menu --- */
 .block-context-menu {

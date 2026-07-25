@@ -26,6 +26,7 @@ public class AppDbContext : IdentityDbContext<IdentityUser>
             e.Property(x => x.Title).HasMaxLength(500);
             e.Property(x => x.Icon).HasMaxLength(50);
             e.Property(x => x.CoverUrl).HasMaxLength(1000);
+            e.Property(x => x.Content).HasColumnType("TEXT");
             e.HasOne(x => x.ParentPage).WithMany(x => x.Children).HasForeignKey(x => x.ParentPageId).OnDelete(DeleteBehavior.Restrict);
             e.HasIndex(x => x.UserId);
             e.HasIndex(x => x.ParentPageId);

@@ -19,4 +19,6 @@ public interface IPageService
     Task AddBlockAsync(CreateBlockDto dto, Guid pageId);
     Task DeleteBlockAsync(Guid pageId, Guid blockId, Guid userId);
     Task RenumberBlocksAsync(Guid pageId, List<Guid> blockIdsInOrder);
+    Task<string?> GetContentAsync(Guid pageId, Guid userId);
+    Task SetContentAsync(Guid pageId, string content);
 }

@@ -1,0 +1,394 @@
+@inject IJSRuntime JSRuntime
+@inject Yanoch.Application.Interfaces.IFileStorageService FileStorageService
+
+ <div class="block-editor @GetViewClass()" data-block-id="@Block.Id">
+    <div class="block-drag-handle" @onmousedown:stopPropagation="true">⋮⋮</div>
+    <div class="block-icon">
+        @switch (Block.Type)
+        {
+            case "heading1": <text>#</text>; break;
+            case "heading2": <text>##</text>; break;
+            case "heading3": <text>###</text>; break;
+            case "todo": <text>☐</text>; break;
+            case "bulletList": <text>•</text>; break;
+            case "numberedList": <text>1.</text>; break;
+            case "toggle": <text>@(expanded ? "▼" : "▶")</text>; break;
+            case "quote": <text>"</text>; break;
+            case "code": <text>&lt;/&gt;</text>; break;
+            case "divider": <hr class="divider-render" />; break;
+            case "callout": <text>💡</text>; break;
+            case "image":
+                @if (string.IsNullOrEmpty(Block.Content))
+                {
+                    <text>🖼️</text>
+                }
+                break;
+            default: <text></text>; break;
+        }
+    </div>
+    <div class="block-content" @onclick="StartEdit">
+        @if (isEditing)
+        {
+            @switch (Block.Type)
+            {
+                case "heading1":
+                    <input maxlength="10000" @ref="_inputRef" @bind="Block.Content" @bind:event="oninput" class="block-input h1" @onkeydown="HandleKeyDown" @onfocusout="HandleFocusOut" @onclick:stopPropagation="true" />
+                    break;
+                case "heading2":
+                    <input maxlength="10000" @ref="_inputRef" @bind="Block.Content" @bind:event="oninput" class="block-input h2" @onkeydown="HandleKeyDown" @onfocusout="HandleFocusOut" @onclick:stopPropagation="true" />
+                    break;
+                case "heading3":
+                    <input maxlength="10000" @ref="_inputRef" @bind="Block.Content" @bind:event="oninput" class="block-input h3" @onkeydown="HandleKeyDown" @onfocusout="HandleFocusOut" @onclick:stopPropagation="true" />
+                    break;
+                case "todo":
+                    <label class="todo-item">
+                        <input type="checkbox" @bind="isChecked" @bind:after="ToggleTodo" />
+                        <input maxlength="10000" @ref="_inputRef" @bind="Block.Content" @bind:event="oninput" class="block-input" @onkeydown="HandleKeyDown" @onfocusout="HandleFocusOut" @onclick:stopPropagation="true" />
+                    </label>
+                    break;
+                case "code":
+                    <div contenteditable @ref="_inputRef" maxlength="10000" class="block-textarea code-block" @onkeydown="HandleKeyDown" @onfocusout="HandleFocusOut">@Block.Content</div>
+                    break;
+                case "quote":
+                    <div contenteditable @ref="_inputRef" maxlength="10000" class="block-textarea quote-block" @onkeydown="HandleKeyDown" @onfocusout="HandleFocusOut">@Block.Content</div>
+                    break;
+ @* Image has no edit mode - see drag-to-place *@
+                default:
+                    <div contenteditable @ref="_inputRef" maxlength="10000" class="block-textarea" @onkeydown="HandleKeyDown" @onfocusout="HandleFocusOut">@Block.Content</div>
+                    break;
+            }
+        }
+        else
+        {
+            @switch (Block.Type)
+            {
+                case "heading1": <h1 class="block-render">@RenderContent()</h1>; break;
+                case "heading2": <h2 class="block-render">@RenderContent()</h2>; break;
+                case "heading3": <h3 class="block-render">@RenderContent()</h3>; break;
+                case "todo":
+                    <label class="todo-item">
+                        <input type="checkbox" checked="@isChecked" disabled />
+                        <span class="@(isChecked ? "done" : "")">@RenderContent()</span>
+                    </label>
+                    break;
+                case "bulletList": <div class="bullet-item">@RenderInlineContent()</div>; break;
+                case "numberedList": <div class="numbered-item">@RenderInlineContent()</div>; break;
+                case "toggle": <div class="toggle-item" @onclick="ToggleExpand" @onclick:stopPropagation="true">@RenderInlineContent()</div>; break;
+                case "code": <pre class="code-render"><code>@(string.IsNullOrEmpty(Block.Content) ? "Code..." : Block.Content)</code></pre>; break;
+                case "quote": <blockquote class="quote-render">@RenderContent()</blockquote>; break;
+                case "callout": <div class="callout-render">@RenderContent()</div>; break;
+                case "image":
+                    var imgAlign = GetImageAlign();
+                    <div class="image-block-container image-block-view-@imgAlign" data-image-block-id="@Block.Id">
+                        @if (string.IsNullOrEmpty(Block.Content))
+                        {
+                            <label class="image-placeholder upload-label">
+                                Click to upload image
+                                <InputFile OnChange="HandleFileSelected" accept="image/*" hidden />
+                            </label>
+                        }
+                        else
+                        {
+                            <div class="image-drag-edge image-drag-edge-left"></div>
+                            <img src="@ImageSrc" class="image-block" alt="Uploaded image" draggable="false" />
+                            <div class="image-drag-edge image-drag-edge-right"></div>
+                        }
+                    </div>
+                    break;
+                case "divider":
+                    <hr class="divider-render" />
+                    break;
+                default:
+                    if (string.IsNullOrEmpty(Block.Content))
+                    {
+                        <div class="text-render empty-hint">Click to type...</div>
+                    }
+                    else
+                    {
+                        <div class="text-render">@RenderContent()</div>
+                    }
+                    break;
+            }
+        }
+    </div>
+    <div class="block-actions">
+        <button class="block-add-btn" @onclick="AddAfter" title="Add block below">+</button>
+        <button class="block-del-btn" @onclick="DeleteBlock" title="Delete block">×</button>
+    </div>
+</div>
+
+@if (expanded && Block.Children?.Any() == true)
+{
+    <div class="block-children">
+        @foreach (var child in Block.Children)
+        {
+            <BlockEditor Block="child" OnUpdate="OnUpdate" OnDelete="OnDelete" OnAddAfter="OnAddAfter" />
+        }
+    </div>
+}
+
+@code {
+    [Parameter] public BlockDto Block { get; set; } = new();
+    [Parameter] public EventCallback<BlockDto> OnUpdate { get; set; }
+    [Parameter] public EventCallback<BlockDto> OnDelete { get; set; }
+    [Parameter] public EventCallback<BlockDto> OnAddAfter { get; set; }
+    [Parameter] public bool AutoFocus { get; set; }
+    [Parameter] public int FocusVersion { get; set; }
+    [Parameter] public string PageVersion { get; set; } = "";
+
+    private const int MaxContentLength = 10000;
+    private bool isEditing;
+    private bool isChecked;
+    private bool expanded = true;
+    private string _contentBeforeEdit = "";
+    private bool _disposed;
+    private string? _lastSeenContent = null;
+    private string? _lastSeenMetadata = null;
+
+    public void Dispose() => _disposed = true;
+
+    private string GetBlockClass() => $"block-type-{Block.Type}";
+    private string GetViewClass() =>
+        Block.Type == "image" && !isEditing
+            ? $"block-type-{Block.Type} image-block-view-{GetImageAlign()}"
+            : $"block-type-{Block.Type}";
+
+    private ElementReference _inputRef;
+
+    protected override void OnInitialized()
+    {
+        isChecked = (Block.Content ?? "").StartsWith("[x] ");
+        _lastSeenContent = Block.Content ?? "";
+        _lastSeenMetadata = Block.Metadata;
+    }
+
+    private bool _focusedOnce;
+    private int _prevFocusVersion = -1;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!_focusedOnce && AutoFocus && isEditing)
+        {
+            _focusedOnce = true;
+            try
+            {
+                await _inputRef.FocusAsync();
+                await JSRuntime.InvokeVoidAsync("scrollElementIntoView", Block.Id.ToString());
+            }
+            catch { }
+        }
+
+    }
+
+
+
+    protected override void OnParametersSet()
+    {
+        // Sync local state when parent updates the block (e.g. after image upload)
+        if (Block.Content != _lastSeenContent || Block.Metadata != _lastSeenMetadata)
+        {
+            isChecked = (Block.Content ?? "").StartsWith("[x] ");
+            _lastSeenContent = Block.Content ?? "";
+            _lastSeenMetadata = Block.Metadata;
+            // Exit edit mode so the new content renders immediately
+            isEditing = false;
+        }
+
+        // Auto-focus: enter edit mode when this block is targeted (new block or backspace-delete)
+        if (AutoFocus && !isEditing && FocusVersion != _prevFocusVersion)
+        {
+            isEditing = true;
+            _focusedOnce = false;
+            _prevFocusVersion = FocusVersion;
+        }
+    }
+
+    private MarkupString RenderContent()
+    {
+        var content = Block.Content ?? "";
+        if (string.IsNullOrEmpty(content))
+            return new MarkupString(content);
+
+        // Convert wiki links [[page]] to HTML anchor tags before markdown
+        content = System.Text.RegularExpressions.Regex.Replace(content, @"\[\[([^\]]+)\]\]", "<a class=\"wiki-link\" href=\"/search?q=$1\">$1</a>");
+
+        // Full markdown rendering via Markdig — use softline break extension
+        // so single \n in text produces <br>, avoiding raw \n→<br> post-processing
+        // that would also hit \n inside list/block HTML.
+        var pipeline = new Markdig.MarkdownPipelineBuilder().UseSoftlineBreakAsHardlineBreak().Build();
+        var html = Markdig.Markdown.ToHtml(content, pipeline).Trim();
+
+        // Strip all <p> wrappers — block types provide their own structure.
+        // Multi-paragraph (blank line): </p>\n<p> → <br>, then remove leftover <p>/</p>.
+        html = System.Text.RegularExpressions.Regex.Replace(html, "</p>\n<p>", "<br><br>");
+        html = html.Replace("<p>", "").Replace("</p>", "");
+
+        return new MarkupString(html);
+    }
+
+    private MarkupString RenderInlineContent()
+    {
+        var content = Block.Content ?? "";
+        if (string.IsNullOrEmpty(content))
+            return new MarkupString(content);
+
+        // Convert wiki links [[page]] to HTML anchor tags before markdown
+        content = System.Text.RegularExpressions.Regex.Replace(content, @"\[\[([^\]]+)\]\]", "<a class=\"wiki-link\" href=\"/search?q=$1\">$1</a>");
+
+        // Inline-only markdown via Markdig then strip block-level HTML
+        var pipeline = new Markdig.MarkdownPipelineBuilder().Build();
+        var html = Markdig.Markdown.ToHtml(content, pipeline).Trim();
+
+        // Strip <p> wrappers — block provides its own structure
+        html = System.Text.RegularExpressions.Regex.Replace(html, "</p>\n<p>", "<br><br>");
+        html = html.Replace("<p>", "").Replace("</p>", "");
+
+        // Strip any block-level HTML Markdig produces (lists, headings, blockquote, pre)
+        html = System.Text.RegularExpressions.Regex.Replace(html, "</?(?:ul|ol|li|h[1-6]|blockquote|pre)>\n*", "", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
+        return new MarkupString(html);
+    }
+
+    private MarkupString RenderPlainTextContent()
+    {
+        var content = Block.Content ?? "";
+        if (string.IsNullOrEmpty(content))
+            return new MarkupString(content);
+
+        // Convert wiki links [[page]] to HTML anchor tags
+        content = System.Text.RegularExpressions.Regex.Replace(content, @"\[\[([^\]]+)\]\]", "<a class=\"wiki-link\" href="/search?q=$1\">$1</a>");
+
+        // Preserve line breaks by replacing newlines with <br> tags
+        content = content.Replace("\r\n", "<br>").Replace("\n", "<br>").Replace("\r", "<br>");
+
+        return new MarkupString(content);
+    }
+
+private string ImageSrc => string.IsNullOrEmpty(Block.Content) ? "" : Block.Content + "?v=" + PageVersion;
+
+    private async Task HandleFileSelected(InputFileChangeEventArgs e)
+    {
+        if (_disposed) return;
+        try
+        {
+            var file = e.File;
+            if (file == null) return;
+            if (file.Size > 10 * 1024 * 1024) return;
+            var ext = Path.GetExtension(file.Name).ToLowerInvariant();
+            if (!new[]{".png",".jpg",".jpeg",".gif",".webp",".svg"}.Contains(ext)) return;
+            using var stream = file.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024);
+            var url = await FileStorageService.SaveAsync(stream, file.Name);
+            if (!string.IsNullOrEmpty(url))
+            {
+                Block.Content = url;
+                await OnUpdate.InvokeAsync(Block);
+                StateHasChanged();
+            }
+        }
+        catch { _disposed = true; }
+    }
+
+    private void StartEdit()
+    {
+        if (isEditing || _disposed) return;
+        // Images are not clickable-edit; use drag-to-place instead
+        if (Block.Type == "image") return;
+        isEditing = true;
+        _contentBeforeEdit = Block.Content ?? "";
+    }
+
+    private async Task HandleFocusOut()
+    {
+        if (_disposed || !isEditing) return;
+        isEditing = false;
+        try
+        {
+            var text = await JSRuntime.InvokeAsync<string>("getDivText", _inputRef);
+            if (text is not null) Block.Content = text;
+        }
+        catch { }
+        if (Block.Content != _contentBeforeEdit)
+        {
+            await OnUpdate.InvokeAsync(Block);
+        }
+    }
+
+    private async Task HandleKeyDown(KeyboardEventArgs e)
+    {
+        if (_disposed) return;
+        try
+        {
+            // Sync current text from DOM — contenteditable divs aren't bound via @bind
+            try { var t = await JSRuntime.InvokeAsync<string>("getDivText", _inputRef); if (t is not null) Block.Content = t; } catch { }
+
+            if (e.Key == "Enter" && !e.ShiftKey)
+            {
+                isEditing = false;
+                await OnUpdate.InvokeAsync(Block);
+                await OnAddAfter.InvokeAsync(Block);
+            }
+            else if (e.Key == "Escape")
+            {
+                Block.Content = _contentBeforeEdit;
+                isEditing = false;
+            }
+            else if (e.Key == "Backspace" && string.IsNullOrEmpty(Block.Content))
+            {
+                await DeleteBlock();
+            }
+        }
+        catch { _disposed = true; }
+    }
+
+    private async Task ToggleTodo()
+    {
+        if (_disposed) return;
+        try
+        {
+            if (isChecked)
+                Block.Content = "[x] " + Block.Content.Replace("[x] ", "").Replace("[ ] ", "");
+            else
+                Block.Content = "[ ] " + Block.Content.Replace("[x] ", "").Replace("[ ] ", "");
+            await OnUpdate.InvokeAsync(Block);
+        }
+        catch { _disposed = true; }
+    }
+
+    private void ToggleExpand() => expanded = !expanded;
+
+    private async Task AddAfter()
+    {
+        if (_disposed) return;
+        try { await OnAddAfter.InvokeAsync(Block); } catch { _disposed = true; }
+    }
+
+    private async Task DeleteBlock()
+    {
+        if (_disposed) return;
+        try { await OnDelete.InvokeAsync(Block); } catch { _disposed = true; }
+    }
+
+    private string GetImageAlign()
+    {
+        if (string.IsNullOrEmpty(Block.Metadata)) return "full";
+        try
+        {
+            var json = System.Text.Json.JsonDocument.Parse(Block.Metadata);
+            return json.RootElement.TryGetProperty("align", out var a) ? a.GetString() ?? "full" : "full";
+        }
+        catch { return "full"; }
+    }
+
+    private async Task SetImageAlign(string align)
+    {
+        if (_disposed) return;
+        try
+        {
+            Block.Metadata = $"{{\"align\":\"{align}\"}}";
+            _lastSeenMetadata = Block.Metadata;
+            await OnUpdate.InvokeAsync(Block);
+            StateHasChanged();
+        }
+        catch { _disposed = true; }
+    }
+}

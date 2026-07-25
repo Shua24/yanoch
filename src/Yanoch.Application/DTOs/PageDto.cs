@@ -8,6 +8,7 @@ public class PageDto
     public string? CoverUrl { get; set; }
     public Guid? ParentPageId { get; set; }
     public int SortOrder { get; set; }
+    public string? Content { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
     public List<BlockDto> Blocks { get; set; } = new();

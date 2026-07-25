@@ -28,7 +28,7 @@ public class PageRepository : IPageRepository
     public async Task<IEnumerable<Page>> SearchAsync(string query, Guid userId)
     {
         var q = query.ToLower();
-        return await _db.Pages.AsNoTracking().Where(p => p.UserId == userId && (p.Title.ToLower().Contains(q) || p.Blocks.Any(b => b.Content.ToLower().Contains(q))))
+        return await _db.Pages.AsNoTracking().Where(p => p.UserId == userId && (p.Title.ToLower().Contains(q) || (p.Content != null && p.Content.ToLower().Contains(q))))
             .OrderByDescending(p => p.UpdatedAt).Take(20).ToListAsync();
     }
 
@@ -169,5 +169,19 @@ public class PageRepository : IPageRepository
         await _db.Database.ExecuteSqlRawAsync(
             "UPDATE \"Pages\" SET \"UpdatedAt\" = {0} WHERE \"Id\" = {1}",
             DateTime.UtcNow, pageId);
+    }
+
+    public async Task<string?> GetContentAsync(Guid pageId, Guid userId)
+    {
+        var page = await _db.Pages.AsNoTracking()
+            .FirstOrDefaultAsync(p => p.Id == pageId && p.UserId == userId);
+        return page?.Content;
+    }
+
+    public async Task SetContentAsync(Guid pageId, string content)
+    {
+        await _db.Database.ExecuteSqlRawAsync(
+            "UPDATE \"Pages\" SET \"Content\" = {0}, \"UpdatedAt\" = {1} WHERE \"Id\" = {2}",
+            content, DateTime.UtcNow, pageId);
     }
 }

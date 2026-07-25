@@ -58,33 +58,9 @@ public class PageService : IPageService
             Title = dto.Title,
             Icon = dto.Icon,
             ParentPageId = dto.ParentPageId,
-            UserId = userId
+            UserId = userId,
+            Content = dto.Content ?? ""
         };
-
-        if (dto.Blocks != null)
-        {
-            foreach (var b in dto.Blocks)
-            {
-                page.Blocks.Add(new Block
-                {
-                    Id = b.Id == Guid.Empty ? Guid.NewGuid() : b.Id,
-                    PageId = page.Id,
-                    Type = b.Type,
-                    Content = b.Content ?? "",
-                    Metadata = b.Metadata,
-                    SortOrder = b.SortOrder,
-                    ParentBlockId = b.ParentBlockId
-                });
-            }
-        }
-
-        if (dto.TagIds != null)
-        {
-            foreach (var tagId in dto.TagIds)
-            {
-                page.PageTags.Add(new PageTag { PageId = page.Id, TagId = tagId });
-            }
-        }
 
         await _pages.CreateAsync(page);
         return MapToDto(page);
@@ -94,7 +70,6 @@ public class PageService : IPageService
     {
         var page = await _pages.GetByIdAsync(id, userId);
         if (page == null) return null;
-
 
         if (dto.Title != null) page.Title = dto.Title;
         if (dto.Icon != null) page.Icon = dto.Icon;
@@ -110,54 +85,40 @@ public class PageService : IPageService
                 page.PageTags.Add(new PageTag { PageId = page.Id, TagId = tagId });
         }
 
-        if (dto.Blocks != null)
-        {
-            // Update blocks in place - preserve IDs to prevent component re-mounting
-            await _pages.UpdateBlocksAsync(page.Id, dto.Blocks.Select(b => new Block
-            {
-                Id = b.Id,
-                PageId = page.Id,
-                Type = b.Type,
-                Content = b.Content ?? "",
-                Metadata = b.Metadata,
-                SortOrder = b.SortOrder,
-                ParentBlockId = b.ParentBlockId
-            }).ToList());
-            await UpdateBacklinksFromBlocks(page.Id, page.UserId, dto.Blocks);
-            
-            // Return the updated page with blocks updated in place
-            // Don't fetch from DB - that would create new objects and break component identity
-            page.UpdatedAt = DateTime.UtcNow;
-            return MapToDto(page);
-        }
-        else
-        {
-            await _pages.UpdateAsync(page);
-            var updated = await _pages.GetByIdAsync(page.Id, page.UserId);
-            return MapToDto(updated!);
-        }
+        await _pages.UpdateAsync(page);
+        var updated = await _pages.GetByIdAsync(page.Id, page.UserId);
+        return MapToDto(updated!);
     }
 
-    private async Task UpdateBacklinksFromBlocks(Guid sourcePageId, Guid userId, List<CreateBlockDto> blocks)
+    public async Task<string?> GetContentAsync(Guid pageId, Guid userId) =>
+        await _pages.GetContentAsync(pageId, userId);
+
+    public async Task SetContentAsync(Guid pageId, string content)
     {
+        await _pages.SetContentAsync(pageId, content);
+        await UpdateBacklinksFromContent(pageId, content);
+    }
+
+    private async Task UpdateBacklinksFromContent(Guid sourcePageId, string content)
+    {
+        var page = await _pages.GetByIdAsync(sourcePageId, Guid.Empty); // userId not needed for this
+        if (page == null) return;
+        var userId = page.UserId;
+
         await _backlinks.DeleteBySourcePageAsync(sourcePageId);
-        foreach (var block in blocks)
+        var matches = System.Text.RegularExpressions.Regex.Matches(content, @"\[\[([^\]]+)\]\]");
+        foreach (System.Text.RegularExpressions.Match m in matches)
         {
-            var content = block.Content ?? "";
-            var matches = System.Text.RegularExpressions.Regex.Matches(content, @"\[\[([^\]]+)\]\]");
-            foreach (System.Text.RegularExpressions.Match m in matches)
+            var title = m.Groups[1].Value;
+            var target = await FindPageByTitle(title, userId);
+            if (target != null)
             {
-                var title = m.Groups[1].Value;
-                var target = await FindPageByTitle(title, userId);
-                if (target != null)
+                await _backlinks.CreateAsync(new Backlink
                 {
-                    await _backlinks.CreateAsync(new Backlink
-                    {
-                        SourcePageId = sourcePageId,
-                        TargetPageId = target.Id,
-                        Context = content.Length > 200 ? content[..200] : content
-                    });
-                }
+                    SourcePageId = sourcePageId,
+                    TargetPageId = target.Id,
+                    Context = content.Length > 200 ? content[..200] : content
+                });
             }
         }
     }
@@ -230,7 +191,7 @@ public class PageService : IPageService
             Id = p.Id,
             Title = p.Title,
             Icon = p.Icon,
-            Snippet = p.Blocks?.FirstOrDefault()?.Content?[..Math.Min(200, p.Blocks.FirstOrDefault()?.Content?.Length ?? 0)],
+            Snippet = (p.Content ?? "")[..Math.Min(200, (p.Content ?? "").Length)],
             UpdatedAt = p.UpdatedAt
         });
     }
@@ -299,6 +260,7 @@ public class PageService : IPageService
         CoverUrl = p.CoverUrl,
         ParentPageId = p.ParentPageId,
         SortOrder = p.SortOrder,
+        Content = p.Content,
         CreatedAt = p.CreatedAt,
         UpdatedAt = p.UpdatedAt,
         Blocks = p.Blocks?.Where(b => !b.IsDeleted).OrderBy(b => b.SortOrder).Select(b => new BlockDto

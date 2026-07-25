@@ -34,6 +34,20 @@ public class PagesController : ControllerBase
         return page == null ? NotFound() : Ok(page);
     }
 
+    [HttpGet("{id}/content")]
+    public async Task<IActionResult> GetContent(Guid id)
+    {
+        var content = await _pages.GetContentAsync(id, UserId());
+        return Ok(new { content });
+    }
+
+    [HttpPut("{id}/content")]
+    public async Task<IActionResult> SetContent(Guid id, [FromBody] SetContentDto dto)
+    {
+        await _pages.SetContentAsync(id, dto.Content);
+        return NoContent();
+    }
+
     [HttpDelete("{id}")]
     public async Task<IActionResult> Delete(Guid id)
     {

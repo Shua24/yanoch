@@ -1,4 +1,4 @@
-﻿@page "/new"
+@page "/new"
 @page "/page/{PageId:guid}"
 @layout MainLayout
 @inject IPageService PageService
@@ -35,11 +35,10 @@
                 }
                 </div>
                 <div class="editor-actions">
-                    <button class="btn-add-image" @onclick="async () => await AddImageBlock()" title="Add image block">🖼️ Image</button>
                     <button class="btn-delete-page" @onclick="DeletePage" title="Delete page">🗑️ Delete</button>
                 </div>
             </div>
-            <textarea rows="1" id="page-title-input" @bind="page!.Title" @bind:after="async () => await SavePageAsync()" class="title-input" placeholder="Untitled" @onkeydown="HandleTitleKeyDown"></textarea>
+            <textarea rows="1" id="page-title-input" @bind="page!.Title" @bind:after="async () => await SavePageMetaAsync()" class="title-input" placeholder="Untitled" @onkeydown="HandleTitleKeyDown"></textarea>
             <div class="editor-meta">
                 <span>Updated @(page!.UpdatedAt.ToLocalTime().ToString("MMM dd, yyyy HH:mm"))</span>
                 @if (!string.IsNullOrEmpty(_saveStatus))
@@ -59,16 +58,8 @@
             </div>
         }
 
-        <div class="editor-blocks" id="blocks-container" @onclick="OnEmptyAreaClick" @onmousedown:stopPropagation>
-            @if (!page.Blocks.Any())
-            {
-                <div class="editor-empty-hint">Click anywhere to start typing...</div>
-            }
-            @foreach (var block in page.Blocks)
-            {
-                <BlockEditor @key="block.Id" Block="block" AutoFocus="block.Id == _focusBlockId" FocusVersion="_focusVersion" PageVersion="_pageVersion" OnUpdate="HandleBlockUpdate" OnDelete="HandleBlockDelete" OnAddAfter="HandleAddBlock" />
-            }
-        </div>
+        <!-- TipTap editor mounts here -->
+        <div id="tiptap-editor" class="editor-tiptap"></div>
 
         @if (page.Backlinks.Any())
         {
@@ -93,10 +84,11 @@
     private bool isNew;
     private string _saveStatus = "";
     private Guid currentUserId;
-    private Guid? _focusBlockId;
-    private int _focusVersion;
-    private string _pageVersion = Guid.NewGuid().ToString("N");
     private bool _showEmojiPicker;
+    private DotNetObjectReference<Editor>? _dotNetRef;
+    private bool _editorInitialized;
+    private DateTime _lastSave = DateTime.MinValue;
+    private const int SaveDebounceMs = 800;
 
     private static readonly string[] _emojis = new[] {
         "📄", "📝", "📋", "📌", "📎", "✏️", "📖", "📕", "📗", "📘",
@@ -113,10 +105,9 @@
         if (page == null) return;
         page.Icon = emoji;
         _showEmojiPicker = false;
-        await SavePageAsync();
+        await SavePageMetaAsync();
         StateHasChanged();
     }
-
 
     protected override async Task OnInitializedAsync()
     {
@@ -138,21 +129,21 @@
 
     protected override async Task OnParametersSetAsync()
     {
-        // Fires on every navigation ? handles component reuse when going from /page/{id} to /new
         await LoadPageForRoute();
     }
 
     private string? _lastLoadedRoute;
+
     private async Task LoadPageForRoute()
     {
         var newIsNew = Navigation.Uri.EndsWith("/new", StringComparison.OrdinalIgnoreCase);
-
-        // Skip if we are already on the same route and page is loaded
         var currentRoute = Navigation.Uri;
         if (currentRoute == _lastLoadedRoute)
             return;
         _lastLoadedRoute = currentRoute;
-            _pageVersion = Guid.NewGuid().ToString("N");
+
+        // Destroy any previous TipTap editor
+        await DestroyEditor();
 
         isNew = newIsNew;
 
@@ -163,58 +154,121 @@
                 Id = Guid.NewGuid(),
                 Title = "Untitled",
                 Icon = "📄",
-                Blocks = new List<BlockDto> { new BlockDto { Id = Guid.NewGuid(), Type = "text", Content = "", SortOrder = 0 } },
+                Content = "",
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow
             };
             loading = false;
+            _editorInitialized = false;
         }
         else
         {
-            // Skip DB load if we already have the correct page (e.g., after SavePageAsync redirect)
             if (page == null || page.Id != PageId)
             {
-                // Fully clear old page state and force render before loading new page
                 page = null;
                 loading = true;
                 StateHasChanged();
                 await Task.Yield();
                 page = await PageService.GetByIdAsync(PageId, currentUserId);
-            }
-            if (page != null && !page.Blocks.Any())
-            {
-                page.Blocks.Add(new BlockDto { Id = Guid.NewGuid(), Type = "text", Content = "", SortOrder = 0 });
+                _editorInitialized = false;
             }
             loading = false;
         }
         StateHasChanged();
     }
 
-    private DotNetObjectReference<Editor>? _dotNetRef;
-    private bool _interopInitialized;
-
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (!_interopInitialized && !loading && page != null)
+        if (!_editorInitialized && !loading && page != null)
         {
-            try
-            {
-                _dotNetRef = DotNetObjectReference.Create(this);
-                await JSRuntime.InvokeVoidAsync("setupBlockDragAndDrop", _dotNetRef);
-                await JSRuntime.InvokeVoidAsync("setupImagePlaceDrag", _dotNetRef);
-                await JSRuntime.InvokeVoidAsync("watchTitleInputScroll", "page-title-input");
-                _interopInitialized = true;
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine("Error setting up interop: " + ex.Message);
-            }
+            await InitEditor();
+            _editorInitialized = true;
         }
+    }
+
+    private async Task InitEditor()
+    {
+        try
+        {
+            _dotNetRef = DotNetObjectReference.Create(this);
+
+            // Load content from API if existing page
+            string content;
+            if (isNew)
+            {
+                content = "";
+            }
+            else
+            {
+                content = await PageService.GetContentAsync(page!.Id, currentUserId) ?? "";
+            }
+
+            await JSRuntime.InvokeVoidAsync("initTipTap", "tiptap-editor", content, _dotNetRef, page!.Id.ToString());
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine("Error initializing TipTap: " + ex.Message);
+        }
+    }
+
+    private async Task DestroyEditor()
+    {
+        _editorInitialized = false;
+        _dotNetRef?.Dispose();
+        _dotNetRef = null;
+        try
+        {
+            await JSRuntime.InvokeVoidAsync("destroyTipTap", "tiptap-editor");
+        }
+        catch { }
     }
 
     public void Dispose()
     {
-        _dotNetRef?.Dispose();
+        _ = DestroyEditor();
+    }
+
+    /// <summary>
+    /// Called from JS interop when TipTap content changes.
+    /// </summary>
+    [JSInvokable]
+    public async Task OnMarkdownChanged(string blockId, string markdown)
+    {
+        if (isNew || page == null) return;
+
+        var now = DateTime.UtcNow;
+        if ((now - _lastSave).TotalMilliseconds < SaveDebounceMs) return;
+        _lastSave = now;
+
+        try
+        {
+            _saveStatus = "Saving...";
+            StateHasChanged();
+            await PageService.SetContentAsync(page.Id, markdown);
+            page.Content = markdown;
+            page.UpdatedAt = now;
+            OnPageDataChanged?.Invoke();
+            _saveStatus = "";
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            _saveStatus = "";
+            Console.WriteLine("Save error: " + ex.Message);
+            StateHasChanged();
+        }
+    }
+
+    [JSInvokable]
+    public async Task OnFocus(string blockId)
+    {
+        // Focus tracking if needed
+    }
+
+    [JSInvokable]
+    public async Task OnBlur(string blockId)
+    {
+        // Blur tracking if needed
     }
 
     private async Task HandleTitleKeyDown(KeyboardEventArgs e)
@@ -226,7 +280,7 @@
         }
     }
 
-    private async Task SavePageAsync()
+    private async Task SavePageMetaAsync()
     {
         if (page == null) return;
         try
@@ -237,9 +291,13 @@
                 {
                     Title = page.Title,
                     Icon = page.Icon,
-                    Blocks = page.Blocks.Select(b => new CreateBlockDto { Id = b.Id, Type = b.Type, Content = b.Content, SortOrder = b.SortOrder }).ToList()
+                    Content = "",
                 }, currentUserId);
-                if (newPage != null) { OnPageDataChanged?.Invoke(); Navigation.NavigateTo($"/page/{newPage.Id}"); }
+                if (newPage != null)
+                {
+                    OnPageDataChanged?.Invoke();
+                    Navigation.NavigateTo($"/page/{newPage.Id}");
+                }
             }
             else
             {
@@ -250,303 +308,9 @@
         catch { }
     }
 
-    private async Task HandleBlockUpdate(BlockDto block)
-    {
-        if (page == null) return;
-        // For unsaved pages, update local state only — SavePageAsync will persist it
-        if (isNew) { StateHasChanged(); return; }
-
-        try
-        {
-            // Update local state immediately
-            var existingBlock = page.Blocks.FirstOrDefault(b => b.Id == block.Id);
-            if (existingBlock != null) existingBlock.Content = block.Content != null && block.Content.Length > 10000 ? block.Content[..10000] : block.Content ?? "";
-            StateHasChanged();
-
-            // Fast save: only send the changed block, not all blocks
-            _saveStatus = "Saving...";
-            await PageService.UpdateBlockContentAsync(page.Id, block.Id, block.Content, currentUserId);
-            page.UpdatedAt = DateTime.UtcNow;
-            _saveStatus = "";
-            StateHasChanged();
-        }
-        catch (Exception ex)
-        {
-            _saveStatus = "";
-            Console.WriteLine("HandleBlockUpdate error: " + ex.Message);
-        }
-    }
-
-    private async Task HandleBlockDelete(BlockDto block)
-    {
-        if (page == null) return;
-        try
-        {
-            // Find the block before this one so we can focus it after deletion
-            var blockIndex = page.Blocks.FindIndex(b => b.Id == block.Id);
-            var prevBlockId = blockIndex > 0 ? page.Blocks[blockIndex - 1].Id : (Guid?)null;
-
-            page.Blocks.RemoveAll(b => b.Id == block.Id);
-            // Fast path: mark deleted and renumber remaining
-            var remainingIds = page.Blocks.Select(b => b.Id).ToList();
-            _saveStatus = "Saving...";
-            await PageService.DeleteBlockAsync(page.Id, block.Id, currentUserId);
-            await PageService.RenumberBlocksAsync(page.Id, remainingIds);
-            _saveStatus = "";
-
-            if (prevBlockId.HasValue)
-                _focusBlockId = prevBlockId.Value;
-            _focusVersion++;
-
-            StateHasChanged();
-        }
-        catch { }
-    }
-
-    private async Task HandleAddBlock(BlockDto afterBlock)
-    {
-        if (page == null) return;
-        try
-        {
-            var newBlock = new BlockDto
-            {
-                Id = Guid.NewGuid(),
-                Type = "text",
-                Content = "",
-                SortOrder = afterBlock.SortOrder + 1
-            };
-
-            int insertIndex = page.Blocks.FindIndex(b => b.Id == afterBlock.Id);
-            if (insertIndex >= 0) page.Blocks.Insert(insertIndex + 1, newBlock);
-            else page.Blocks.Add(newBlock);
-
-            // Fast path: save new block and renumber
-            var remainingIds = page.Blocks.Select(b => b.Id).ToList();
-            _saveStatus = "Saving...";
-            _focusBlockId = newBlock.Id;
-            _focusVersion++;
-            await PageService.AddBlockAsync(new CreateBlockDto
-            {
-                Id = newBlock.Id,
-                Type = "text",
-                Content = "",
-                SortOrder = newBlock.SortOrder
-            }, page.Id);
-            await PageService.RenumberBlocksAsync(page.Id, remainingIds);
-            _saveStatus = "";
-            StateHasChanged();
-            // Yield to let the render complete, then focus the new block
-            await Task.Yield();
-            await JSRuntime.InvokeVoidAsync("focusBlockInput", newBlock.Id.ToString());
-        }
-        catch { }
-    }
-
-    private async Task OnEmptyAreaClick()
-    {
-        if (page == null) return;
-        // Only add block if clicking on the empty container area, not on an existing block
-        if (!page.Blocks.Any())
-        {
-            var newBlock = new BlockDto
-            {
-                Id = Guid.NewGuid(),
-                Type = "text",
-                Content = "",
-                SortOrder = 0
-            };
-            page.Blocks.Add(newBlock);
-            StateHasChanged();
-            _saveStatus = "Saving...";
-            var remainingIds = page.Blocks.Select(b => b.Id).ToList();
-            if (!isNew)
-            {
-                await PageService.AddBlockAsync(new CreateBlockDto { Id = newBlock.Id, Type = "text", Content = "", SortOrder = 0 }, page.Id);
-                await PageService.RenumberBlocksAsync(page.Id, remainingIds);
-            }
-            _saveStatus = "";
-        }
-    }
-
-    private async Task AddImageBlock()
-    {
-        if (page == null) return;
-        try
-        {
-            var newBlock = new BlockDto
-            {
-                Id = Guid.NewGuid(),
-                Type = "image",
-                Content = "",
-                SortOrder = page.Blocks.Any() ? page.Blocks.Max(b => b.SortOrder) + 1 : 0
-            };
-            page.Blocks.Add(newBlock);
-            StateHasChanged();
-
-            // Fast path: save new block and renumber
-            var remainingIds = page.Blocks.Select(b => b.Id).ToList();
-            _saveStatus = "Saving...";
-            await PageService.AddBlockAsync(new CreateBlockDto
-            {
-                Id = newBlock.Id,
-                Type = "image",
-                Content = "",
-                SortOrder = newBlock.SortOrder
-            }, page.Id);
-            await PageService.RenumberBlocksAsync(page.Id, remainingIds);
-            _saveStatus = "";
-            StateHasChanged();
-        }
-        catch { }
-    }
-
     private async Task DeletePage()
     {
         if (page == null) return;
         try { await PageService.DeleteAsync(page.Id, currentUserId); OnPageDataChanged?.Invoke(); Navigation.NavigateTo("/"); } catch { }
     }
-
-    private void CreateNewPage()
-    {
-        Navigation.NavigateTo("/new");
-    }
-    [JSInvokable]
-    public async Task HandleBlockReorder(string[] blockIds)
-    {
-        if (page == null || isNew) return;
-        try
-        {
-            // Reorder local blocks to match the new order from JS
-            var ordered = blockIds
-                .Select(id => page.Blocks.FirstOrDefault(b => b.Id.ToString() == id))
-                .Where(b => b != null)
-                .Cast<BlockDto>()
-                .ToList();
-
-            if (ordered.Count != page.Blocks.Count) return;
-
-            page.Blocks.Clear();
-            page.Blocks.AddRange(ordered);
-
-            // Persist new order to DB
-            var ids = ordered.Select(b => b.Id).ToList();
-            _saveStatus = "Saving...";
-            await PageService.RenumberBlocksAsync(page.Id, ids);
-            page.UpdatedAt = DateTime.UtcNow;
-            _saveStatus = "";
-            StateHasChanged();
-        }
-        catch (Exception ex)
-        {
-            _saveStatus = "";
-            Console.WriteLine("HandleBlockReorder error: " + ex.Message);
-        }
-    }
-
-    [JSInvokable]
-    public async Task HandleBlockConvert(string blockId, string newType)
-    {
-        if (page == null) return;
-        try
-        {
-            var block = page.Blocks.FirstOrDefault(b => b.Id.ToString() == blockId);
-            if (block == null) return;
-            // Strip '/' content from text blocks, strip '#' prefix for headings
-            if (block.Type == "text" || block.Content == "/") block.Content = "";
-            if (newType is "heading1" or "heading2" or "heading3")
-            {
-                block.Content = System.Text.RegularExpressions.Regex.Replace(block.Content ?? "", @"^#+\s*", "");
-            }
-            block.Type = newType;
-            if (newType == "image") block.Content = "";
-            _saveStatus = "Saving...";
-            await PageService.UpdateBlockContentAsync(page.Id, block.Id, block.Content, currentUserId);
-            await PageService.UpdateBlockTypeAsync(page.Id, block.Id, newType, currentUserId);
-            _saveStatus = "";
-            StateHasChanged();
-        }
-        catch (Exception ex) { Console.WriteLine("Convert error: " + ex.Message); }
-    }
-
-    [JSInvokable]
-    public async Task HandleBlockDuplicate(string blockId)
-    {
-        if (page == null) return;
-        try
-        {
-            var idx = page.Blocks.FindIndex(b => b.Id.ToString() == blockId);
-            if (idx < 0) return;
-            var src = page.Blocks[idx];
-            var copy = new BlockDto
-            {
-                Id = Guid.NewGuid(),
-                Type = src.Type,
-                Content = src.Content,
-                Metadata = src.Metadata,
-                SortOrder = src.SortOrder + 1
-            };
-            page.Blocks.Insert(idx + 1, copy);
-            var ids = page.Blocks.Select(b => b.Id).ToList();
-            _saveStatus = "Saving...";
-            await PageService.AddBlockAsync(new CreateBlockDto { Id = copy.Id, Type = copy.Type, Content = copy.Content, Metadata = copy.Metadata, SortOrder = copy.SortOrder }, page.Id);
-            await PageService.RenumberBlocksAsync(page.Id, ids);
-            _saveStatus = "";
-            _focusBlockId = copy.Id; _focusVersion++;
-            StateHasChanged();
-        }
-        catch (Exception ex) { Console.WriteLine("Duplicate error: " + ex.Message); }
-    }
-
-    [JSInvokable]
-    public async Task HandleBlockDelete(string blockId)
-    {
-        if (page == null || isNew) return;
-        try
-        {
-            var guid = Guid.Parse(blockId);
-            var idx = page.Blocks.FindIndex(b => b.Id == guid);
-            if (idx < 0) return;
-            page.Blocks.RemoveAt(idx);
-            var ids = page.Blocks.Select(b => b.Id).ToList();
-            _saveStatus = "Saving...";
-            await PageService.DeleteBlockAsync(page.Id, guid, currentUserId);
-            await PageService.RenumberBlocksAsync(page.Id, ids);
-            _saveStatus = "";
-            _focusBlockId = idx > 0 ? page.Blocks[idx - 1].Id : null;
-            if (_focusBlockId == null && page.Blocks.Any()) _focusBlockId = page.Blocks[0].Id;
-            _focusVersion++;
-            StateHasChanged();
-        }
-        catch (Exception ex) { Console.WriteLine("HandleBlockDelete error: " + ex.Message); }
-    }
-
-    [JSInvokable]
-    public async Task HandleImageAlign(string blockId, string align)
-    {
-        if (page == null || isNew) return;
-        try
-        {
-            var block = page.Blocks.FirstOrDefault(b => b.Id.ToString() == blockId);
-            if (block == null) return;
-            block.Metadata = $"{{\"align\":\"{align}\"}}";
-            _saveStatus = "Saving...";
-            // Full blocks update to persist metadata change
-            await PageService.UpdateAsync(page.Id, new UpdatePageDto
-            {
-                Blocks = page.Blocks.Select(b => new CreateBlockDto
-                {
-                    Id = b.Id, Type = b.Type, Content = b.Content, Metadata = b.Metadata, SortOrder = b.SortOrder
-                }).ToList()
-            }, currentUserId);
-            _saveStatus = "";
-            StateHasChanged();
-        }
-        catch (Exception ex)
-        {
-            _saveStatus = "";
-            Console.WriteLine("HandleImageAlign error: " + ex.Message);
-        }
-    }
 }
-
-
