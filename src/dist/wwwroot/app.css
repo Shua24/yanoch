@@ -1242,6 +1242,14 @@ body {
     font-size: 11px;
     color: var(--text-secondary, #888);
 }
+.slash-md {
+    margin-left: auto;
+    font-size: 11px;
+    font-family: monospace;
+    color: var(--text-tertiary, #aaa);
+    opacity: 0.7;
+    flex-shrink: 0;
+}
 
 /* --- Wiki Link Menu --- */
 .wiki-menu {
@@ -1602,25 +1610,49 @@ body {
 .ProseMirror-focused .ProseMirror-gapcursor { display: block; }
 
 /* ─── Table Block ─────────────────────────────────────────────── */
+.tiptap-editor .tableWrapper {
+  overflow-x: auto;
+  max-width: 100%;
+  margin: 12px 0;
+  border-radius: var(--radius, 6px);
+  border: 1px solid var(--border, rgba(0,0,0,0.12));
+}
+
+.dark .tiptap-editor .tableWrapper {
+  border-color: var(--border, rgba(255,255,255,0.1));
+}
+
 .tiptap-editor table {
   border-collapse: collapse;
   table-layout: fixed;
   width: 100%;
-  margin: 12px 0;
+  margin: 0;
   overflow: hidden;
-  border-radius: var(--radius, 6px);
   font-size: 0.9375em;
 }
 
+/* Remove separate border since tableWrapper handles the outer border */
 .tiptap-editor table td,
 .tiptap-editor table th {
-  min-width: 60px;
-  border: 1px solid var(--border, rgba(0,0,0,0.12));
+  min-width: 80px;
+  border: none;
+  border-right: 1px solid var(--border, rgba(0,0,0,0.12));
+  border-bottom: 1px solid var(--border, rgba(0,0,0,0.12));
   padding: 7px 12px;
   vertical-align: top;
   box-sizing: border-box;
   position: relative;
   background-clip: padding-box;
+}
+
+/* Avoid double borders on outermost elements */
+.tiptap-editor table tr:last-child td,
+.tiptap-editor table tr:last-child th {
+  border-bottom: none;
+}
+.tiptap-editor table td:last-child,
+.tiptap-editor table th:last-child {
+  border-right: none;
 }
 
 .tiptap-editor table th {
@@ -1684,3 +1716,55 @@ body {
 .dark .tiptap-editor table tr:hover td {
   background: rgba(255,255,255,0.03);
 }
+
+/* Floating Table Helper Bubble Menu Styles */
+.table-bubble-menu {
+  animation: tableMenuFadeIn 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes tableMenuFadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.table-menu-btn {
+  background: transparent;
+  border: none;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  padding: 4px 8px;
+  border-radius: 4px;
+  color: var(--text-primary, #1d1d1f);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  transition: background 0.1s ease, color 0.1s ease;
+}
+
+.table-menu-btn:hover {
+  background: var(--hover-bg, rgba(0,0,0,0.06));
+}
+
+.table-menu-btn-danger {
+  color: var(--warning, #e5484d) !important;
+}
+
+.table-menu-btn-danger:hover {
+  background: rgba(229, 72, 77, 0.1) !important;
+}
+
+/* Dark mode overrides */
+.dark .table-bubble-menu {
+  background: var(--card-bg, #1e1e1e) !important;
+  border-color: var(--border, rgba(255,255,255,0.1)) !important;
+}
+
+.dark .table-menu-btn {
+  color: var(--text-primary, #e3e3e3);
+}
+
+.dark .table-menu-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+

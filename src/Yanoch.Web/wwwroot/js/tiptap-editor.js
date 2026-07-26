@@ -24137,66 +24137,77 @@ var nN = [
 		title: "Text",
 		desc: "Plain paragraph",
 		icon: "Aa",
+		md: "",
 		run: (e) => e.chain().focus().clearNodes().setParagraph().run()
 	},
 	{
 		title: "Heading 1",
 		desc: "Large heading",
 		icon: "H1",
+		md: "#",
 		run: (e) => e.chain().focus().clearNodes().toggleHeading({ level: 1 }).run()
 	},
 	{
 		title: "Heading 2",
 		desc: "Medium heading",
 		icon: "H2",
+		md: "##",
 		run: (e) => e.chain().focus().clearNodes().toggleHeading({ level: 2 }).run()
 	},
 	{
 		title: "Heading 3",
 		desc: "Small heading",
 		icon: "H3",
+		md: "###",
 		run: (e) => e.chain().focus().clearNodes().toggleHeading({ level: 3 }).run()
 	},
 	{
 		title: "Bullet List",
 		desc: "Unordered items",
 		icon: "•",
+		md: "- ",
 		run: (e) => e.chain().focus().clearNodes().toggleBulletList().run()
 	},
 	{
 		title: "Numbered List",
 		desc: "Ordered items",
 		icon: "1.",
+		md: "1. ",
 		run: (e) => e.chain().focus().clearNodes().toggleOrderedList().run()
 	},
 	{
 		title: "Task List",
 		desc: "Checklist",
 		icon: "☑",
+		md: "[ ]",
 		run: (e) => e.chain().focus().clearNodes().toggleTaskList().run()
 	},
 	{
 		title: "Quote",
 		desc: "Blockquote",
 		icon: "\"",
+		md: "> ",
 		run: (e) => e.chain().focus().clearNodes().toggleBlockquote().run()
 	},
 	{
 		title: "Code Block",
 		desc: "Code fence",
 		icon: "</>",
+		md: "```",
 		run: (e) => e.chain().focus().clearNodes().toggleCodeBlock().run()
 	},
 	{
 		title: "Divider",
 		desc: "Horizontal rule",
 		icon: "—",
+		md: "---",
 		run: (e) => e.chain().focus().setHorizontalRule().run()
 	},
 	{
 		title: "Image",
 		desc: "Upload an image",
 		icon: "🖼️",
+		md: "",
 		run: (e) => {
 			FN(e);
 		}
@@ -24205,6 +24216,7 @@ var nN = [
 		title: "Table",
 		desc: "Insert a 3×3 table",
 		icon: "⊞",
+		md: "",
 		run: (e) => e.chain().focus().insertTable({
 			rows: 3,
 			cols: 3,
@@ -24215,12 +24227,14 @@ var nN = [
 		title: "Callout",
 		desc: "Colored callout box",
 		icon: "📌",
+		md: "",
 		run: (e) => e.chain().focus().clearNodes().setCallout().run()
 	},
 	{
 		title: "Toggle",
 		desc: "Insert collapsible section",
 		icon: "▶",
+		md: "",
 		run: (e, t) => {
 			let { $from: n } = e.state.selection, r = !1;
 			for (let e = n.depth; e > 0; e--) if (n.node(e).type.spec.defining) {
@@ -24269,7 +24283,7 @@ function pN(e) {
 function mN() {
 	if (!oN) return;
 	let e = uN.toLowerCase(), t = nN.filter((t) => t.title.toLowerCase().includes(e) || t.desc.toLowerCase().includes(e));
-	oN.innerHTML = t.map((e, t) => `<button class="slash-item${t === cN ? " active" : ""}" data-idx="${t}"><span class="slash-icon">${e.icon}</span><span class="slash-text"><strong>${e.title}</strong><span class="slash-desc">${e.desc}</span></span></button>`).join(""), oN.querySelectorAll(".slash-item").forEach((e) => {
+	oN.innerHTML = t.map((e, t) => `<button class="slash-item${t === cN ? " active" : ""}" data-idx="${t}"><span class="slash-icon">${e.icon}</span><span class="slash-text"><strong>${e.title}</strong><span class="slash-desc">${e.desc}</span></span>` + (e.md ? `<span class="slash-md">${e.md}</span>` : "") + "</button>").join(""), oN.querySelectorAll(".slash-item").forEach((e) => {
 		let t = parseInt(e.dataset.idx, 10);
 		isNaN(t) || (e.onclick = (e) => {
 			e.stopPropagation(), cN = t, vN();

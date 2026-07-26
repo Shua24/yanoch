@@ -308,20 +308,20 @@ function setupCalloutMenus() {
 
 // ─── Slash item definitions ──────────────────────────────────────
 const slashItems = [
-  { title: 'Text',          desc: 'Plain paragraph',           icon: 'Aa',  run: e => e.chain().focus().clearNodes().setParagraph().run() },
-  { title: 'Heading 1',     desc: 'Large heading',             icon: 'H1',  run: e => e.chain().focus().clearNodes().toggleHeading({ level: 1 }).run() },
-  { title: 'Heading 2',     desc: 'Medium heading',            icon: 'H2',  run: e => e.chain().focus().clearNodes().toggleHeading({ level: 2 }).run() },
-  { title: 'Heading 3',     desc: 'Small heading',             icon: 'H3',  run: e => e.chain().focus().clearNodes().toggleHeading({ level: 3 }).run() },
-  { title: 'Bullet List',   desc: 'Unordered items',           icon: '•',   run: e => e.chain().focus().clearNodes().toggleBulletList().run() },
-  { title: 'Numbered List', desc: 'Ordered items',             icon: '1.',  run: e => e.chain().focus().clearNodes().toggleOrderedList().run() },
-  { title: 'Task List',     desc: 'Checklist',                 icon: '☑',   run: e => e.chain().focus().clearNodes().toggleTaskList().run() },
-  { title: 'Quote',         desc: 'Blockquote',                icon: '"',   run: e => e.chain().focus().clearNodes().toggleBlockquote().run() },
-  { title: 'Code Block',    desc: 'Code fence',                icon: '</>', run: e => e.chain().focus().clearNodes().toggleCodeBlock().run() },
-  { title: 'Divider',       desc: 'Horizontal rule',           icon: '—',   run: e => e.chain().focus().setHorizontalRule().run() },
-  { title: 'Image',         desc: 'Upload an image',            icon: '🖼️',  run: e => { triggerImageUpload(e); } },
-  { title: 'Table',         desc: 'Insert a 3×3 table',         icon: '⊞',   run: e => e.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run() },
-  { title: 'Callout',       desc: 'Colored callout box',        icon: '📌',  run: e => e.chain().focus().clearNodes().setCallout().run() },
-  { title: 'Toggle',        desc: 'Insert collapsible section',  icon: '▶',  run: (e, pos) => {
+  { title: 'Text',          desc: 'Plain paragraph',           icon: 'Aa',  md: '',                              run: e => e.chain().focus().clearNodes().setParagraph().run() },
+  { title: 'Heading 1',     desc: 'Large heading',             icon: 'H1',  md: '#',                             run: e => e.chain().focus().clearNodes().toggleHeading({ level: 1 }).run() },
+  { title: 'Heading 2',     desc: 'Medium heading',            icon: 'H2',  md: '##',                            run: e => e.chain().focus().clearNodes().toggleHeading({ level: 2 }).run() },
+  { title: 'Heading 3',     desc: 'Small heading',             icon: 'H3',  md: '###',                           run: e => e.chain().focus().clearNodes().toggleHeading({ level: 3 }).run() },
+  { title: 'Bullet List',   desc: 'Unordered items',           icon: '•',   md: '- ',                            run: e => e.chain().focus().clearNodes().toggleBulletList().run() },
+  { title: 'Numbered List', desc: 'Ordered items',             icon: '1.',  md: '1. ',                           run: e => e.chain().focus().clearNodes().toggleOrderedList().run() },
+  { title: 'Task List',     desc: 'Checklist',                 icon: '☑',   md: '[ ]',                           run: e => e.chain().focus().clearNodes().toggleTaskList().run() },
+  { title: 'Quote',         desc: 'Blockquote',                icon: '"',   md: '> ',                            run: e => e.chain().focus().clearNodes().toggleBlockquote().run() },
+  { title: 'Code Block',    desc: 'Code fence',                icon: '</>', md: '```',                           run: e => e.chain().focus().clearNodes().toggleCodeBlock().run() },
+  { title: 'Divider',       desc: 'Horizontal rule',           icon: '—',   md: '---',                           run: e => e.chain().focus().setHorizontalRule().run() },
+  { title: 'Image',         desc: 'Upload an image',            icon: '🖼️',  md: '',                              run: e => { triggerImageUpload(e); } },
+  { title: 'Table',         desc: 'Insert a 3×3 table',         icon: '⊞',   md: '',                              run: e => e.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run() },
+  { title: 'Callout',       desc: 'Colored callout box',        icon: '📌',  md: '',                              run: e => e.chain().focus().clearNodes().setCallout().run() },
+  { title: 'Toggle',        desc: 'Insert collapsible section',  icon: '▶',  md: '',                              run: (e, pos) => {
     // Inside a container (toggle/callout): insert child. Top-level: insert as sibling.
     const { $from } = e.state.selection
     let inside = false
@@ -390,7 +390,9 @@ function renderSlash() {
   slashMenuEl.innerHTML = items.map((it, i) =>
     `<button class="slash-item${i === slashIdx ? ' active' : ''}" data-idx="${i}">` +
     `<span class="slash-icon">${it.icon}</span>` +
-    `<span class="slash-text"><strong>${it.title}</strong><span class="slash-desc">${it.desc}</span></span></button>`
+    `<span class="slash-text"><strong>${it.title}</strong><span class="slash-desc">${it.desc}</span></span>` +
+    (it.md ? `<span class="slash-md">${it.md}</span>` : '') +
+    `</button>`
   ).join('')
   slashMenuEl.querySelectorAll('.slash-item').forEach(btn => {
     const idx = parseInt(btn.dataset.idx, 10)
