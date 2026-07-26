@@ -1,10 +1,10 @@
 {
   "version": 2,
-  "dgSpecHash": "AkK9ojYbH7w=",
+  "dgSpecHash": "oErw/Njy0qw=",
   "success": true,
-  "projectFilePath": "D:\\Sourcecodes\\Yanoch\\src\\Yanoch.Application\\Yanoch.Application.csproj",
+  "projectFilePath": "/home/apollon/Sources/Yanoch/src/Yanoch.Application/Yanoch.Application.csproj",
   "expectedPackageFiles": [
-    "C:\\Users\\ASUS\\.nuget\\packages\\microsoft.extensions.dependencyinjection.abstractions\\10.0.10\\microsoft.extensions.dependencyinjection.abstractions.10.0.10.nupkg.sha512"
+    "/home/apollon/.nuget/packages/microsoft.extensions.dependencyinjection.abstractions/10.0.10/microsoft.extensions.dependencyinjection.abstractions.10.0.10.nupkg.sha512"
   ],
   "logs": []
 }

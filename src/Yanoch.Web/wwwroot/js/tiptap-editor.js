@@ -24101,7 +24101,7 @@ function $M(e, t) {
 	});
 }
 function eN(e) {
-	return Array.from(PN.values()).find((t) => t.editor?.view?.dom?.contains(e))?.editor || null;
+	return Array.from(MN.values()).find((t) => t.editor?.view?.dom?.contains(e))?.editor || null;
 }
 function tN() {
 	document.addEventListener("click", function(e) {
@@ -24198,7 +24198,7 @@ var nN = [
 		desc: "Upload an image",
 		icon: "🖼️",
 		run: (e) => {
-			FN(e);
+			NN(e);
 		}
 	},
 	{
@@ -24409,46 +24409,8 @@ function jN(e) {
 		}
 	} else DN();
 }
-function MN(e) {
-	let t = PN.get(e);
-	t && t.tableMenuEl && (t.tableMenuEl.remove(), t.tableMenuEl = null);
-}
-function NN(e, t) {
-	let n = PN.get(t);
-	if (!n) return;
-	let { state: r, view: i } = e, { selection: a } = r;
-	if (!(r.schema.nodes.table && e.isActive("table"))) {
-		MN(t);
-		return;
-	}
-	a.$from.pos;
-	let o = null;
-	try {
-		o = i.nodeDOM(a.$from.before(a.$from.depth));
-	} catch {}
-	if (!o || !o.closest) {
-		let e = window.getSelection()?.anchorNode;
-		e && (o = e.closest ? e.closest("td, th") : e.parentElement?.closest("td, th"));
-	}
-	if (!o) {
-		MN(t);
-		return;
-	}
-	if (!n.tableMenuEl) {
-		let t = document.createElement("div");
-		t.className = "table-bubble-menu", t.style.cssText = "position:fixed;z-index:99999;display:flex;gap:4px;padding:4px;background:var(--card-bg, #ffffff);border:1px solid var(--border, rgba(0,0,0,0.12));border-radius:6px;box-shadow:0 4px 12px rgba(0,0,0,0.1);", t.innerHTML = "\n      <button class=\"table-menu-btn\" data-action=\"addRowAfter\" title=\"Add Row Below\">➕ Row</button>\n      <button class=\"table-menu-btn\" data-action=\"deleteRow\" title=\"Delete Row\">❌ Row</button>\n      <button class=\"table-menu-btn\" data-action=\"addColumnAfter\" title=\"Add Column Right\">➕ Col</button>\n      <button class=\"table-menu-btn\" data-action=\"deleteColumn\" title=\"Delete Column\">❌ Col</button>\n      <button class=\"table-menu-btn table-menu-btn-danger\" data-action=\"deleteTable\" title=\"Delete Table\">🗑️ Table</button>\n    ", t.addEventListener("mousedown", (e) => e.preventDefault()), t.querySelectorAll(".table-menu-btn").forEach((t) => {
-			t.onclick = (n) => {
-				n.preventDefault();
-				let r = t.dataset.action;
-				r && e.commands[r] && e.chain().focus()[r]().run();
-			};
-		}), document.body.appendChild(t), n.tableMenuEl = t;
-	}
-	let s = o.getBoundingClientRect(), c = n.tableMenuEl.getBoundingClientRect(), l = s.top - c.height - 8, u = s.left + s.width / 2 - c.width / 2;
-	n.tableMenuEl.style.top = Math.max(8, l) + "px", n.tableMenuEl.style.left = Math.max(8, u) + "px";
-}
-var PN = /* @__PURE__ */ new Map();
-function FN(e) {
+var MN = /* @__PURE__ */ new Map();
+function NN(e) {
 	let t = iN();
 	t.onchange = async () => {
 		let n = t.files?.[0];
@@ -24457,7 +24419,7 @@ function FN(e) {
 		r && e.chain().focus().setImage({ src: r }).run(), t.value = "";
 	}, t.click();
 }
-function IN() {
+function PN() {
 	return (e, t) => {
 		if (yN && $ && $.style.display !== "none") {
 			let e = xN.toLowerCase(), n = CN.filter((t) => t.title.toLowerCase().includes(e) || t.snippet && t.snippet.toLowerCase().includes(e));
@@ -24490,13 +24452,13 @@ function IN() {
 		return !1;
 	};
 }
-function LN(e, t, ...n) {
+function FN(e, t, ...n) {
 	if (e) try {
 		e.invokeMethodAsync(t, ...n).catch(() => {});
 	} catch {}
 }
-function RN(e, t, n, r) {
-	zN(e);
+function IN(e, t, n, r) {
+	LN(e);
 	let i = document.getElementById(e);
 	if (!i) return null;
 	let a = {
@@ -24557,7 +24519,7 @@ function RN(e, t, n, r) {
 				class: "tiptap-editor",
 				"data-block-id": r
 			},
-			handleKeyDown: IN(),
+			handleKeyDown: PN(),
 			handlePaste(e, t) {
 				let n = t.clipboardData?.files;
 				if (n && n[0]?.type.startsWith("image/")) return t.preventDefault(), aN(n[0]).then((t) => {
@@ -24581,29 +24543,29 @@ function RN(e, t, n, r) {
 				return !1;
 			}
 		},
-		onUpdate: ({ editor: t }) => {
+		onUpdate: ({ editor: e }) => {
 			if (a.firstUpdate) {
 				a.firstUpdate = !1;
 				return;
 			}
-			LN(a.dotNetRef, "OnMarkdownChanged", a.blockId, t.getMarkdown()), _N(t), jN(t), NN(t, e);
+			FN(a.dotNetRef, "OnMarkdownChanged", a.blockId, e.getMarkdown()), _N(e), jN(e);
 		},
-		onSelectionUpdate: ({ editor: t }) => {
-			sN && _N(t), yN && jN(t), NN(t, e);
+		onSelectionUpdate: ({ editor: e }) => {
+			sN && _N(e), yN && jN(e);
 		},
-		onFocus: () => LN(a.dotNetRef, "OnFocus", a.blockId),
+		onFocus: () => FN(a.dotNetRef, "OnFocus", a.blockId),
 		onBlur: () => {
-			sN && hN(), yN && DN(), MN(e), LN(a.dotNetRef, "OnBlur", a.blockId);
+			sN && hN(), yN && DN(), FN(a.dotNetRef, "OnBlur", a.blockId);
 		}
 	});
-	a.editor = o, a.tableMenuEl = null;
+	a.editor = o;
 	let s = document.getElementById("btn-upload-image");
 	if (s) {
 		let t = iN();
 		t.onchange = async () => {
 			let n = t.files?.[0];
 			if (!n) return;
-			let r = PN.get(e)?.editor;
+			let r = MN.get(e)?.editor;
 			if (!r) return;
 			let i = await aN(n);
 			i && r.chain().focus().setImage({ src: i }).run(), t.value = "";
@@ -24619,27 +24581,27 @@ function RN(e, t, n, r) {
 	return document.addEventListener("mousedown", c), a.listeners.push({
 		type: "mousedown",
 		handler: c
-	}), PN.set(e, a), o;
+	}), MN.set(e, a), o;
 }
-function zN(e) {
-	let t = PN.get(e);
-	t && (MN(e), t.listeners.forEach((e) => document.removeEventListener(e.type, e.handler)), t.listeners = [], t.dotNetRef = null, t.editor &&= (t.editor.destroy(), null), PN.delete(e));
+function LN(e) {
+	let t = MN.get(e);
+	t && (t.listeners.forEach((e) => document.removeEventListener(e.type, e.handler)), t.listeners = [], t.dotNetRef = null, t.editor &&= (t.editor.destroy(), null), MN.delete(e));
 }
-function BN(e) {
-	return PN.get(e)?.editor?.getMarkdown() ?? "";
+function RN(e) {
+	return MN.get(e)?.editor?.getMarkdown() ?? "";
 }
-function VN(e, t) {
-	PN.get(e)?.editor?.commands.setContent(t, !1, "markdown");
+function zN(e, t) {
+	MN.get(e)?.editor?.commands.setContent(t, !1, "markdown");
 }
-function HN(e, t) {
-	PN.get(e)?.editor?.setEditable(t);
+function BN(e, t) {
+	MN.get(e)?.editor?.setEditable(t);
 }
-function UN(e) {
-	PN.get(e)?.editor?.commands.focus();
+function VN(e) {
+	MN.get(e)?.editor?.commands.focus();
 }
-function WN(e) {
-	PN.get(e)?.editor?.commands.blur();
+function HN(e) {
+	MN.get(e)?.editor?.commands.blur();
 }
-window.initTipTap = RN, window.destroyTipTap = zN, window.getTipTapMarkdown = BN, window.setTipTapContent = VN, window.setTipTapEditable = HN, window.focusTipTap = UN, window.blurTipTap = WN, tN(), JM();
+window.initTipTap = IN, window.destroyTipTap = LN, window.getTipTapMarkdown = RN, window.setTipTapContent = zN, window.setTipTapEditable = BN, window.focusTipTap = VN, window.blurTipTap = HN, tN(), JM();
 //#endregion
-export { WN as blurEditor, RN as createEditor, zN as destroyEditor, UN as focusEditor, BN as getMarkdown, VN as setContent, HN as setEditable };
+export { HN as blurEditor, IN as createEditor, LN as destroyEditor, VN as focusEditor, RN as getMarkdown, zN as setContent, BN as setEditable };
