@@ -1379,7 +1379,7 @@ body {
   font-size: 14px;
   user-select: none;
   transition: opacity 0.12s ease, color 0.12s ease;
-  z-index: 5;
+  z-index: 100;
 }
 .drag-handle:hover {
   color: var(--text-primary, #1d1d1f);
@@ -1538,6 +1538,47 @@ body {
 }
 .callout-content > *:first-child { margin-top: 0; }
 .callout-content > *:last-child { margin-bottom: 0; }
+
+/* --- Toggle (collapsible section) --- */
+.toggle {
+  display: flex;
+  align-items: flex-start;
+  gap: 2px;
+  margin: 4px 0;
+  border-radius: var(--radius, 6px);
+  transition: background 0.1s ease;
+}
+.toggle:hover {
+  background: var(--hover-bg, rgba(0,0,0,0.02));
+}
+.toggle-arrow {
+  flex: 0 0 16px;
+  font-size: 10px;
+  color: var(--text-tertiary, #9a9a9c);
+  transform: rotate(90deg);
+  transition: transform 0.15s ease, color 0.15s ease;
+  text-align: center;
+  line-height: 1.6;
+  cursor: pointer;
+  user-select: none;
+}
+.toggle.collapsed .toggle-arrow {
+  transform: rotate(0deg);
+}
+.toggle-arrow:hover {
+  color: var(--text-primary, #1d1d1f);
+}
+.toggle-inner {
+  flex: 1;
+  min-width: 0;
+  padding-left: 4px;
+}
+.toggle.collapsed .toggle-inner > *:nth-child(n+2) {
+/*  padding-left: 4em; */
+  display: none;
+}
+.toggle-inner > *:first-child { margin-top: 0; }
+.toggle-inner > *:last-child { margin-bottom: 0; }
 
 /* Gap cursor — thin line indicator between blocks */
 .ProseMirror-gapcursor {

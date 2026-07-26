@@ -237,10 +237,25 @@
     {
         if (page == null) return;
 
-        // New pages: save content but don't debounce since no PageId yet
+        // New pages: create via auto-save on first content change, then navigate
         if (isNew)
         {
             if (page != null) page.Content = markdown;
+            if (!string.IsNullOrEmpty(markdown?.Trim()))
+            {
+                var newPage = await PageService.CreateAsync(new CreatePageDto
+                {
+                    Title = page.Title,
+                    Icon = page.Icon,
+                    Content = markdown,
+                }, currentUserId);
+                if (newPage != null)
+                {
+                    page = null; // prevent double-save in invariant
+                    isNew = false;
+                    Navigation.NavigateTo($"/page/{newPage.Id}", false);
+                }
+            }
             return;
         }
 

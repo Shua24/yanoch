@@ -49,15 +49,32 @@ const calloutMd = createBlockMarkdownSpec({
 
 // ─── Update a callout node attribute from a mounted DOM element ─
 function updateCalloutAttr(editor, calloutEl, attr, value) {
+  updateBlockAttr(editor, calloutEl, 'callout', attr, value)
+}
+
+// ─── Update any block node attribute from DOM element ─
+function updateBlockAttr(editor, el, nodeName, attr, value) {
   const { state, view } = editor
-  const pos = view.posAtDOM(calloutEl, 0)
+  const pos = view.posAtDOM(el, 0)
   if (pos == null) return
   const $pos = state.doc.resolve(pos)
   let depth = $pos.depth
-  while (depth >= 0 && $pos.node(depth).type.name !== 'callout') depth--
+  while (depth >= 0 && $pos.node(depth).type.name !== nodeName) depth--
   if (depth < 0) return
   const node = $pos.node(depth)
   view.dispatch(state.tr.setNodeMarkup($pos.before(depth), null, { ...node.attrs, [attr]: value }).scrollIntoView())
+}
+
+// ─── Create editor-aware toggle handler ─
+function toggleCollapsed(e) {
+  const arrow = e.target.closest('[data-toggle-arrow]')
+  if (!arrow) return
+  const toggleEl = arrow.closest('[data-toggle]')
+  if (!toggleEl) return
+  const ed = findEditorForElement(toggleEl)
+  if (!ed) return
+  const current = toggleEl.getAttribute('data-collapsed') === 'true'
+  updateBlockAttr(ed, toggleEl, 'toggle', 'collapsed', !current)
 }
 
 const Callout = Node.create({
@@ -105,27 +122,57 @@ const Callout = Node.create({
   ...calloutMd,
 })
 
-// ─── Callout type change handler ────────────────────────────────
-function changeCalloutType(e) {
-  const dot = e.target.closest('.callout-dot')
-  if (!dot) return
-  const type = dot.dataset.type
-  const calloutEl = dot.closest('[data-callout]')
-  if (!calloutEl || calloutEl.dataset.type === type) return
+// ─── Toggle node (collapsible) ─────────────────────────────────────
+// Markdown: :::toggle {collapsed:true}
+// content
+// :::
+const toggleMd = createBlockMarkdownSpec({
+  nodeName: 'toggle',
+  name: 'toggle',
+  content: 'block',
+  defaultAttributes: { collapsed: false },
+  allowedAttributes: ['collapsed'],
+})
 
-  // Update ProseMirror node attribute (persists through re-renders)
-  const instance = Array.from(instances.values()).find(i => i.editor?.view?.dom?.contains(calloutEl))
-  if (!instance) return
-  const editor = instance.editor
-  const { state, view } = editor
-  const pos = view.posAtDOM(calloutEl, 0)
-  if (pos == null) return
-  const $pos = state.doc.resolve(pos)
-  let depth = $pos.depth
-  while (depth >= 0 && $pos.node(depth).type.name !== 'callout') depth--
-  if (depth < 0) return
-  const node = $pos.node(depth)
-  view.dispatch(state.tr.setNodeMarkup($pos.before(depth), null, { ...node.attrs, type }).scrollIntoView())
+const Toggle = Node.create({
+  name: 'toggle',
+  content: 'block+',
+  group: 'block',
+  defining: true,
+  addAttributes() {
+    return { collapsed: { default: false } }
+  },
+  parseHTML() {
+    return [{
+      tag: 'div[data-toggle]',
+      getAttrs: el => ({
+        collapsed: el.getAttribute('data-collapsed') === 'true',
+      }),
+    }]
+  },
+  renderHTML({ HTMLAttributes }) {
+    const collapsed = !!HTMLAttributes.collapsed
+    return ['div', { 'data-toggle': '', 'data-collapsed': collapsed ? 'true' : 'false', class: 'toggle' + (collapsed ? ' collapsed' : '') },
+      ['span', { class: 'toggle-arrow', 'data-toggle-arrow': '', contenteditable: 'false' }, '\u25b6'],
+      ['div', { class: 'toggle-inner' }, 0],
+    ]
+  },
+  addCommands() {
+    return {
+      setToggle: (attrs = {}) => ({ commands }) => {
+        return commands.wrapIn(this.name, attrs)
+      },
+    }
+  },
+  ...toggleMd,
+})
+
+// ─── Toggle click handler ────────────────────────────────────────
+function setupToggleClicks() {
+  document.addEventListener('click', function handler(e) {
+    const arrow = e.target.closest('[data-toggle-arrow]')
+    if (arrow) toggleCollapsed(e)
+  })
 }
 
 // ─── Callout context menus (emoji + color) ───────────────────────
@@ -257,6 +304,7 @@ const slashItems = [
   { title: 'Divider',       desc: 'Horizontal rule',           icon: '—',   run: e => e.chain().focus().setHorizontalRule().run() },
   { title: 'Image',         desc: 'Upload an image',            icon: '🖼️',  run: e => { triggerImageUpload(e); } },
   { title: 'Callout',       desc: 'Colored callout box',        icon: '📌',  run: e => e.chain().focus().clearNodes().setCallout().run() },
+  { title: 'Toggle',        desc: 'Collapsible section',        icon: '▶',  run: e => e.chain().focus().clearNodes().setToggle().run() },
 ]
 
 // ─── Image upload (one-off) ─────────────────────────────────────
@@ -650,7 +698,10 @@ export function createEditor(elementId, content, dotNetRef, blockId) {
         transformPastedText: true,
       }),
       DragHandle.configure({
-        nested: true,
+        // nested: false — drag handle shows on top-level blocks only.
+        // Inner blocks inside toggles/callouts aren't independently draggable,
+        // which matches Notion behavior and avoids upstream nested bugs.
+        nested: false,
         render() {
           const el = document.createElement('div')
           el.classList.add('drag-handle')
@@ -660,6 +711,7 @@ export function createEditor(elementId, content, dotNetRef, blockId) {
         },
       }),
       Callout,
+      Toggle,
     ],
     content: content || '',
     contentType: 'markdown',
@@ -784,3 +836,4 @@ window.setTipTapEditable = setEditable
 window.focusTipTap = focusEditor
 window.blurTipTap = blurEditor
 setupCalloutMenus()
+setupToggleClicks()
