@@ -1,6 +1,6 @@
 # Yanoch Codebase Documentation
 
-Updated 2026-07-26 (commit `19d64fe` — Tables + DB schema changes).
+This document provides an overview of the Yanoch codebase structure, architecture, and current state.
 
 ## Architecture Overview
 
@@ -8,190 +8,170 @@ Updated 2026-07-26 (commit `19d64fe` — Tables + DB schema changes).
 - **Frontend:** TipTap (ProseMirror) rich text editor via JS interop
 - **Database:** SQLite via Entity Framework Core
 - **Auth:** ASP.NET Core Identity
-- **Build:** Vite (frontend JS) + dotnet build (backend)
+- **Build:** Vite (frontend) + dotnet build (backend)
 
 ## Reality: Markdown Source of Truth
 
-`Page.Content` stores raw markdown. TipTalk with `@tiptap/markdown` parses/serializes markdown. The JS editor mounts via `initTipTap()`, pushes changes back via `OnMarkdownChanged` → debounced `PUT /api/pages/{id}/content`.
+The editor uses **TipTap** with the `@tiptap/markdown` extension. `Page.Content` stores raw markdown. The editor mounts via JS interop and pushes changes back to the Blazor circuit as the user types.
 
-Dead-code removed: `BlockEditor.razor`, `Block` domain model/table. Blocks DB table retained (rollback safety) but unused.
+Dead-code removal history:
+- Removed: `BlockEditor.razor`, `BlockDto.cs`, `BlockType.cs`, `Block.cs`, `CreateBlockDto`/`MoveBlockDto`, `interop.js`
+- Removed: `Block` domain model, `BlockRepository`, block-related EF config
+- The `Blocks` DB table still exists (rollback safety) but is unused.
 
 ## Project Structure
 
 ```
 src/
-├── Yanoch.Application/
+├── Yanoch.Application/          # Application layer
 │   ├── DTOs/
-│   │   ├── PageDto.cs, CreatePageDto.cs, SetContentDto.cs
-│   │   ├── DatabaseDto.cs, CreateDatabaseDto.cs, DatabaseItemDto.cs
-│   │   ├── PageVersionDto.cs, TagDto.cs, BacklinkDto.cs, SearchResultDto.cs
+│   │   ├── PageDto.cs           # Page read model
+│   │   ├── CreatePageDto.cs     # Page creation DTO
+│   │   ├── SetContentDto.cs     # Content update DTO
+│   │   ├── PageVersionDto.cs    # Version history model
+│   │   ├── TagDto.cs            # Tag model
+│   │   ├── BacklinkDto.cs       # Backlink model
+│   │   └── SearchResultDto.cs   # Search result model
 │   ├── Interfaces/
-│   │   ├── IPageService.cs, ITagService.cs, IFileStorageService.cs
-│   │   └── IDatabaseService.cs
+│   │   ├── IPageService.cs      # Page CRUD + content + search + versions
+│   │   ├── ITagService.cs       # Tag management
+│   │   └── IFileStorageService.cs
 │   └── Services/
-│       ├── PageService.cs       # Page CRUD, content, backlinks
-│       ├── TagService.cs
-│       └── DatabaseService.cs   # Database CRUD + items
-├── Yanoch.Domain/
+│       ├── PageService.cs       # Core page orchestration + backlink extraction
+│       └── TagService.cs
+├── Yanoch.Domain/               # Domain layer
 │   ├── Models/
-│   │   ├── Page.cs                  # Title, Icon, Content (markdown), ParentPageId
-│   │   ├── PageVersion.cs           # Historical snapshots
-│   │   ├── Backlink.cs              # [[wiki link]] references
-│   │   ├── PageTag.cs / Tag.cs      # Many-to-many
-│   │   ├── Database.cs              # Title, Type, SoftDelete
-│   │   ├── DatabaseProperty.cs      # Name, Type, Options (select choices)
-│   │   └── DatabaseItem.cs          # Values (JSON), SoftDelete
-│   └── Interfaces/ (IPageRepository, IVersionRepo, IBacklinkRepo, ITagRepo, IDatabaseRepo)
-├── Yanoch.Infrastructure/
+│   │   ├── Page.cs              # Title, Icon, Content (markdown), ParentPageId, tags, backlinks
+│   │   ├── PageVersion.cs       # Historical versions (snapshot on significant edits)
+│   │   ├── Backlink.cs          # Source→Target page references (parsed from [[wiki links]])
+│   │   ├── PageTag.cs           # Many-to-many Page↔Tag
+│   │   └── Tag.cs               # Name + color
+│   └── Interfaces/
+│       ├── IPageRepository.cs
+│       ├── IPageVersionRepository.cs
+│       ├── IBacklinkRepository.cs
+│       └── ITagRepository.cs
+├── Yanoch.Infrastructure/        # Data access
 │   ├── Data/
-│   │   ├── AppDbContext.cs           # EF Core: Pages, Tags, PageVersions, Backlinks,
-│   │   │                              Databases, DatabaseProperties, DatabaseItems
-│   │   └── Repositories/ (PageRepo, PageVersionRepo, BacklinkRepo, TagRepo, DatabaseRepo)
-│   ├── Migrations/ (InitialCreate, AddPageContent, DatabaseTables)
-│   ├── Services/LocalFileStorageService.cs
-│   └── DependencyInjection.cs  # Scoped service registrations
-└── Yanoch.Web/
+│   │   ├── AppDbContext.cs       # EF Core context (Pages, Tags, PageVersions, Backlinks)
+│   │   └── Repositories/
+│   │       ├── PageRepository.cs     # Content queries via raw SQL (no tracking)
+│   │       ├── PageVersionRepository.cs
+│   │       ├── BacklinkRepository.cs
+│   │       └── TagRepository.cs
+│   ├── Migrations/
+│   │   ├── 20260722235320_InitialCreate.cs
+│   │   └── 20260725094535_AddPageContent.cs   # Adds Page.Content column
+│   └── Services/
+│       └── LocalFileStorageService.cs
+└── Yanoch.Web/                  # Web layer
     ├── Components/
-    │   ├── App.razor, Routes.razor
-    │   ├── Layout/MainLayout.razor, AuthLayout.razor, PageTree.razor, PageTreeNode.razor
-    │   ├── Pages/Editor.razor, Home.razor, Search.razor, Login/Register/Logout, Error
-    │   └── Shared/ImageUpload.razor
-    ├── Controllers/Api/
-    │   ├── PagesController.cs     # Page CRUD + content
-    │   ├── DatabasesController.cs # DB CRUD + items (+ /todo preset)
-    │   ├── UploadController.cs    # Image upload
-    │   ├── SearchController.cs
-    │   └── TagsController.cs
+    │   ├── App.razor            # Root layout, loads tiptap-editor.js?v=2
+    │   ├── Routes.razor
+    │   ├── Layout/
+    │   │   ├── MainLayout.razor # Sidebar + page tree
+    │   │   ├── AuthLayout.razor
+    │   │   ├── PageTree.razor   # Hierarchical page navigation
+    │   │   └── PageTreeNode.razor
+    │   ├── Pages/
+    │   │   ├── Editor.razor     # Page editor with TipTap mount
+    │   │   ├── Home.razor       # Landing page
+    │   │   ├── Search.razor
+    │   │   ├── Login.razor / Register.razor / Logout.razor
+    │   │   └── Error.razor
+    │   └── Shared/
+    │       └── ImageUpload.razor
+    ├── Controllers/
+    │   └── Api/
+    │       ├── PagesController.cs    # REST API for pages
+    │       ├── UploadController.cs   # Image file upload
+    │       ├── SearchController.cs
+    │       └── TagsController.cs
     ├── wwwroot/
     │   ├── js/
-    │   │   ├── tiptap-editor.src.js  # Source (Vite entry)
+    │   │   ├── tiptap-editor.src.js  # Source (Vite entry point)
     │   │   └── tiptap-editor.js      # Built output (committed)
     │   └── app.css                   # All styles
-    └── Program.cs
+    └── Program.cs                    # Entry: DI, migrations, middleware
 ```
 
 ## Editor Architecture
 
 ### JS (tiptap-editor.src.js)
 
-Single Vite bundle. Exports Blazor-interop functions:
+Entry point built by Vite. Exports Blazor-interop functions:
 
-| Function | Purpose |
-|---|---|
-| `initTipTap(elementId, content, dotNetRef, pageId)` | Create editor |
-| `destroyTipTap(elementId)` | Cleanup |
-
-### Extensions
-
-| Extension | Source | Purpose |
+| Function | Called from C# | Purpose |
 |---|---|---|
-| StarterKit | `@tiptap/starter-kit` | Base (headings, lists, bold/italic, blockquote, code) |
-| Underline | `@tiptap/extension-underline` | Underline |
-| Link | `@tiptap/extension-link` | Hyperlinks |
-| Image | `@tiptap/extension-image` | Inline images |
-| TaskList + TaskItem | `@tiptap/extension-task-list` + `-item` | Checklists |
-| Placeholder | `@tiptap/extension-placeholder` | `Start writing...` |
-| Markdown | `@tiptap/markdown` | Markdown parse/serialize (contentType: 'markdown') |
-| GapCursor | Built-in StarterKit | Click-between-blocks insertion |
-| DragHandle | `@tiptap/extension-drag-handle` | Block reorder handle (nested: false) |
-| Toggle | Custom `Node.create()` | `/toggle` → collapsible block |
-| Callout | Custom `Node.create()` | `/callout` → colored callout box |
-| Table (+row/cell/header) | `@tiptap/extension-table` family | Markdown tables |
-| DatabaseView | Custom `Node.create()` | Embedded database view (mini table) |
+| `initTipTap(elementId, content, dotNetRef, blockId)` | `OnAfterRenderAsync` | Create editor instance |
+| `destroyTipTap(elementId)` | `OnBeforeUnmount` / route change | Destroy + cleanup |
 
-### Custom Nodes
+Editor config:
+- **Extensions:** StarterKit, Underline, Link, Image, TaskList, TaskItem, Placeholder, Markdown
+- **contentType:** `'markdown'` (TipTalk parses initial content as markdown)
+- **Markdown API:** `editor.getMarkdown()` (the `@tiptap/markdown` extension exposes this on the editor object directly, not via `editor.storage`)
 
-**Toggle:**
-- Collapsible block with ▶ toggle handle
-- Slash menu inserts via `setToggle()`: inside container → `insertContent` as child, at top-level → `wrapIn`
-- `clearNodes()` skipped inside defining containers (toggle/callout/nested) to avoid breaking structure
+### Per-instance State
 
-**Callout:**
-- 13 colors: info/warning/success/error/gray/brown/orange/yellow/green/blue/purple/pink/red
-- Emoji icon picker (emoji grid context menu, 50 emojis)
-- Color picker: Notion-style colored dot circles
-- Persistence: `state.tr.setNodeMarkup(pos, null, { ...node.attrs, type })` — survives TipTap re-render
-- Markdown round-trip via `html: true`: `<div data-callout data-type="info" data-icon="🔥">...</div>`
+Instances tracked in a `Map<elementId, { editor, dotNetRef, blockId, firstUpdate, listeners }>`. The `firstUpdate` flag skips the initial `onUpdate` that fires during editor construction (initial content parse — not a user edit). All Blazor `invokeMethodAsync` calls use an `invokeCb` wrapper that silently swallows errors when the circuit is gone.
 
-**DatabaseView:**
-- `/database` slash menu → picker popup (lists DBs, "+ New Database" button)
-- Non-atom node (`content: 'paragraph'`) — ProseMirror required content type for proper insertion
-- Hydration via `hydrateDatabaseViews()` on every transaction — fetches items separately, renders mini table
-- Markdown bridge: `<div data-database-view ...>` via `html: true`
+### Callout Context Menus
 
-**Table:**
-- Inserted via slash menu or `/table`
-- Table corner buttons: top-right `th` (add column), bottom-left last-row `td` (add row)
-- Memory leak fix: `addTableButtons()` only on `firstUpdate` + after click mutations, not every `onUpdate`
-- Scrollable via `overflow: auto; display: block`
+- **Icon button** (left side): click opens a 7×N emoji grid context menu (50 emojis). Click same button again to close. Click outside to close.
+- **Color button** (below icon): click opens a labeled color picker context menu (13 colors). Click same button again to close. Click outside to close.
+- Both attributes persist in markdown: `:::callout {type="warning" icon="🔥"} ... :::` — clean round-trip via `createBlockMarkdownSpec`.
 
 ### Slash Command Menu
 
 Custom implementation (not `@tiptap/suggestion`). Module-level singleton:
-- `onUpdate` → `checkSlash(editor)` — cursor at start of line with `/` → opens menu
-- `handleKeyDown` intercepts navigation keys when active
-- `runSlashItem`: saves ref, closes menu, deletes `/`, runs command
-- Timing guard: `closeSlash()` before `view.dispatch()` to prevent re-entrant race
-- Not triggered inside `codeBlock` nodes
 
-### Context Menus (Callout)
-
-Pure DOM overlays (not TipTap):
-
-- **Icon button** → 7×N emoji grid (50 emojis). Click same to close, click outside to close.
-- **Color button** → 13-dot color picker with labels.
-- Both use global click-outside listener, tracked per-instance for cleanup.
+- **Detection:** `onUpdate` callback calls `checkSlash(editor)` — checks if cursor is at start of line with `/`, opens menu.
+- **Navigation:** `handleKeyDown` in `editorProps` intercepts ArrowUp/Down/Enter/Tab/Escape when `slashActive` is true.
+- **Execution:** `runSlashItem` — saves editor ref, closes menu, deletes the `/` text, runs the command.
+- **Timing fix:** `closeSlash()` called *before* `view.dispatch()` to prevent re-entrant `onUpdate` → `checkSlash` → `closeSlash` race.
+- **Code block guard:** Slash menu not triggered inside `codeBlock` nodes.
 
 ### Image Upload
 
-- Hidden `<input type="file">` (created once via `ensureImageInput()`)
-- Triggers: slash menu "Image", paste image, drag-drop, `#btn-upload-image`
-- Uploads to `POST /api/upload` → `wwwroot/uploads/` via `LocalFileStorageService`
+- Hidden `<input type="file">` created once (`ensureImageInput()`)
+- Triggered by: slash menu "Image" command, paste image, drag-drop, or `#btn-upload-image` button
+- Uploads to `POST /api/upload` → stored in `wwwroot/uploads/` by `LocalFileStorageService`
 
-### Auto-Save
+### Known Issues / Edge Cases
 
-- Debounced 800ms `OnMarkdownChanged` → `PUT /api/pages/{id}/content`
-- **New page**: First content change + navigation triggers `PageService.CreateAsync` → redirect to `/page/{newId}` (prevents data loss on refresh)
-
-### State Management
-
-Per-instance: `Map<elementId, { editor, dotNetRef, pageId, firstUpdate, listeners }>`.
-- `firstUpdate` flag skips initial `onUpdate` (fires during editor construction — not a user edit)
-- All `invokeMethodAsync` calls wrapped in `invokeCb` (silently swallows circuit-gone errors)
-
-### Drag Handle
-
-- `@tiptap/extension-drag-handle` with `nested: false` (upstream `nested: true` unreliable — repositioned on every rAF)
-- Top-level handles only
-- CSS: `.drag-handle` gutter, hover reveal
+- `onUpdate` first-fire skipped via `firstUpdate` flag to prevent spurious content saves on page load
+- Blazor circuit disconnect handled gracefully by `invokeCb`
+- Outside-click listener tracked per-instance for proper cleanup
 
 ## Backend
 
 ### PageService
 
-- `GetContentAsync` / `SetContentAsync` — direct read/write via repository
-- `SetContentAsync` triggers `UpdateBacklinksFromContent` — regex `[[wiki links]]` → `Backlink` records
-- All DB reads use `AsNoTracking()`
-- Raw SQL for content updates (bypasses EF change tracker conflicts)
+- `GetContentAsync` / `SetContentAsync` — direct content read/write via repository
+- `SetContentAsync` triggers `UpdateBacklinksFromContent` — regex-extracts `[[wiki links]]` from markdown, creates/updates `Backlink` records
+- All DB reads use `AsNoTracking()` for freshness
 
-### DatabaseService
+### PageRepository (content operations)
 
-- CRUD for `Database`, `DatabaseProperty`, `DatabaseItem`
-- Todo preset: `POST /api/databases/todo` — Title(text), Done(checkbox), Due Date(date), Priority(select: low/medium/high/critical)
+```csharp
+// Raw SQL to avoid EF Core change tracker conflicts
+await _db.Database.ExecuteSqlRawAsync(
+    "UPDATE \"Pages\" SET \"Content\" = {0}, \"UpdatedAt\" = {1} WHERE \"Id\" = {2}",
+    content, DateTime.UtcNow, pageId);
+```
 
 ### API Endpoints
 
-| Method | Route | Purpose |
-|---|---|---|
-| GET/PUT | `/api/pages/{id}/content` | Markdown content |
-| GET/POST/PUT/DELETE | `/api/pages[/{id}]` | Page CRUD |
-| GET | `/api/pages/tree` | Page tree |
-| GET/POST/PUT/DELETE | `/api/databases[/{id}]` | Database CRUD |
-| POST | `/api/databases/todo` | Create todo DB preset |
-| GET/POST/PUT/DELETE | `/api/databases/{id}/items[/{itemId}]` | Database items |
-| GET/POST | `/api/tags` | Tag management |
-| POST | `/api/upload` | Image file upload |
-| GET | `/api/search?q=` | Full-text search |
+| Method | Route | Auth | Purpose |
+|---|---|---|---|
+| GET | `/api/pages/tree` | Yes | Root page tree |
+| GET | `/api/pages/{id}` | Yes | Page detail |
+| GET | `/api/pages/{id}/content` | Yes | Raw markdown content |
+| PUT | `/api/pages/{id}/content` | Yes | Save markdown |
+| POST | `/api/pages` | Yes | Create page |
+| PUT | `/api/pages/{id}` | Yes | Update metadata |
+| DELETE | `/api/pages/{id}` | Yes | Soft-delete |
+| POST | `/api/upload` | Yes | Image file upload |
 
 ## DB Schema
 
@@ -199,90 +179,23 @@ Per-instance: `Map<elementId, { editor, dotNetRef, pageId, firstUpdate, listener
 Pages: Id, Title, Icon, CoverUrl, UserId, ParentPageId, SortOrder,
        IsDeleted, CreatedAt, UpdatedAt, DeletedAt, Content (TEXT)
 
-Blocks: (table retained — unused, rollback safety)
-
-PageVersions: Id, PageId, Content, CreatedAt  (snapshots on edit)
-
-Backlinks: Id, SourcePageId, TargetPageId
-
-Tags: Id, Name, Color
-PageTags: PageId, TagId  (many-to-many)
-
-Databases: Id, Title, Type, IsDeleted, CreatedAt, UpdatedAt, DeletedAt
-DatabaseProperties: Id, DatabaseId, Name, Type, Options (JSON for select choices), SortOrder
-DatabaseItems: Id, DatabaseId, Values (JSON), SortOrder, IsDeleted
+Blocks: (table retained but unused — rollback safety)
 ```
-
-### SQLite CVE Fix
-
-Added `<PackageReference Include="SQLitePCLRaw.lib.e_sqlite3" Version="3.53.3" />` to `Yanoch.Infrastructure.csproj` to override vulnerable transitive 2.1.11.
-
-## CSS Architecture
-
-- Single `app.css` with CSS custom properties (theme variables)
-- Dark mode support via variable overrides
-- Block management menus (context, slash, turn-into) use theme variables (not hardcoded) — fixed 2026-07-25
-
-### Text Wrapping Fixes (2026-07-25)
-
-- View mode: `white-space: pre-wrap`, `overflow-wrap: break-word`, `word-break: break-word`
-- Edit mode (`<div contenteditable>`): same CSS + JS `autoResizeTextarea` (scrollHeight)
-- Removed `field-sizing: content` (caused unresolvable width > 100% → no wrapping)
-- Cache-bust version `v=17` for `<div contenteditable>` final fix
 
 ## Build & Run
 
 ```bash
-# Fresh setup
+# Frontend
 npm install
-npx vite build
+npx vite build       # outputs src/dist/wwwroot/js/tiptap-editor.js
+cp src/dist/wwwroot/js/tiptap-editor.js src/Yanoch.Web/wwwroot/js/
+
+# Backend
 dotnet run --project src/Yanoch.Web
 
-# After source-only changes
-npx vite build && dotnet run
-
-# Convenience scripts
-./build.sh   # JS build only
-./run.sh     # JS build + dotnet run
+# Or use the convenience wrapper:
+./build.sh    # JS build
+./run.sh      # JS build + dotnet run
 ```
 
-## Commit History (latest → oldest)
-
-```
-19d64fe Feat: Tables; db schema changes; dependency injection
-53e952b Binaries
-ad88d49 [CRIT] fix SQLite CVEs
-88d1082 feat: toggle/callout improvements, auto-save for new pages
-fb4496e Feat: toggle lists
-137675b Update Handoff to include other features
-df78d7a feat: callout with separate emoji and color context menus
-8b9184e fix: add getAttrs in parseHTML to extract data-type for round-trip
-9fd7f63 fix: restore defining:true on callout to prevent Enter from lifting content out
-6d5adbb fix: save new pages, color picker uses posAtDOM + depth walk for setNodeMarkup
-d04c86d fix: callout colors persist via ProseMirror node attributes; replace dropdown with color dot picker
-97ec0cc feat: complete callout with 13 colors, markdown round-trip (html:true), type picker dropdown
-d1cdcb7 fix: expose changeCalloutType globally to avoid ReferenceError
-a4313a3 feat: add callout type picker dropdown (info/warning/success/error)
-b08cc50 fix: callout command now uses wrapIn to insert node
-b6d69dc feat: add callout block with color types (info/warning/success/error)
-813e158 feat: add drag handle and gap cursor for block reordering
-f492bd7 Update code docs
-ab2a95a Rewrite context menu around TipTap
-69ec639 Backend rebuild: Change to TipTap for editing
-05a9652 Fix text scrollbar wrapping issue
-b631bf7 Update gitignore
-59c0db7 Remove uploads from commit
-358fc00 Fix wrapping issues in edit mode
-16ae0fd Remove dead code
-6cbc8e2 Pre-pushing commits
-3f9be5d Refine documentation to suit updates
-2611b85 Add more ignored files
-923fe36 Overhaul: Improve overall block management; add temporary favicon; remove unnecessary files
-3e0dfb0 Overhaul: Improve image and general block management
-166ab0c Add emoji picker for icons; sidebar to subscribe to icons
-f90b0f6 Add gitignore
-6b762ef Clean up
-3c0d850 Add block move support
-d8698fd Delete unnecessary README
-4d4c6a2 Initial commit
-```
+The app runs at `http://localhost:5072`.
