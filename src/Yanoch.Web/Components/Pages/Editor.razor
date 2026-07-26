@@ -34,10 +34,7 @@
                     </div>
                 }
                 </div>
-                <div class="editor-actions">
-                    <button id="btn-upload-image" class="btn-upload-image" title="Upload image">🖼️ Image</button>
-                    <button class="btn-delete-page" @onclick="DeletePage" title="Delete page">🗑️ Delete</button>
-                </div>
+                <div class="editor-actions"></div>
             </div>
             <textarea rows="1" id="page-title-input" @bind="page!.Title" @bind:after="async () => await SavePageMetaAsync()" class="title-input" placeholder="Untitled" @onkeydown="HandleTitleKeyDown"></textarea>
             <div class="editor-meta">

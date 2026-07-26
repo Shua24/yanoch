@@ -130,63 +130,19 @@ If `tiptap-editor.src.js` is updated, rebuild with `npx vite build` — no manua
 
 ## Upcoming Features — Implementation Plan
 
-### 1. Movable Blocks (Drag Handle + Gap Cursor)
+### 1. Movable Blocks (Drag Handle + GapCursor)
 
-**Status:** ⬜ Not started
+**Status:** ✅ Done
 
-**Goal:** Drag handle on left gutter of each block → drag to reorder. ProseMirror-native (no DOM reordering).
-
-**Approach:** `@tiptap/extension-drag-handle` + `@tiptap/extension-gapcursor`.
-
-**Install:**
-```bash
-npm install @tiptap/extension-drag-handle @tiptap/extension-gapcursor
-```
-
-**Changes:**
-- Add `DragHandle` to extensions array (basic: no custom render, locked=false, nested=true)
-- Add `GapCursor` to extensions array (enables clicking between blocks to insert)
-- CSS: `.drag-handle` styles, gutters, hover reveal
-- Slash menu's insert-at-cursor logic remains unchanged; drag handle is purely visual DnD
-- `nested: true` enables dragging list items inside lists
-
-**Markdown impact:** None. Drag handle is a UI-only ProseMirror feature; the document structure stays the same.
-
-**Risk:** Low. Well-documented official TipTap extension. Unlikely to conflict with markdown extension.
+Top-level drag handle (⣿) on left gutter. GapCursor for clicking between blocks.
 
 ---
 
 ### 2. Callout Block
 
-**Status:** ⬜ Not started
+**Status:** ✅ Done
 
-**Goal:** Notion-style callout — box with colored background + icon selector. Serializes to markdown blockquote with a special marker.
-
-**Approach:** Custom TipTap node extension.
-
-**Options considered:**
-| Approach | Pros | Cons |
-|----------|------|------|
-| Markdown blockquote `<aside>` variant | Simple, markdown-native | No icon/color picker |
-| Custom `callout` node | Full Notion parity | Needs custom markdown serialize/parse |
-| Div using `div` extension + data attributes | No new node type | Clunky, markdown serialization complicated |
-
-**Recommended:** Custom `callout` TipTap node with:
-- Markdown serialization: `> [!info]` / `> [!warning]` / `> [!success]` / `> [!error]` (GitHub-style alert syntax)
-- Custom `render` with icon selector + color theme
-- Slash menu entry: `/callout`
-- Color presets: info (blue), warning (orange), success (green), error (red) — same palette as Notion
-
-**Install:** None. Write in `tiptap-editor.src.js` using `Node.create()`.
-
-**Files changed:**
-- `tiptap-editor.src.js` — add `Callout` node extension + slash entry
-- `app.css` — `.callout` block styles (colored left border, background, icon)
-- `HANDOFF.md` → mark as done
-
-**Markdown impact:** Add `> [!type]` parse/serialize to `Markdown.configure({ html: false })`. If Markdown extension doesn't support custom tokens, fall back to `html: true` and serialize as `<div class="callout callout--info">...</div>`.
-
-**Risk:** Medium. Custom node extensions need correct `addInputRules`, `addCommands`, and Markdown tokenization. The GitHub-flavored markdown callout syntax (`> [!NOTE]`) is now standard and testable.
+Custom `callout` node with `:::callout {type="warning" icon="🔥"}` markdown. Color picker (13 colors) + emoji icon grid (50 emojis) via context menus. Button toggle to close/re-open.
 
 ---
 
@@ -194,36 +150,15 @@ npm install @tiptap/extension-drag-handle @tiptap/extension-gapcursor
 
 **Status:** ✅ Done
 
-**Goal:** Insert and edit tables (Notion-style). Markdown tables as source of truth.
-
-**Approach:** `@tiptap/extension-table` + `@tiptap/extension-table-row` + `@tiptap/extension-table-cell` + `@tiptap/extension-table-header`.
-
-**Install:**
-```bash
-npm install @tiptap/extension-table @tiptap/extension-table-row @tiptap/extension-table-cell @tiptap/extension-table-header
-```
-
-**Changes:**
-- Add Table extension bundle to extensions array
-- Slash menu entry: `/table` (inserts 3×3 by default? or prompts for size)
-- Bubble menu: add/remove column/row buttons (optional, v2)
-- Markdown serialization: `@tiptap/markdown` has Table → Markdown render built-in (per July 2025 docs); verify it round-trips
-
-**Markdown impact:** Table extension produces markdown `| col1 | col2 |` syntax natively through `@tiptap/markdown`. The render handler is already registered. Parse is built-in via MarkedJS tokenizer. Round-trip fidelity needs testing.
-
-**Risk:** Low-medium. The table extension is well-maintained. The main question is whether markdown tables round-trip correctly (header detection, alignment, cell content with inline formatting).
+Via `@tiptap/extension-table`. 3×3 with header on `/table` slash. Resizable columns. Floating bubble menu for add/delete row/col + delete table.
 
 ---
 
 ### 4. Toggle Block (Collapsible)
 
-**Status:** ⬜ Not started (future)
+**Status:** ✅ Done
 
-**Goal:** `<details><summary>` collapsible sections.
-
-**Approach:** Custom `details` + `summary` node, or HTML passthrough.
-
-**Markdown impact:** Markdown has no native collapsible syntax. Options: use raw HTML `<details>`, or custom fenced syntax `:::details` / `:::`. Not prioritized.
+Custom `toggle` node with `:::toggle {collapsed:true}` markdown. Arrow click collapss/expands. Insert as child inside containers (toggle/callout) or sibling at top-level.
 
 ---
 
@@ -236,13 +171,10 @@ npm install @tiptap/extension-table @tiptap/extension-table-row @tiptap/extensio
 | 3 | Callout (markdown round-trip) | Nothing | Medium | ✅ Done — `:::` fenced syntax via `createBlockMarkdownSpec` |
 | 4 | Wiki-link `[[` autocomplete | Nothing | Medium | ✅ Done — pure DOM popup, fetches /api/search |
 | 5 | Table block | Package install | Low | ✅ Done — `@tiptap/extension-table` + `/table` slash command (3×3 default, resizable) |
-| 6 | Toggle block | Callout patterns | Low/med | ⬜ Future |
-| 7 | Databases | Schema design | High | ⬜ Future (Notion core feature) |
-| 8 | Views (table, Kanban, timeline, calendar, gallery, list, chart, dashboard) | Databases | High | ⬜ Future |
-| 9 | Relations (link databases) | Databases | High | ⬜ Future |
-| 10 | Migration (Block → Content) | Nothing | Medium | ⬜ Future (rollback safety)
+| 6 | Toggle block | Callout patterns | Low/med | ✅ Done |
+| 7 | Migration (Block → Content) | Nothing | Medium | ⬜ Future (rollback safety)
 
-Steps 1-5 are complete. Steps 3-5 were missing from the initial implementation.
+Steps 1-6 are complete.
 
 ---
 
@@ -251,11 +183,8 @@ Steps 1-5 are complete. Steps 3-5 were missing from the initial implementation.
 1. **Migration pending**: Existing `Block` data not yet migrated to `Page.Content`. Old `Block` table still exists in initial migration; legacy `BlockEditor.razor` removed.
 2. **Old pages** show legacy block renderer; new pages use TipTap. Migration service not yet written.
 3. **Toggle block** not yet implemented — future work.
-5. **Databases** not implemented — Notion's core feature (tables, boards, calendars, galleries, lists, charts, dashboards).
-6. **Views** not implemented — switching between table, Kanban, timeline, calendar, gallery, list, chart, dashboard views.
-7. **Relations** not implemented — linking databases (e.g., Tasks → Projects).
-8. **Vite build required** after any change to `tiptap-editor.src.js` — not automatic with `dotnet run`.
-9. **SQLite vulnerability warning** — `SQLitePCLRaw.lib.e_sqlite3` 2.1.11 CVE; update package when available.
+5. **Vite build required** after any change to `tiptap-editor.src.js` — not automatic with `dotnet run`.
+6. **SQLite vulnerability warning** — `SQLitePCLRaw.lib.e_sqlite3` 2.1.11 CVE; update package when available.
 
 ---
 

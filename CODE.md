@@ -107,8 +107,8 @@ Entry point built by Vite. Exports Blazor-interop functions:
 | `destroyTipTap(elementId)` | `OnBeforeUnmount` / route change | Destroy + cleanup |
 
 Editor config:
-- **Extensions:** StarterKit, Underline, Link, Image, TaskList, TaskItem, Placeholder, Markdown
-- **contentType:** `'markdown'` (TipTalk parses initial content as markdown)
+- **Extensions:** StarterKit, Underline, Link, Image, TaskList, TaskItem, Placeholder, GapCursor, DragHandle, Markdown, Table, TableRow, TableCell, TableHeader, Callout, Toggle
+- **contentType:** `'markdown'` (TipTap parses initial content as markdown)
 - **Markdown API:** `editor.getMarkdown()` (the `@tiptap/markdown` extension exposes this on the editor object directly, not via `editor.storage`)
 
 ### Per-instance State
@@ -130,12 +130,32 @@ Custom implementation (not `@tiptap/suggestion`). Module-level singleton:
 - **Execution:** `runSlashItem` — saves editor ref, closes menu, deletes the `/` text, runs the command.
 - **Timing fix:** `closeSlash()` called *before* `view.dispatch()` to prevent re-entrant `onUpdate` → `checkSlash` → `closeSlash` race.
 - **Code block guard:** Slash menu not triggered inside `codeBlock` nodes.
+- **Items:** Text, Heading 1-3, Bullet/Numbered/Task List, Quote, Code Block, Divider, Image, Table, Callout, Toggle
 
 ### Image Upload
 
 - Hidden `<input type="file">` created once (`ensureImageInput()`)
-- Triggered by: slash menu "Image" command, paste image, drag-drop, or `#btn-upload-image` button
+- Triggered by: slash menu "Image" command, paste image, drag-drop
 - Uploads to `POST /api/upload` → stored in `wwwroot/uploads/` by `LocalFileStorageService`
+
+### Callout Block
+
+Custom TipTap node (`callout`). Renders `div[data-callout]` with side icon + color controls.
+- **Icon button:** opens emoji grid (50 emojis)
+- **Color button:** opens color picker (13 colors)
+- Markdown round-trip via `createBlockMarkdownSpec` as `:::callout {type="warning" icon="🔥"}`
+
+### Toggle Block
+
+Custom TipTap node (`toggle`). Renders `div[data-toggle]` with arrow + collapsible inner.
+- Markdown round-trip via `createBlockMarkdownSpec`
+- Arrow click toggles collapsed state
+
+### Table
+
+Via `@tiptap/extension-table` (resizable). Floating bubble menu appears on cell selection:
+- ➕ Row, ❌ Row, ➕ Col, ❌ Col, 🗑️ Table
+- Slash menu entry inserts 3×3 table with header row
 
 ### Known Issues / Edge Cases
 
@@ -171,6 +191,7 @@ await _db.Database.ExecuteSqlRawAsync(
 | POST | `/api/pages` | Yes | Create page |
 | PUT | `/api/pages/{id}` | Yes | Update metadata |
 | DELETE | `/api/pages/{id}` | Yes | Soft-delete |
+| GET | `/api/tags` | Yes | List tags |
 | POST | `/api/upload` | Yes | Image file upload |
 
 ## DB Schema
@@ -187,8 +208,7 @@ Blocks: (table retained but unused — rollback safety)
 ```bash
 # Frontend
 npm install
-npx vite build       # outputs src/dist/wwwroot/js/tiptap-editor.js
-cp src/dist/wwwroot/js/tiptap-editor.js src/Yanoch.Web/wwwroot/js/
+npx vite build       # outputs directly to src/Yanoch.Web/wwwroot/js/tiptap-editor.js
 
 # Backend
 dotnet run --project src/Yanoch.Web
