@@ -10,6 +10,7 @@ import Placeholder from '@tiptap/extension-placeholder'
 import GapCursor from '@tiptap/extension-gapcursor'
 import { DragHandle } from '@tiptap/extension-drag-handle'
 import { Table } from '@tiptap/extension-table'
+import { marked } from 'marked'
 import TableRow from '@tiptap/extension-table-row'
 import TableCell from '@tiptap/extension-table-cell'
 import TableHeader from '@tiptap/extension-table-header'
@@ -842,12 +843,21 @@ export function createEditor(elementId, content, dotNetRef, blockId) {
           })
           return true
         }
-        const text = event.clipboardData?.getData('text/plain')
+        var text = event.clipboardData?.getData('text/plain')
         if (text && /^https?:\/\/.*\.(png|jpg|jpeg|gif|webp|svg)(\?.*)?$/i.test(text.trim())) {
           event.preventDefault()
           view.dispatch(view.state.tr.replaceSelectionWith(
             view.state.schema.nodes.image.create(null, { src: text.trim() })
           ))
+          return true
+        }
+        // Paste markdown table text -> convert to table node
+        if (text && /^\|[^\n]+\n\|[\s:-]+\|/.test(text.trim())) {
+          event.preventDefault()
+          try {
+            var html = marked.parse(text.trim())
+            view.pasteHTML(html, { event: event })
+          } catch(e) { console.warn('table paste failed', e) }
           return true
         }
         return false

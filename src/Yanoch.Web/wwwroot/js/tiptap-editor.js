@@ -24577,8 +24577,19 @@ function RN(e, t, n, r) {
 				if (n && n[0]?.type.startsWith("image/")) return t.preventDefault(), aN(n[0]).then((t) => {
 					t && e.dispatch(e.state.tr.replaceSelectionWith(e.state.schema.nodes.image.create(null, { src: t })));
 				}), !0;
-				let r = t.clipboardData?.getData("text/plain");
-				return r && /^https?:\/\/.*\.(png|jpg|jpeg|gif|webp|svg)(\?.*)?$/i.test(r.trim()) ? (t.preventDefault(), e.dispatch(e.state.tr.replaceSelectionWith(e.state.schema.nodes.image.create(null, { src: r.trim() }))), !0) : !1;
+				var r = t.clipboardData?.getData("text/plain");
+				if (r && /^https?:\/\/.*\.(png|jpg|jpeg|gif|webp|svg)(\?.*)?$/i.test(r.trim())) return t.preventDefault(), e.dispatch(e.state.tr.replaceSelectionWith(e.state.schema.nodes.image.create(null, { src: r.trim() }))), !0;
+				if (r && /^\|[^\n]+\n\|[\s:-]+\|/.test(r.trim())) {
+					t.preventDefault();
+					try {
+						var i = V.parse(r.trim());
+						e.pasteHTML(i, { event: t });
+					} catch (e) {
+						console.warn("table paste failed", e);
+					}
+					return !0;
+				}
+				return !1;
 			},
 			handleDrop(e, t) {
 				let n = t.dataTransfer?.files;
