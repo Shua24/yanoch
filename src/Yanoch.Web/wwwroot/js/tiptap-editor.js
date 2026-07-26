@@ -37666,7 +37666,15 @@ var CP = rf.create({
 		];
 	},
 	addCommands() {
-		return { setToggle: (e = {}) => ({ commands: t }) => t.wrapIn(this.name, e) };
+		return { setToggle: (e = {}) => ({ commands: t, state: n }) => {
+			let { $from: r } = n.selection;
+			for (let n = r.depth; n > 0; n--) if (r.node(n).type.spec.defining) return t.insertContent({
+				type: "toggle",
+				attrs: e,
+				content: [{ type: "paragraph" }]
+			});
+			return t.wrapIn(this.name, e);
+		} };
 	},
 	...wP
 });
@@ -37812,9 +37820,20 @@ var FP = [
 	},
 	{
 		title: "Toggle",
-		desc: "Collapsible section",
+		desc: "Insert collapsible section",
 		icon: "▶",
-		run: (e) => e.chain().focus().clearNodes().setToggle().run()
+		run: (e, t) => {
+			let { $from: n } = e.state.selection, r = !1;
+			for (let e = n.depth; e > 0; e--) if (n.node(e).type.spec.defining) {
+				r = !0;
+				break;
+			}
+			r ? e.chain().insertContent({
+				type: "toggle",
+				attrs: {},
+				content: [{ type: "paragraph" }]
+			}).run() : e.chain().focus().clearNodes().setToggle().run();
+		}
 	}
 ], IP = null;
 function LP() {

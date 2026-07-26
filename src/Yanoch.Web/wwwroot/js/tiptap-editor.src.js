@@ -159,7 +159,19 @@ const Toggle = Node.create({
   },
   addCommands() {
     return {
-      setToggle: (attrs = {}) => ({ commands }) => {
+      setToggle: (attrs = {}) => ({ commands, state }) => {
+        const { $from } = state.selection
+        for (let d = $from.depth; d > 0; d--) {
+          if ($from.node(d).type.spec.defining) {
+            // Inside a defining container (toggle/callout):
+            // insert a new toggle at cursor, splitting the current block
+            return commands.insertContent({
+              type: 'toggle',
+              attrs,
+              content: [{ type: 'paragraph' }],
+            })
+          }
+        }
         return commands.wrapIn(this.name, attrs)
       },
     }
@@ -304,7 +316,17 @@ const slashItems = [
   { title: 'Divider',       desc: 'Horizontal rule',           icon: '—',   run: e => e.chain().focus().setHorizontalRule().run() },
   { title: 'Image',         desc: 'Upload an image',            icon: '🖼️',  run: e => { triggerImageUpload(e); } },
   { title: 'Callout',       desc: 'Colored callout box',        icon: '📌',  run: e => e.chain().focus().clearNodes().setCallout().run() },
-  { title: 'Toggle',        desc: 'Collapsible section',        icon: '▶',  run: e => e.chain().focus().clearNodes().setToggle().run() },
+  { title: 'Toggle',        desc: 'Insert collapsible section',  icon: '▶',  run: (e, pos) => {
+    // Inside a container (toggle/callout): insert child. Top-level: insert as sibling.
+    const { $from } = e.state.selection
+    let inside = false
+    for (let d = $from.depth; d > 0; d--) { if ($from.node(d).type.spec.defining) { inside = true; break } }
+    if (inside) {
+      e.chain().insertContent({ type: 'toggle', attrs: {}, content: [{ type: 'paragraph' }] }).run()
+    } else {
+      e.chain().focus().clearNodes().setToggle().run()
+    }
+  } },
 ]
 
 // ─── Image upload (one-off) ─────────────────────────────────────
