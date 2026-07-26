@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "dgSpecHash": "MPXE1/bbaR8=",
+  "dgSpecHash": "zzO2RFEdBAA=",
   "success": true,
   "projectFilePath": "/home/apollon/Sources/Yanoch/src/Yanoch.Infrastructure/Yanoch.Infrastructure.csproj",
   "expectedPackageFiles": [
@@ -29,7 +29,7 @@
     "/home/apollon/.nuget/packages/npgsql.entityframeworkcore.postgresql/10.0.3/npgsql.entityframeworkcore.postgresql.10.0.3.nupkg.sha512",
     "/home/apollon/.nuget/packages/sqlitepclraw.bundle_e_sqlite3/2.1.11/sqlitepclraw.bundle_e_sqlite3.2.1.11.nupkg.sha512",
     "/home/apollon/.nuget/packages/sqlitepclraw.core/2.1.11/sqlitepclraw.core.2.1.11.nupkg.sha512",
-    "/home/apollon/.nuget/packages/sqlitepclraw.lib.e_sqlite3/2.1.11/sqlitepclraw.lib.e_sqlite3.2.1.11.nupkg.sha512",
+    "/home/apollon/.nuget/packages/sqlitepclraw.lib.e_sqlite3/3.53.3/sqlitepclraw.lib.e_sqlite3.3.53.3.nupkg.sha512",
     "/home/apollon/.nuget/packages/sqlitepclraw.provider.e_sqlite3/2.1.11/sqlitepclraw.provider.e_sqlite3.2.1.11.nupkg.sha512",
     "/home/apollon/.nuget/packages/system.codedom/6.0.0/system.codedom.6.0.0.nupkg.sha512",
     "/home/apollon/.nuget/packages/system.composition/9.0.0/system.composition.9.0.0.nupkg.sha512",
@@ -39,18 +39,5 @@
     "/home/apollon/.nuget/packages/system.composition.runtime/9.0.0/system.composition.runtime.9.0.0.nupkg.sha512",
     "/home/apollon/.nuget/packages/system.composition.typedparts/9.0.0/system.composition.typedparts.9.0.0.nupkg.sha512"
   ],
-  "logs": [
-    {
-      "code": "NU1903",
-      "level": "Warning",
-      "message": "Package 'SQLitePCLRaw.lib.e_sqlite3' 2.1.11 has a known high severity vulnerability, https://github.com/advisories/GHSA-2m69-gcr7-jv3q",
-      "projectPath": "/home/apollon/Sources/Yanoch/src/Yanoch.Infrastructure/Yanoch.Infrastructure.csproj",
-      "warningLevel": 1,
-      "filePath": "/home/apollon/Sources/Yanoch/src/Yanoch.Infrastructure/Yanoch.Infrastructure.csproj",
-      "libraryId": "SQLitePCLRaw.lib.e_sqlite3",
-      "targetGraphs": [
-        "net10.0"
-      ]
-    }
-  ]
+  "logs": []
 }
