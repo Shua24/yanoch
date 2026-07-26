@@ -5,8 +5,8 @@ export default defineConfig({
   root: 'src/Yanoch.Web',
   publicDir: 'wwwroot',
   build: {
-    outDir: '../dist/wwwroot',
-    emptyOutDir: true,
+    outDir: 'wwwroot',
+    emptyOutDir: false,
     lib: {
       entry: path.resolve(__dirname, 'src/Yanoch.Web/wwwroot/js/tiptap-editor.src.js'),
       formats: ['es'],

@@ -9,6 +9,10 @@ import { Markdown } from '@tiptap/markdown'
 import Placeholder from '@tiptap/extension-placeholder'
 import GapCursor from '@tiptap/extension-gapcursor'
 import { DragHandle } from '@tiptap/extension-drag-handle'
+import { Table } from '@tiptap/extension-table'
+import TableRow from '@tiptap/extension-table-row'
+import TableCell from '@tiptap/extension-table-cell'
+import TableHeader from '@tiptap/extension-table-header'
 
 // ─── Callout type defs ─────────────────────────────────────────
 const calloutTypes = [
@@ -315,6 +319,7 @@ const slashItems = [
   { title: 'Code Block',    desc: 'Code fence',                icon: '</>', run: e => e.chain().focus().clearNodes().toggleCodeBlock().run() },
   { title: 'Divider',       desc: 'Horizontal rule',           icon: '—',   run: e => e.chain().focus().setHorizontalRule().run() },
   { title: 'Image',         desc: 'Upload an image',            icon: '🖼️',  run: e => { triggerImageUpload(e); } },
+  { title: 'Table',         desc: 'Insert a 3×3 table',         icon: '⊞',   run: e => e.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run() },
   { title: 'Callout',       desc: 'Colored callout box',        icon: '📌',  run: e => e.chain().focus().clearNodes().setCallout().run() },
   { title: 'Toggle',        desc: 'Insert collapsible section',  icon: '▶',  run: (e, pos) => {
     // Inside a container (toggle/callout): insert child. Top-level: insert as sibling.
@@ -732,6 +737,10 @@ export function createEditor(elementId, content, dotNetRef, blockId) {
           return el
         },
       }),
+      Table.configure({ resizable: true }),
+      TableRow,
+      TableHeader,
+      TableCell,
       Callout,
       Toggle,
     ],

@@ -16,12 +16,20 @@ public static class DependencyInjection
         if (useSqlite)
         {
             services.AddDbContext<AppDbContext>(options =>
-                options.UseSqlite(config.GetConnectionString("SqliteConnection")));
+            {
+                options.UseSqlite(config.GetConnectionString("SqliteConnection"));
+                options.ConfigureWarnings(w =>
+                    w.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning));
+            });
         }
         else
         {
             services.AddDbContext<AppDbContext>(options =>
-                options.UseNpgsql(config.GetConnectionString("DefaultConnection")));
+            {
+                options.UseNpgsql(config.GetConnectionString("DefaultConnection"));
+                options.ConfigureWarnings(w =>
+                    w.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning));
+            });
         }
 
         services.AddIdentity<IdentityUser, IdentityRole>(options =>

@@ -192,7 +192,7 @@ npm install @tiptap/extension-drag-handle @tiptap/extension-gapcursor
 
 ### 3. Table Block
 
-**Status:** ⬜ Not started
+**Status:** ✅ Done
 
 **Goal:** Insert and edit tables (Notion-style). Markdown tables as source of truth.
 
@@ -235,14 +235,14 @@ npm install @tiptap/extension-table @tiptap/extension-table-row @tiptap/extensio
 | 2 | Drag Handle | Nothing | Low | ✅ Done (was already) |
 | 3 | Callout (markdown round-trip) | Nothing | Medium | ✅ Done — `:::` fenced syntax via `createBlockMarkdownSpec` |
 | 4 | Wiki-link `[[` autocomplete | Nothing | Medium | ✅ Done — pure DOM popup, fetches /api/search |
-| 5 | Table block | Package install | Low | ⬜ Not started |
+| 5 | Table block | Package install | Low | ✅ Done — `@tiptap/extension-table` + `/table` slash command (3×3 default, resizable) |
 | 6 | Toggle block | Callout patterns | Low/med | ⬜ Future |
 | 7 | Databases | Schema design | High | ⬜ Future (Notion core feature) |
 | 8 | Views (table, Kanban, timeline, calendar, gallery, list, chart, dashboard) | Databases | High | ⬜ Future |
 | 9 | Relations (link databases) | Databases | High | ⬜ Future |
 | 10 | Migration (Block → Content) | Nothing | Medium | ⬜ Future (rollback safety)
 
-Steps 1-4 are complete. Steps 3-4 were missing from the initial implementation.
+Steps 1-5 are complete. Steps 3-5 were missing from the initial implementation.
 
 ---
 
@@ -250,8 +250,7 @@ Steps 1-4 are complete. Steps 3-4 were missing from the initial implementation.
 
 1. **Migration pending**: Existing `Block` data not yet migrated to `Page.Content`. Old `Block` table still exists in initial migration; legacy `BlockEditor.razor` removed.
 2. **Old pages** show legacy block renderer; new pages use TipTap. Migration service not yet written.
-3. **Table block** not yet implemented — see plan above.
-4. **Toggle block** not yet implemented — future work.
+3. **Toggle block** not yet implemented — future work.
 5. **Databases** not implemented — Notion's core feature (tables, boards, calendars, galleries, lists, charts, dashboards).
 6. **Views** not implemented — switching between table, Kanban, timeline, calendar, gallery, list, chart, dashboard views.
 7. **Relations** not implemented — linking databases (e.g., Tasks → Projects).

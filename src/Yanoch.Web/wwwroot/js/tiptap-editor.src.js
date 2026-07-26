@@ -9,6 +9,10 @@ import { Markdown } from '@tiptap/markdown'
 import Placeholder from '@tiptap/extension-placeholder'
 import GapCursor from '@tiptap/extension-gapcursor'
 import { DragHandle } from '@tiptap/extension-drag-handle'
+import { Table } from '@tiptap/extension-table'
+import TableRow from '@tiptap/extension-table-row'
+import TableCell from '@tiptap/extension-table-cell'
+import TableHeader from '@tiptap/extension-table-header'
 
 // ─── Callout type defs ─────────────────────────────────────────
 const calloutTypes = [
@@ -315,6 +319,7 @@ const slashItems = [
   { title: 'Code Block',    desc: 'Code fence',                icon: '</>', run: e => e.chain().focus().clearNodes().toggleCodeBlock().run() },
   { title: 'Divider',       desc: 'Horizontal rule',           icon: '—',   run: e => e.chain().focus().setHorizontalRule().run() },
   { title: 'Image',         desc: 'Upload an image',            icon: '🖼️',  run: e => { triggerImageUpload(e); } },
+  { title: 'Table',         desc: 'Insert a 3×3 table',         icon: '⊞',   run: e => e.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run() },
   { title: 'Callout',       desc: 'Colored callout box',        icon: '📌',  run: e => e.chain().focus().clearNodes().setCallout().run() },
   { title: 'Toggle',        desc: 'Insert collapsible section',  icon: '▶',  run: (e, pos) => {
     // Inside a container (toggle/callout): insert child. Top-level: insert as sibling.
@@ -618,6 +623,86 @@ function checkWiki(editor) {
   }
 }
 
+// ─── Table Floating Bubble Menu ────────────────────────────────
+function closeTableBubbleMenu(elementId) {
+  const inst = instances.get(elementId)
+  if (inst && inst.tableMenuEl) {
+    inst.tableMenuEl.remove()
+    inst.tableMenuEl = null
+  }
+}
+
+function updateTableBubbleMenu(editor, elementId) {
+  const inst = instances.get(elementId)
+  if (!inst) return
+
+  const { state, view } = editor
+  const { selection } = state
+  const isTableActive = state.schema.nodes.table && editor.isActive('table')
+
+  if (!isTableActive) {
+    closeTableBubbleMenu(elementId)
+    return
+  }
+
+  // Find the selected cell or parent cell element
+  const cellPos = selection.$from.pos
+  let cellDOM = null
+  try {
+    cellDOM = view.nodeDOM(selection.$from.before(selection.$from.depth))
+  } catch (e) {}
+
+  if (!cellDOM || !cellDOM.closest) {
+    // Fallback: look for parent td/th in DOM
+    const selectionDOM = window.getSelection()?.anchorNode
+    if (selectionDOM) {
+      cellDOM = selectionDOM.closest ? selectionDOM.closest('td, th') : selectionDOM.parentElement?.closest('td, th')
+    }
+  }
+
+  if (!cellDOM) {
+    closeTableBubbleMenu(elementId)
+    return
+  }
+
+  // Create table menu element if not exists
+  if (!inst.tableMenuEl) {
+    const menu = document.createElement('div')
+    menu.className = 'table-bubble-menu'
+    menu.style.cssText = 'position:fixed;z-index:99999;display:flex;gap:4px;padding:4px;background:var(--card-bg, #ffffff);border:1px solid var(--border, rgba(0,0,0,0.12));border-radius:6px;box-shadow:0 4px 12px rgba(0,0,0,0.1);'
+    menu.innerHTML = `
+      <button class="table-menu-btn" data-action="addRowAfter" title="Add Row Below">➕ Row</button>
+      <button class="table-menu-btn" data-action="deleteRow" title="Delete Row">❌ Row</button>
+      <button class="table-menu-btn" data-action="addColumnAfter" title="Add Column Right">➕ Col</button>
+      <button class="table-menu-btn" data-action="deleteColumn" title="Delete Column">❌ Col</button>
+      <button class="table-menu-btn table-menu-btn-danger" data-action="deleteTable" title="Delete Table">🗑️ Table</button>
+    `
+    // Prevent menu clicks from blurring the editor
+    menu.addEventListener('mousedown', e => e.preventDefault())
+    menu.querySelectorAll('.table-menu-btn').forEach(btn => {
+      btn.onclick = (e) => {
+        e.preventDefault()
+        const action = btn.dataset.action
+        if (action && editor.commands[action]) {
+          editor.chain().focus()[action]().run()
+        }
+      }
+    })
+    document.body.appendChild(menu)
+    inst.tableMenuEl = menu
+  }
+
+  // Position the menu above the cell
+  const rect = cellDOM.getBoundingClientRect()
+  const menuRect = inst.tableMenuEl.getBoundingClientRect()
+  const top = rect.top - menuRect.height - 8
+  const left = rect.left + (rect.width / 2) - (menuRect.width / 2)
+
+  inst.tableMenuEl.style.top = Math.max(8, top) + 'px'
+  inst.tableMenuEl.style.left = Math.max(8, left) + 'px'
+}
+
+
 // ─── Per-instance state ─────────────────────────────────────────
 const instances = new Map()
 
@@ -732,6 +817,10 @@ export function createEditor(elementId, content, dotNetRef, blockId) {
           return el
         },
       }),
+      Table.configure({ resizable: true }),
+      TableRow,
+      TableHeader,
+      TableCell,
       Callout,
       Toggle,
     ],
@@ -783,20 +872,24 @@ export function createEditor(elementId, content, dotNetRef, blockId) {
       invokeCb(inst.dotNetRef, 'OnMarkdownChanged', inst.blockId, ed.getMarkdown())
       checkSlash(ed)
       checkWiki(ed)
+      updateTableBubbleMenu(ed, elementId)
     },
     onSelectionUpdate: ({ editor: ed }) => {
       if (slashActive) checkSlash(ed)
       if (wikiActive) checkWiki(ed)
+      updateTableBubbleMenu(ed, elementId)
     },
     onFocus: () => invokeCb(inst.dotNetRef, 'OnFocus', inst.blockId),
     onBlur: () => {
       if (slashActive) closeSlash()
       if (wikiActive) closeWiki()
+      closeTableBubbleMenu(elementId)
       invokeCb(inst.dotNetRef, 'OnBlur', inst.blockId)
     },
   })
 
   inst.editor = editor
+  inst.tableMenuEl = null
 
   // Image upload button
   const uploadBtn = document.getElementById('btn-upload-image')
@@ -834,6 +927,7 @@ export function createEditor(elementId, content, dotNetRef, blockId) {
 export function destroyEditor(elementId) {
   const inst = instances.get(elementId)
   if (!inst) return
+  closeTableBubbleMenu(elementId)
   inst.listeners.forEach(l => document.removeEventListener(l.type, l.handler))
   inst.listeners = []
   // Kill Blazor ref BEFORE destroying editor — editor.destroy() fires

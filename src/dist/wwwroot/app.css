@@ -1,4 +1,4 @@
-﻿:root {
+:root {
 
 
 
@@ -1601,3 +1601,86 @@ body {
 }
 .ProseMirror-focused .ProseMirror-gapcursor { display: block; }
 
+/* ─── Table Block ─────────────────────────────────────────────── */
+.tiptap-editor table {
+  border-collapse: collapse;
+  table-layout: fixed;
+  width: 100%;
+  margin: 12px 0;
+  overflow: hidden;
+  border-radius: var(--radius, 6px);
+  font-size: 0.9375em;
+}
+
+.tiptap-editor table td,
+.tiptap-editor table th {
+  min-width: 60px;
+  border: 1px solid var(--border, rgba(0,0,0,0.12));
+  padding: 7px 12px;
+  vertical-align: top;
+  box-sizing: border-box;
+  position: relative;
+  background-clip: padding-box;
+}
+
+.tiptap-editor table th {
+  background: var(--hover-bg, rgba(0,0,0,0.04));
+  font-weight: 600;
+  text-align: left;
+}
+
+.tiptap-editor table tr:hover td {
+  background: var(--hover-bg, rgba(0,0,0,0.02));
+}
+
+/* Selected cell highlight */
+.tiptap-editor table .selectedCell:after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgba(35, 131, 226, 0.14);
+  pointer-events: none;
+  z-index: 2;
+}
+
+/* Column resize handle */
+.tiptap-editor table .column-resize-handle {
+  position: absolute;
+  right: -2px;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background: var(--accent, #2383e2);
+  opacity: 0;
+  cursor: col-resize;
+  transition: opacity 0.15s ease;
+  z-index: 20;
+}
+.tiptap-editor table td:hover .column-resize-handle,
+.tiptap-editor table th:hover .column-resize-handle {
+  opacity: 0.5;
+}
+.tiptap-editor table .column-resize-handle:hover,
+.tiptap-editor table .resize-cursor .column-resize-handle {
+  opacity: 1;
+}
+
+/* Resize cursor when dragging */
+.tiptap-editor.resize-cursor {
+  cursor: col-resize !important;
+}
+.tiptap-editor.resize-cursor * {
+  cursor: col-resize !important;
+}
+
+/* Dark mode */
+.dark .tiptap-editor table td,
+.dark .tiptap-editor table th {
+  border-color: var(--border, rgba(255,255,255,0.1));
+}
+.dark .tiptap-editor table th {
+  background: rgba(255,255,255,0.05);
+}
+.dark .tiptap-editor table tr:hover td {
+  background: rgba(255,255,255,0.03);
+}
