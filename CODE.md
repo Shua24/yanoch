@@ -95,6 +95,27 @@ src/
     └── Program.cs                    # Entry: DI, migrations, middleware
 ```
 
+## DTOs (Data Transfer Objects)
+
+DTOs are plain serializable containers — properties only, no behavior — that carry data across layer boundaries. The DTOs in `Yanoch.Application/DTOs/` define the wire shape that flows between the controllers, services, and the Blazor UI; the domain models in `Yanoch.Domain/Models/` stay internal to the backend.
+
+The current DTOs are split by use case rather than mirroring the domain one-to-one:
+
+- `PageDto` — read model returned by GET responses (page + display fields)
+- `CreatePageDto` — input for `POST /api/pages`
+- `SetContentDto` — input for `PUT /api/pages/{id}/content`
+- `PageVersionDto` — version-history row shape
+- `TagDto` / `BacklinkDto` / `SearchResultDto` — specialized read models
+
+Why DTOs instead of returning `Page` (or other domain entities) directly:
+
+1. **Decouple wire format from domain.** `Page` carries EF navigation properties, soft-delete flags, and other internal state. DTOs expose only what the API contract should.
+2. **Shape per operation.** `CreatePageDto` accepts only the fields needed to create a page; `PageDto` is the read shape. Splitting them prevents over-posting and documents what each endpoint actually takes.
+3. **Stable API surface.** Renaming a column or adding an internal field on `Page` doesn't break clients as long as the DTO shape is preserved.
+4. **No EF baggage.** DTOs are plain POCOs, so they pass safely through controllers, `PageService`, and the JS interop boundary without dragging in `IQueryable`, change tracking, or lazy loading.
+
+The mapping between DTOs and domain entities happens in `PageService` (and the controllers, where appropriate).
+
 ## Editor Architecture
 
 ### JS (tiptap-editor.src.js)
