@@ -24233,6 +24233,16 @@ var nN = [
 				content: [{ type: "paragraph" }]
 			}).run() : e.chain().focus().clearNodes().setToggle().run();
 		}
+	},
+	{
+		title: "Subpage",
+		desc: "Create a child page",
+		icon: "📄",
+		md: "",
+		run: (e) => {
+			let t = Array.from(MN.values()).find((t) => t.editor === e);
+			t && t.dotNetRef && FN(t.dotNetRef, "CreateSubpage", t.blockId);
+		}
 	}
 ], rN = null;
 function iN() {

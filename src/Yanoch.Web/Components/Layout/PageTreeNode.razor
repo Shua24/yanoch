@@ -5,6 +5,16 @@
 
 <div class="tree-node" style="padding-left: @(Depth * 16)px">
     <div class="tree-node-row">
+        @if (Page.ChildCount > 0)
+        {
+            <button class="tree-node-toggle" @onclick="ToggleExpanded" @onclick:stopPropagation title="@(_expanded ? "Collapse" : "Expand")">
+                <span class="tree-node-toggle-icon">@(_expanded ? "▾" : "▸")</span>
+            </button>
+        }
+        else
+        {
+            <span class="tree-node-toggle-spacer"></span>
+        }
         <a href="/page/@Page.Id" class="tree-node-link @(IsActive ? "active" : "")">
             <span class="tree-node-icon">@(Page.Icon ?? "📄")</span>
             <span class="tree-node-title">@Page.Title</span>
@@ -21,6 +31,22 @@
             <button class="tree-node-menu-item tree-node-menu-item-danger" @onclick="DeletePage">Delete</button>
         </div>
     }
+    @if (_expanded)
+    {
+        <div class="tree-node-children">
+            @if (_loadingChildren)
+            {
+                <div class="tree-loading">Loading...</div>
+            }
+            else if (_children != null)
+            {
+                @foreach (var child in _children)
+                {
+                    <PageTreeNode Page="child" Depth="@(Depth + 1)" />
+                }
+            }
+        </div>
+    }
 </div>
 
 @code {
@@ -28,6 +54,9 @@
     [Parameter] public int Depth { get; set; } = 0;
 
     private bool showMenu;
+    private bool _expanded;
+    private bool _loadingChildren;
+    private List<PageDto>? _children;
     private Guid currentUserId;
 
     private bool IsActive => Navigation.Uri.Contains($"/page/{Page.Id}") || Navigation.Uri.Contains($"/editor/{Page.Id}");
@@ -46,6 +75,32 @@
     {
         showMenu = !showMenu;
         StateHasChanged();
+    }
+
+    private async Task ToggleExpanded()
+    {
+        _expanded = !_expanded;
+        if (_expanded && _children == null)
+        {
+            await LoadChildrenAsync();
+        }
+        StateHasChanged();
+    }
+
+    private async Task LoadChildrenAsync()
+    {
+        _loadingChildren = true;
+        StateHasChanged();
+        try
+        {
+            var children = await PageService.GetChildrenAsync(Page.Id, currentUserId);
+            _children = children.ToList();
+        }
+        catch
+        {
+            _children = new();
+        }
+        _loadingChildren = false;
     }
 
     private async Task DeletePage()

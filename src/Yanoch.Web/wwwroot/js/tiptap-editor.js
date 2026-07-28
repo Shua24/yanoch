@@ -24245,7 +24245,17 @@ var nN = [
 				type: "toggle",
 				attrs: {},
 				content: [{ type: "paragraph" }]
-			}).run() : e.chain().focus().clearNodes().setToggle().run();
+					}).run() : e.chain().focus().clearNodes().setToggle().run();
+		}
+	},
+	{
+		title: "Subpage",
+		desc: "Create a child page",
+		icon: "📄",
+		md: "",
+		run: (e) => {
+			let t = Array.from(PN.values()).find((t) => t.editor === e);
+			t && t.dotNetRef && LN(t.dotNetRef, "CreateSubpage", t.blockId);
 		}
 	}
 ], rN = null;

@@ -332,6 +332,11 @@ const slashItems = [
       e.chain().focus().clearNodes().setToggle().run()
     }
   } },
+  { title: 'Subpage',       desc: 'Create a child page',          icon: '📄',  run: e => {
+    // Create a subpage (child page) of the current page via Blazor interop
+    const inst = Array.from(instances.values()).find(i => i.editor === e)
+    if (inst && inst.dotNetRef) invokeCb(inst.dotNetRef, 'CreateSubpage', inst.blockId)
+  } },
 ]
 
 // ─── Image upload (one-off) ─────────────────────────────────────

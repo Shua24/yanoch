@@ -183,6 +183,36 @@ body {
 .tree-node-title { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
 .tree-node-count { color: var(--text-tertiary); font-size: 12px; flex-shrink: 0; }
 
+.tree-node-toggle {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+    width: 20px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-tertiary);
+    font-size: 10px;
+    transition: color 0.12s;
+    margin-left: 8px;
+}
+
+.tree-node-toggle:hover {
+    color: var(--text-primary);
+}
+
+.tree-node-toggle-spacer {
+    width: 20px;
+    flex-shrink: 0;
+    margin-left: 8px;
+}
+
+.tree-node-children {
+    /* Children are indented via their own padding-left based on Depth */
+}
+
 .tree-node-menu-btn {
     background: none;
     border: none;
@@ -668,6 +698,92 @@ body {
 }
 
 .backlink-item:hover { background: var(--sidebar-hover); }
+
+/* SUBPAGES BLOCK */
+.editor-subpages {
+    margin-top: 48px;
+    padding-top: 24px;
+    border-top: 1px solid var(--border);
+}
+
+.editor-subpages-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+}
+
+.editor-subpages-header h4 {
+    font-size: 14px;
+    color: var(--text-secondary);
+}
+
+.btn-new-subpage {
+    padding: 4px 10px;
+    border: 1px dashed var(--border);
+    border-radius: var(--radius);
+    background: transparent;
+    color: var(--accent);
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.12s;
+}
+
+.btn-new-subpage:hover {
+    background: var(--sidebar-hover);
+    border-color: var(--accent);
+}
+
+.subpages-loading {
+    font-size: 13px;
+    color: var(--text-tertiary);
+    padding: 8px 0;
+}
+
+.subpages-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.subpage-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text-primary);
+    text-decoration: none;
+    font-size: 14px;
+    transition: background 0.12s, box-shadow 0.12s;
+}
+
+.subpage-item:hover {
+    background: var(--sidebar-hover);
+    box-shadow: var(--shadow);
+}
+
+.subpage-icon {
+    font-size: 16px;
+    flex-shrink: 0;
+    width: 24px;
+    text-align: center;
+}
+
+.subpage-title {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.subpages-empty {
+    font-size: 13px;
+    color: var(--text-tertiary);
+    padding: 8px 0;
+}
 
 /* Slash Command Menu */
 .slash-menu {
