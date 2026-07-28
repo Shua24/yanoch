@@ -19,7 +19,7 @@ public interface IPageService
     Task<IEnumerable<PageVersionDto>> GetVersionsAsync(Guid pageId, Guid userId);
     Task<PageDto?> RestoreVersionAsync(Guid pageId, Guid versionId, Guid userId);
     Task<string?> GetContentAsync(Guid pageId, Guid userId);
-    Task SetContentAsync(Guid pageId, string content);
+    Task SetContentAsync(Guid pageId, string content, Guid userId);
     Task<PageDto?> GetSubtreeIncludingDeletedAsync(Guid id, Guid userId);
     Task ReorderSubpagesAsync(Guid parentId, List<Guid> pageIds, Guid userId);
 

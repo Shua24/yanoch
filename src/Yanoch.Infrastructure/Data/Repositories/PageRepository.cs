@@ -209,6 +209,20 @@ public class PageRepository : IPageRepository
     public async Task<IEnumerable<Page>> GetRecentAsync(Guid userId, int count = 10) =>
         await _db.Pages.AsNoTracking().Where(p => p.UserId == userId).OrderByDescending(p => p.UpdatedAt).Take(count).ToListAsync();
 
+    public async Task<IReadOnlyDictionary<Guid, int>> GetChildCountsAsync(IEnumerable<Guid> parentIds, Guid userId)
+    {
+        var parentIdsList = parentIds.ToList();
+        if (parentIdsList.Count == 0)
+            return new Dictionary<Guid, int>();
+
+        return await _db.Pages
+            .AsNoTracking()
+            .Where(p => p.UserId == userId && p.ParentPageId != null && parentIdsList.Contains(p.ParentPageId.Value))
+            .GroupBy(p => p.ParentPageId!.Value)
+            .Select(g => new { ParentId = g.Key, Count = g.Count() })
+            .ToDictionaryAsync(g => g.ParentId, g => g.Count);
+    }
+
     public async Task<string?> GetContentAsync(Guid pageId, Guid userId)
     {
         var page = await _db.Pages.AsNoTracking()

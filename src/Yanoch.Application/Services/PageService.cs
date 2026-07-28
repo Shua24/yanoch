@@ -33,29 +33,30 @@ public class PageService : IPageService
 
     public async Task<IEnumerable<PageDto>> GetTreeAsync(Guid userId)
     {
-        var pages = await _pages.GetRootPagesAsync(userId);
-        var result = new List<PageDto>();
-        foreach (var p in pages)
+        var pages = (await _pages.GetRootPagesAsync(userId)).ToList();
+        if (pages.Count == 0) return Enumerable.Empty<PageDto>();
+
+        var counts = await _pages.GetChildCountsAsync(pages.Select(p => p.Id), userId);
+        return pages.Select(p =>
         {
             var dto = MapToDto(p);
-            var children = await _pages.GetByParentAsync(p.Id, userId);
-            dto.ChildCount = children.Count();
-            result.Add(dto);
-        }
-        return result;
+            dto.ChildCount = counts.GetValueOrDefault(p.Id, 0);
+            return dto;
+        });
     }
 
     public async Task<IEnumerable<PageDto>> GetChildrenAsync(Guid? parentId, Guid userId)
     {
-        var pages = await _pages.GetByParentAsync(parentId, userId);
-        var result = new List<PageDto>();
-        foreach (var p in pages)
+        var pages = (await _pages.GetByParentAsync(parentId, userId)).ToList();
+        if (pages.Count == 0) return Enumerable.Empty<PageDto>();
+
+        var counts = await _pages.GetChildCountsAsync(pages.Select(p => p.Id), userId);
+        return pages.Select(p =>
         {
             var dto = MapToDto(p);
-            dto.ChildCount = (await _pages.GetByParentAsync(p.Id, userId)).Count();
-            result.Add(dto);
-        }
-        return result;
+            dto.ChildCount = counts.GetValueOrDefault(p.Id, 0);
+            return dto;
+        });
     }
 
     public async Task<PageDto> CreateAsync(CreatePageDto dto, Guid userId)
@@ -107,10 +108,10 @@ public class PageService : IPageService
     public async Task<string?> GetContentAsync(Guid pageId, Guid userId) =>
         await _pages.GetContentAsync(pageId, userId);
 
-    public async Task SetContentAsync(Guid pageId, string content)
+    public async Task SetContentAsync(Guid pageId, string content, Guid userId)
     {
         await _pages.SetContentAsync(pageId, content);
-        await UpdateBacklinksFromContent(pageId, content);
+        await UpdateBacklinksFromContent(pageId, content, userId);
     }
 
     public async Task ReorderSubpagesAsync(Guid parentId, List<Guid> pageIds, Guid userId)
@@ -126,11 +127,10 @@ public class PageService : IPageService
         }
     }
 
-    private async Task UpdateBacklinksFromContent(Guid sourcePageId, string content)
+    private async Task UpdateBacklinksFromContent(Guid sourcePageId, string content, Guid userId)
     {
-        var page = await _pages.GetByIdAsync(sourcePageId, Guid.Empty);
+        var page = await _pages.GetByIdAsync(sourcePageId, userId);
         if (page == null) return;
-        var userId = page.UserId;
 
         await _backlinks.DeleteBySourcePageAsync(sourcePageId);
         var matches = Regex.Matches(content, @"\[\[([^\]]+)\]\]");

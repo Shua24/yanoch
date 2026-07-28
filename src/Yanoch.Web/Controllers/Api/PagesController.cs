@@ -51,7 +51,7 @@ public class PagesController : ControllerBase
     [HttpPut("{id}/content")]
     public async Task<IActionResult> SetContent(Guid id, [FromBody] SetContentDto dto)
     {
-        await _pages.SetContentAsync(id, dto.Content);
+        await _pages.SetContentAsync(id, dto.Content, UserId());
         return NoContent();
     }
 

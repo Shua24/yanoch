@@ -135,7 +135,7 @@ public class PageServiceTests
     {
         var root = new Page { Id = Guid.NewGuid(), Title = "Root", UserId = _userId };
         _pages.Setup(r => r.GetRootPagesAsync(_userId)).ReturnsAsync([root]);
-        _pages.Setup(r => r.GetByParentAsync(root.Id, _userId)).ReturnsAsync([]);
+        _pages.Setup(r => r.GetChildCountsAsync(new[] { root.Id }, _userId)).ReturnsAsync(new Dictionary<Guid, int>());
 
         var result = (await _svc.GetTreeAsync(_userId)).ToList();
 
@@ -186,13 +186,13 @@ public class PageServiceTests
         var target = new Page { Id = targetId, Title = "Target", UserId = _userId, ParentPageId = null };
 
         _pages.Setup(r => r.SetContentAsync(pageId, "Hello [[Target]]")).Returns(Task.CompletedTask);
-        _pages.Setup(r => r.GetByIdAsync(pageId, Guid.Empty)).ReturnsAsync(page);
+        _pages.Setup(r => r.GetByIdAsync(pageId, _userId)).ReturnsAsync(page);
         _backlinks.Setup(r => r.DeleteBySourcePageAsync(pageId)).Returns(Task.CompletedTask);
         _pages.Setup(r => r.GetRootPagesAsync(_userId)).ReturnsAsync([page, target]);
         _pages.Setup(r => r.GetByParentAsync(It.IsAny<Guid>(), _userId)).ReturnsAsync([]);
         _backlinks.Setup(r => r.CreateAsync(It.IsAny<Backlink>())).Returns(Task.CompletedTask);
 
-        await _svc.SetContentAsync(pageId, "Hello [[Target]]");
+        await _svc.SetContentAsync(pageId, "Hello [[Target]]", _userId);
 
         _backlinks.Verify(r => r.CreateAsync(It.Is<Backlink>(b => b.TargetPageId == targetId)), Times.Once);
     }
@@ -216,7 +216,7 @@ public class PageServiceTests
         var parentId = Guid.NewGuid();
         var child = new Page { Id = Guid.NewGuid(), Title = "Child", UserId = _userId };
         _pages.Setup(r => r.GetByParentAsync(parentId, _userId)).ReturnsAsync([child]);
-        _pages.Setup(r => r.GetByParentAsync(child.Id, _userId)).ReturnsAsync([]);
+        _pages.Setup(r => r.GetChildCountsAsync(new[] { child.Id }, _userId)).ReturnsAsync(new Dictionary<Guid, int>());
 
         var result = (await _svc.GetChildrenAsync(parentId, _userId)).ToList();
 

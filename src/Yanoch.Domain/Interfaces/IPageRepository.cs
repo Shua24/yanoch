@@ -21,6 +21,7 @@ public interface IPageRepository
     Task<IEnumerable<Page>> GetDeletedAsync(Guid userId);
     Task<IEnumerable<Page>> GetSubtreeIncludingDeletedAsync(Guid id, Guid userId);
     Task<IEnumerable<Page>> GetRecentAsync(Guid userId, int count = 10);
+    Task<IReadOnlyDictionary<Guid, int>> GetChildCountsAsync(IEnumerable<Guid> parentIds, Guid userId);
     Task<string?> GetContentAsync(Guid pageId, Guid userId);
     Task SetContentAsync(Guid pageId, string content);
 }

@@ -253,6 +253,8 @@
                 {
                     page = null; // prevent double-save in invariant
                     isNew = false;
+                    // Notify the sidebar tree so it shows the new page immediately
+                    OnPageDataChanged?.Invoke();
                     Navigation.NavigateTo($"/page/{newPage.Id}", false);
                 }
             }
@@ -267,7 +269,7 @@
         {
             _saveStatus = "Saving...";
             StateHasChanged();
-            await PageService.SetContentAsync(page.Id, markdown);
+            await PageService.SetContentAsync(page.Id, markdown, currentUserId);
             page.Content = markdown;
             page.UpdatedAt = now;
             OnPageDataChanged?.Invoke();
