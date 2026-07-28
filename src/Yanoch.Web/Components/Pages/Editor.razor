@@ -269,7 +269,7 @@
         {
             _saveStatus = "Saving...";
             StateHasChanged();
-            await PageService.SetContentAsync(page.Id, markdown, currentUserId);
+            await PageService.SetContentAsync(page.Id, markdown);
             page.Content = markdown;
             page.UpdatedAt = now;
             OnPageDataChanged?.Invoke();

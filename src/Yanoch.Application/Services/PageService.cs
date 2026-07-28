@@ -108,11 +108,11 @@ public class PageService : IPageService
     public async Task<string?> GetContentAsync(Guid pageId, Guid userId) =>
         await _pages.GetContentAsync(pageId, userId);
 
-    public async Task SetContentAsync(Guid pageId, string content, Guid userId)
-    {
-        await _pages.SetContentAsync(pageId, content);
-        await UpdateBacklinksFromContent(pageId, content, userId);
-    }
+    public async Task SetContentAsync(Guid pageId, string content)
+        {
+            await _pages.SetContentAsync(pageId, content);
+            await UpdateBacklinksFromContent(pageId, content);
+        }
 
     public async Task ReorderSubpagesAsync(Guid parentId, List<Guid> pageIds, Guid userId)
     {
@@ -127,28 +127,29 @@ public class PageService : IPageService
         }
     }
 
-    private async Task UpdateBacklinksFromContent(Guid sourcePageId, string content, Guid userId)
-    {
-        var page = await _pages.GetByIdAsync(sourcePageId, userId);
-        if (page == null) return;
-
-        await _backlinks.DeleteBySourcePageAsync(sourcePageId);
-        var matches = Regex.Matches(content, @"\[\[([^\]]+)\]\]");
-        foreach (Match m in matches)
+    private async Task UpdateBacklinksFromContent(Guid sourcePageId, string content)
         {
-            var title = m.Groups[1].Value;
-            var target = await FindPageByTitle(title, userId);
-            if (target != null)
+            var page = await _pages.GetByIdAsync(sourcePageId, Guid.Empty);
+            if (page == null) return;
+            var userId = page.UserId;
+
+            await _backlinks.DeleteBySourcePageAsync(sourcePageId);
+            var matches = Regex.Matches(content, @"\[\[([^\]]+)\]\]");
+            foreach (Match m in matches)
             {
-                await _backlinks.CreateAsync(new Backlink
+                var title = m.Groups[1].Value;
+                var target = await FindPageByTitle(title, userId);
+                if (target != null)
                 {
-                    SourcePageId = sourcePageId,
-                    TargetPageId = target.Id,
-                    Context = content.Length > 200 ? content[..200] : content
-                });
+                    await _backlinks.CreateAsync(new Backlink
+                    {
+                        SourcePageId = sourcePageId,
+                        TargetPageId = target.Id,
+                        Context = content.Length > 200 ? content[..200] : content
+                    });
+                }
             }
         }
-    }
 
     private async Task<Page?> FindPageByTitle(string title, Guid userId)
     {

@@ -178,24 +178,24 @@ public class PageServiceTests
     }
 
     [Fact]
-    public async Task SetContentAsync_UpdatesContentAndExtractsBacklinks()
-    {
-        var pageId = Guid.NewGuid();
-        var targetId = Guid.NewGuid();
-        var page = new Page { Id = pageId, Title = "Source", UserId = _userId };
-        var target = new Page { Id = targetId, Title = "Target", UserId = _userId, ParentPageId = null };
+        public async Task SetContentAsync_UpdatesContentAndExtractsBacklinks()
+        {
+            var pageId = Guid.NewGuid();
+            var targetId = Guid.NewGuid();
+            var page = new Page { Id = pageId, Title = "Source", UserId = _userId };
+            var target = new Page { Id = targetId, Title = "Target", UserId = _userId, ParentPageId = null };
 
-        _pages.Setup(r => r.SetContentAsync(pageId, "Hello [[Target]]")).Returns(Task.CompletedTask);
-        _pages.Setup(r => r.GetByIdAsync(pageId, _userId)).ReturnsAsync(page);
-        _backlinks.Setup(r => r.DeleteBySourcePageAsync(pageId)).Returns(Task.CompletedTask);
-        _pages.Setup(r => r.GetRootPagesAsync(_userId)).ReturnsAsync([page, target]);
-        _pages.Setup(r => r.GetByParentAsync(It.IsAny<Guid>(), _userId)).ReturnsAsync([]);
-        _backlinks.Setup(r => r.CreateAsync(It.IsAny<Backlink>())).Returns(Task.CompletedTask);
+            _pages.Setup(r => r.SetContentAsync(pageId, "Hello [[Target]]")).Returns(Task.CompletedTask);
+            _pages.Setup(r => r.GetByIdAsync(pageId, Guid.Empty)).ReturnsAsync(page);
+            _backlinks.Setup(r => r.DeleteBySourcePageAsync(pageId)).Returns(Task.CompletedTask);
+            _pages.Setup(r => r.GetRootPagesAsync(_userId)).ReturnsAsync([page, target]);
+            _pages.Setup(r => r.GetByParentAsync(It.IsAny<Guid>(), _userId)).ReturnsAsync([]);
+            _backlinks.Setup(r => r.CreateAsync(It.IsAny<Backlink>())).Returns(Task.CompletedTask);
 
-        await _svc.SetContentAsync(pageId, "Hello [[Target]]", _userId);
+            await _svc.SetContentAsync(pageId, "Hello [[Target]]");
 
-        _backlinks.Verify(r => r.CreateAsync(It.Is<Backlink>(b => b.TargetPageId == targetId)), Times.Once);
-    }
+            _backlinks.Verify(r => r.CreateAsync(It.Is<Backlink>(b => b.TargetPageId == targetId)), Times.Once);
+        }
 
     [Fact]
     public async Task Search_MapsToSearchResultDto()
