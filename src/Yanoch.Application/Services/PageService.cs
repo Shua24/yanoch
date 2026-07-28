@@ -79,7 +79,10 @@ public class PageService : IPageService
 
     public async Task<PageDto?> UpdateAsync(Guid id, UpdatePageDto dto, Guid userId)
     {
-        var page = await _pages.GetByIdAsync(id, userId);
+        // Load with tracking so EF detects scalar and collection (PageTags) changes
+        // without needing to re-attach a detached graph that could contain Backlinks
+        // with SourcePage references already tracked in the context.
+        var page = await _pages.GetByIdTrackedWithTagsAsync(id, userId);
         if (page == null) return null;
 
         if (dto.Title != null) page.Title = dto.Title;
@@ -156,7 +159,7 @@ public class PageService : IPageService
 
     public async Task SoftDeleteAsync(Guid id, Guid userId)
     {
-        var page = await _pages.GetByIdAsync(id, userId);
+        var page = await _pages.GetByIdTrackedAsync(id, userId);
         if (page == null) return;
         await _pages.SoftDeleteAsync(page);
     }
@@ -203,7 +206,10 @@ public class PageService : IPageService
 
     public async Task<PageDto?> RestoreAsync(Guid id, Guid userId)
     {
-        var page = await _pages.GetByIdIncludingDeletedAsync(id, userId);
+        // Load tracked with delete filter ignored so we can restore soft-deleted pages.
+        // No navigation includes — scalar properties only — to avoid EF Core tracking
+        // conflicts when the attached graph contains entities already tracked by the context.
+        var page = await _pages.GetByIdIncludingDeletedTrackedAsync(id, userId);
         if (page == null || !page.IsDeleted) return null;
 
         await _pages.RestoreAsync(page);
@@ -261,7 +267,7 @@ public class PageService : IPageService
 
     public async Task<PageDto?> RestoreVersionAsync(Guid pageId, Guid versionId, Guid userId)
     {
-        var page = await _pages.GetByIdAsync(pageId, userId);
+        var page = await _pages.GetByIdTrackedAsync(pageId, userId);
         if (page == null) return null;
         var version = await _versions.GetByIdAsync(versionId);
         if (version == null || version.PageId != pageId) return null;

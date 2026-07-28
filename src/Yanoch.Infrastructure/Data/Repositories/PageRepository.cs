@@ -18,6 +18,37 @@ public class PageRepository : IPageRepository
             .Include(p => p.Backlinks).ThenInclude(b => b.SourcePage)
             .FirstOrDefaultAsync(p => p.Id == id && p.UserId == userId);
 
+    /// <summary>
+    /// Loads a page with tracking (no AsNoTracking) and NO navigation includes.
+    /// Use this before write operations (SoftDelete, Restore, Update) to avoid
+    /// EF Core cascading detached navigation graphs onto already-tracked entities,
+    /// which causes InvalidOperationException tracking conflicts and crashes.
+    /// </summary>
+    public async Task<Page?> GetByIdTrackedAsync(Guid id, Guid userId) =>
+        await _db.Pages
+            .FirstOrDefaultAsync(p => p.Id == id && p.UserId == userId);
+
+    /// <summary>
+    /// Tracked load with PageTags (and their Tags) included, but without Backlinks.
+    /// Backlinks include SourcePage navigation which can reference other pages that
+    /// are already tracked in the context, causing tracking conflicts on attach.
+    /// Use for updates that need to modify PageTags collections.
+    /// </summary>
+    public async Task<Page?> GetByIdTrackedWithTagsAsync(Guid id, Guid userId) =>
+        await _db.Pages
+            .Include(p => p.PageTags).ThenInclude(pt => pt.Tag)
+            .FirstOrDefaultAsync(p => p.Id == id && p.UserId == userId);
+
+    /// <summary>
+    /// Like GetByIdTrackedAsync but ignores the global soft-delete query filter
+    /// so it can load pages regardless of IsDeleted status.
+    /// No navigation includes — scalar properties only.
+    /// </summary>
+    public async Task<Page?> GetByIdIncludingDeletedTrackedAsync(Guid id, Guid userId) =>
+        await _db.Pages
+            .IgnoreQueryFilters()
+            .FirstOrDefaultAsync(p => p.Id == id && p.UserId == userId);
+
     public async Task<Page?> GetByIdIncludingDeletedAsync(Guid id, Guid userId) =>
         await _db.Pages
             .IgnoreQueryFilters()
@@ -43,6 +74,9 @@ public class PageRepository : IPageRepository
 
     public async Task UpdateAsync(Page page)
     {
+        // Entity is already tracked (loaded via GetByIdTrackedWithTagsAsync),
+        // so EF auto-detects changes. Mark Modified to force update of all
+        // scalar properties even if they haven't changed (e.g. UpdatedAt).
         _db.Entry(page).State = EntityState.Modified;
         await _db.SaveChangesAsync();
     }
@@ -54,7 +88,7 @@ public class PageRepository : IPageRepository
         var now = DateTime.UtcNow;
         page.IsDeleted = true;
         page.DeletedAt = now;
-        _db.Entry(page).State = EntityState.Modified;
+        page.UpdatedAt = now;
 
         await SoftDeleteChildrenRecursiveAsync(page.Id, page.UserId, now);
         await _db.SaveChangesAsync();
@@ -71,6 +105,7 @@ public class PageRepository : IPageRepository
         {
             child.IsDeleted = true;
             child.DeletedAt = now;
+            _db.Entry(child).State = EntityState.Modified;
             await SoftDeleteChildrenRecursiveAsync(child.Id, userId, now);
         }
     }
@@ -112,7 +147,6 @@ public class PageRepository : IPageRepository
     {
         page.IsDeleted = false;
         page.DeletedAt = null;
-        _db.Entry(page).State = EntityState.Modified;
 
         await RestoreChildrenRecursiveAsync(page.Id, page.UserId);
         await _db.SaveChangesAsync();
@@ -129,6 +163,7 @@ public class PageRepository : IPageRepository
         {
             child.IsDeleted = false;
             child.DeletedAt = null;
+            _db.Entry(child).State = EntityState.Modified;
             await RestoreChildrenRecursiveAsync(child.Id, userId);
         }
     }

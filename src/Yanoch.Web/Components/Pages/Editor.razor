@@ -76,6 +76,7 @@
 
 @code {
     public static event Action? OnPageDataChanged;
+    public static void NotifyPageDataChanged() => OnPageDataChanged?.Invoke();
     [Parameter] public Guid PageId { get; set; }
     private PageDto? page;
     private bool loading = true;
@@ -331,6 +332,15 @@
     private async Task DeletePage()
     {
         if (page == null) return;
-        try { await PageService.DeleteAsync(page.Id, currentUserId); OnPageDataChanged?.Invoke(); Navigation.NavigateTo("/"); } catch { }
+        try
+        {
+            await PageService.DeleteAsync(page.Id, currentUserId);
+            OnPageDataChanged?.Invoke();
+            Navigation.NavigateTo("/");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine("Delete error: " + ex.Message);
+        }
     }
 }

@@ -18,19 +18,7 @@
     @if (showMenu)
     {
         <div class="tree-node-menu" @onclick:stopPropagation>
-            <button class="tree-node-menu-item tree-node-menu-item-danger" @onclick="OpenDeleteConfirm">Delete</button>
-        </div>
-    }
-    @if (showDeleteConfirm)
-    {
-        <div class="confirm-dialog" @onclick:stopPropagation>
-            <div class="confirm-dialog-box">
-                <div class="confirm-dialog-text">Delete this page?</div>
-                <div class="confirm-dialog-actions">
-                    <button class="btn-cancel" @onclick="CloseDeleteConfirm">Cancel</button>
-                    <button class="btn-confirm-delete" @onclick="ConfirmDelete">Delete</button>
-                </div>
-            </div>
+            <button class="tree-node-menu-item tree-node-menu-item-danger" @onclick="DeletePage">Delete</button>
         </div>
     }
 </div>
@@ -40,7 +28,6 @@
     [Parameter] public int Depth { get; set; } = 0;
 
     private bool showMenu;
-    private bool showDeleteConfirm;
     private Guid currentUserId;
 
     private bool IsActive => Navigation.Uri.Contains($"/page/{Page.Id}") || Navigation.Uri.Contains($"/editor/{Page.Id}");
@@ -61,24 +48,14 @@
         StateHasChanged();
     }
 
-    private void OpenDeleteConfirm()
+    private async Task DeletePage()
     {
         showMenu = false;
-        showDeleteConfirm = true;
-        StateHasChanged();
-    }
-
-    private void CloseDeleteConfirm()
-    {
-        showDeleteConfirm = false;
-        StateHasChanged();
-    }
-
-    private async Task ConfirmDelete()
-    {
-        showDeleteConfirm = false;
         await PageService.SoftDeleteAsync(Page.Id, currentUserId);
-        
-        StateHasChanged();
+        Editor.NotifyPageDataChanged();
+        if (Navigation.Uri.Contains($"/page/{Page.Id}") || Navigation.Uri.Contains($"/editor/{Page.Id}"))
+        {
+            Navigation.NavigateTo("/");
+        }
     }
 }

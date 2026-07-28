@@ -111,7 +111,7 @@ public class PageServiceTests
     {
         var pageId = Guid.NewGuid();
         var page = new Page { Id = pageId, UserId = _userId };
-        _pages.Setup(r => r.GetByIdAsync(pageId, _userId)).ReturnsAsync(page);
+        _pages.Setup(r => r.GetByIdTrackedAsync(pageId, _userId)).ReturnsAsync(page);
         // DeleteAsync now delegates to SoftDeleteAsync; mock that surface.
         _pages.Setup(r => r.SoftDeleteAsync(page)).Returns(Task.CompletedTask);
 
@@ -123,7 +123,7 @@ public class PageServiceTests
     [Fact]
     public async Task Delete_SkipsWhenPageMissing()
     {
-        _pages.Setup(r => r.GetByIdAsync(It.IsAny<Guid>(), _userId)).ReturnsAsync((Page?)null);
+        _pages.Setup(r => r.GetByIdTrackedAsync(It.IsAny<Guid>(), _userId)).ReturnsAsync((Page?)null);
 
         await _svc.DeleteAsync(Guid.NewGuid(), _userId);
 
@@ -147,9 +147,11 @@ public class PageServiceTests
     public async Task Update_UpdatesTitle()
     {
         var page = new Page { Id = Guid.NewGuid(), Title = "Old", UserId = _userId };
-        _pages.Setup(r => r.GetByIdAsync(page.Id, _userId)).ReturnsAsync(page);
+        _pages.Setup(r => r.GetByIdTrackedWithTagsAsync(page.Id, _userId)).ReturnsAsync(page);
         _pages.Setup(r => r.UpdateAsync(It.IsAny<Page>())).Returns(Task.CompletedTask);
-        _pages.Setup(r => r.GetByIdAsync(page.Id, _userId)).ReturnsAsync(page);
+        _pages.Setup(r => r.GetByIdTrackedWithTagsAsync(page.Id, _userId)).ReturnsAsync(page);
+        // Final fresh read for DTO mapping — still uses GetByIdAsync (read path)
+        _pages.Setup(r => r.GetByIdAsync(It.IsAny<Guid>(), It.IsAny<Guid>())).ReturnsAsync(page);
 
         var result = await _svc.UpdateAsync(page.Id, new UpdatePageDto { Title = "New" }, _userId);
 
@@ -163,9 +165,11 @@ public class PageServiceTests
         var pageId = Guid.NewGuid();
         var tagId = Guid.NewGuid();
         var page = new Page { Id = pageId, Title = "P", UserId = _userId };
-        _pages.Setup(r => r.GetByIdAsync(pageId, _userId)).ReturnsAsync(page);
+        _pages.Setup(r => r.GetByIdTrackedWithTagsAsync(pageId, _userId)).ReturnsAsync(page);
         _pages.Setup(r => r.UpdateAsync(It.IsAny<Page>())).Returns(Task.CompletedTask);
-        _pages.Setup(r => r.GetByIdAsync(pageId, _userId)).ReturnsAsync(page);
+        _pages.Setup(r => r.GetByIdTrackedWithTagsAsync(pageId, _userId)).ReturnsAsync(page);
+        // Final fresh read for DTO mapping
+        _pages.Setup(r => r.GetByIdAsync(It.IsAny<Guid>(), It.IsAny<Guid>())).ReturnsAsync(page);
 
         var result = await _svc.UpdateAsync(pageId, new UpdatePageDto { TagIds = [tagId] }, _userId);
 
@@ -272,7 +276,7 @@ public class PageServiceTests
             Content = "# Restored content"
         };
 
-        _pages.Setup(r => r.GetByIdAsync(pageId, _userId)).ReturnsAsync(page);
+        _pages.Setup(r => r.GetByIdTrackedAsync(pageId, _userId)).ReturnsAsync(page);
         _versions.Setup(r => r.GetByIdAsync(versionId)).ReturnsAsync(version);
         _pages.Setup(r => r.UpdateAsync(It.IsAny<Page>())).Returns(Task.CompletedTask);
         _pages.Setup(r => r.GetByIdAsync(pageId, _userId)).ReturnsAsync(page);
@@ -288,7 +292,7 @@ public class PageServiceTests
     public async Task RestoreVersion_ReturnsNull_WhenMismatch()
     {
         var version = new PageVersion { Id = Guid.NewGuid(), PageId = Guid.NewGuid() }; // different pageId
-        _pages.Setup(r => r.GetByIdAsync(It.IsAny<Guid>(), _userId)).ReturnsAsync(new Page());
+        _pages.Setup(r => r.GetByIdTrackedAsync(It.IsAny<Guid>(), _userId)).ReturnsAsync(new Page());
         _versions.Setup(r => r.GetByIdAsync(It.IsAny<Guid>())).ReturnsAsync(version);
 
         var result = await _svc.RestoreVersionAsync(Guid.NewGuid(), version.Id, _userId);
@@ -301,7 +305,7 @@ public class PageServiceTests
     {
         var pageId = Guid.NewGuid();
         var page = new Page { Id = pageId, UserId = _userId };
-        _pages.Setup(r => r.GetByIdAsync(pageId, _userId)).ReturnsAsync(page);
+        _pages.Setup(r => r.GetByIdTrackedAsync(pageId, _userId)).ReturnsAsync(page);
         _pages.Setup(r => r.SoftDeleteAsync(page)).Returns(Task.CompletedTask);
 
         await _svc.SoftDeleteAsync(pageId, _userId);
@@ -312,7 +316,7 @@ public class PageServiceTests
     [Fact]
     public async Task SoftDelete_SkipsWhenPageMissing()
     {
-        _pages.Setup(r => r.GetByIdAsync(It.IsAny<Guid>(), _userId)).ReturnsAsync((Page?)null);
+        _pages.Setup(r => r.GetByIdTrackedAsync(It.IsAny<Guid>(), _userId)).ReturnsAsync((Page?)null);
 
         await _svc.SoftDeleteAsync(Guid.NewGuid(), _userId);
 
@@ -324,7 +328,7 @@ public class PageServiceTests
     {
         var pageId = Guid.NewGuid();
         var page = new Page { Id = pageId, UserId = _userId };
-        _pages.Setup(r => r.GetByIdAsync(pageId, _userId)).ReturnsAsync(page);
+        _pages.Setup(r => r.GetByIdTrackedAsync(pageId, _userId)).ReturnsAsync(page);
         _pages.Setup(r => r.SoftDeleteAsync(page)).Returns(Task.CompletedTask);
 
         await _svc.DeleteAsync(pageId, _userId);
@@ -384,7 +388,7 @@ public class PageServiceTests
         var pageId = Guid.NewGuid();
         var page = new Page { Id = pageId, UserId = _userId, IsDeleted = true, DeletedAt = DateTime.UtcNow };
         var restored = new Page { Id = pageId, UserId = _userId, IsDeleted = false, DeletedAt = null };
-        _pages.Setup(r => r.GetByIdIncludingDeletedAsync(pageId, _userId)).ReturnsAsync(page);
+        _pages.Setup(r => r.GetByIdIncludingDeletedTrackedAsync(pageId, _userId)).ReturnsAsync(page);
         // Mock the repository's RestoreAsync as a real mutation, so the DTO mapping
         // reflects post-restore state.
         _pages.Setup(r => r.RestoreAsync(page)).Callback<Page>(p => { p.IsDeleted = false; p.DeletedAt = null; }).Returns(Task.CompletedTask);
@@ -402,7 +406,7 @@ public class PageServiceTests
     {
         var pageId = Guid.NewGuid();
         var page = new Page { Id = pageId, UserId = _userId }; // IsDeleted = false
-        _pages.Setup(r => r.GetByIdIncludingDeletedAsync(pageId, _userId)).ReturnsAsync(page);
+        _pages.Setup(r => r.GetByIdIncludingDeletedTrackedAsync(pageId, _userId)).ReturnsAsync(page);
 
         var result = await _svc.RestoreAsync(pageId, _userId);
 

@@ -73,6 +73,7 @@
         if (restored != null)
         {
             await LoadTrash();
+            Editor.NotifyPageDataChanged();
         }
     }
 
@@ -80,6 +81,7 @@
     {
         await PageService.HardDeleteAsync(id, currentUserId);
         await LoadTrash();
+        Editor.NotifyPageDataChanged();
     }
 
     public void Dispose()

@@ -5,6 +5,9 @@ namespace Yanoch.Domain.Interfaces;
 public interface IPageRepository
 {
     Task<Page?> GetByIdAsync(Guid id, Guid userId);
+    Task<Page?> GetByIdTrackedAsync(Guid id, Guid userId);
+    Task<Page?> GetByIdTrackedWithTagsAsync(Guid id, Guid userId);
+    Task<Page?> GetByIdIncludingDeletedTrackedAsync(Guid id, Guid userId);
     Task<IEnumerable<Page>> GetByParentAsync(Guid? parentId, Guid userId);
     Task<IEnumerable<Page>> GetRootPagesAsync(Guid userId);
     Task<IEnumerable<Page>> SearchAsync(string query, Guid userId);

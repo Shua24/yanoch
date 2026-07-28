@@ -65,7 +65,14 @@
 
     private async void OnPageDataChanged()
     {
-        await LoadPages();
+        try
+        {
+            await LoadPages();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[PageTree] OnPageDataChanged refresh failed: {ex.Message}");
+        }
     }
 
     public void Dispose()
