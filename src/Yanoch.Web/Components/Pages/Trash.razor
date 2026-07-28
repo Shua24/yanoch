@@ -48,6 +48,11 @@
     private List<PageDto>? pages;
     private Guid currentUserId;
 
+    protected override void OnInitialized()
+    {
+        Editor.OnPageDataChanged += OnPageDataChanged;
+    }
+
     protected override async Task OnInitializedAsync()
     {
         var state = await AuthState.GetAuthenticationStateAsync();
@@ -58,6 +63,11 @@
         }
         var user = await UserManager.GetUserAsync(state.User);
         currentUserId = Guid.Parse(user!.Id);
+        await LoadTrash();
+    }
+
+    private async void OnPageDataChanged()
+    {
         await LoadTrash();
     }
 
@@ -86,5 +96,6 @@
 
     public void Dispose()
     {
+        Editor.OnPageDataChanged -= OnPageDataChanged;
     }
 }
