@@ -34,6 +34,13 @@ public class PagesController : ControllerBase
         return page == null ? NotFound() : Ok(page);
     }
 
+    [HttpPut("{id}/reorder-subpages")]
+    public async Task<IActionResult> ReorderSubpages(Guid id, [FromBody] ReorderSubpagesDto dto)
+    {
+        await _pages.ReorderSubpagesAsync(id, dto.PageIds, UserId());
+        return NoContent();
+    }
+
     [HttpGet("{id}/content")]
     public async Task<IActionResult> GetContent(Guid id)
     {

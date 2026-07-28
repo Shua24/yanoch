@@ -10,6 +10,7 @@ import Placeholder from '@tiptap/extension-placeholder'
 import GapCursor from '@tiptap/extension-gapcursor'
 import { DragHandle } from '@tiptap/extension-drag-handle'
 import { Table } from '@tiptap/extension-table'
+import { marked } from 'marked'
 import TableRow from '@tiptap/extension-table-row'
 import TableCell from '@tiptap/extension-table-cell'
 import TableHeader from '@tiptap/extension-table-header'
@@ -191,6 +192,116 @@ function setupToggleClicks() {
   })
 }
 
+// ─── PageReference node (inline subpage block) ──────────────────
+// A void block node that renders a draggable page reference inside the editor.
+// Not serialized to markdown — subpages are loaded from the backend separately.
+const PageReference = Node.create({
+  name: 'pageReference',
+  group: 'block',
+  atom: true,
+  selectable: true,
+  draggable: false, // DragHandle extension handles dragging
+  addAttributes() {
+    return {
+      pageId: { default: '' },
+      title: { default: 'Untitled' },
+      icon: { default: '📄' },
+    }
+  },
+  parseHTML() {
+    return [{ tag: 'div[data-page-ref]' }]
+  },
+  renderHTML({ HTMLAttributes }) {
+    const { pageId, title, icon } = HTMLAttributes
+    return ['div', { 'data-page-ref': pageId, class: 'page-ref-block' },
+      ['span', { class: 'page-ref-icon' }, icon || '📄'],
+      ['span', { class: 'page-ref-title' }, title || 'Untitled'],
+      ['span', { class: 'page-ref-open', title: 'Open page' }, '↗'],
+    ]
+  },
+  // Prevent serialization to markdown — subpages are managed via API
+  renderMarkdown(state, node) {
+    // Output nothing — pageReference nodes are not persisted in markdown
+  },
+})
+
+// ─── Load subpages from API and inject as pageReference nodes ────
+let _suppressSubpageSave = false
+
+async function loadAndInjectSubpages(editor, pageId) {
+  try {
+    const r = await fetch(`/api/pages/children/${pageId}`, { credentials: 'same-origin' })
+    if (!r.ok) return
+    const subpages = await r.json()
+    if (!subpages || !subpages.length) return
+
+    const { schema } = editor.state
+    const nodes = subpages
+      .filter(sp => sp && sp.id)
+      .map(sp => schema.nodes.pageReference.create({
+        pageId: sp.id,
+        title: sp.title || 'Untitled',
+        icon: sp.icon || '📄',
+      }))
+
+    if (!nodes.length) return
+
+    const pos = editor.state.doc.content.size
+    const tr = editor.state.tr.replaceWith(pos, pos, nodes)
+    // Mark transaction so onUpdate can skip saving
+    tr.setMeta('subpageInject', true)
+    editor.view.dispatch(tr)
+  } catch (e) {
+    console.error('Failed to load subpages:', e)
+  }
+}
+
+// ─── Save subpage order to backend ───────────────────────────────
+let _reorderTimeout = null
+
+function scheduleSubpageReorder(pageId, orderedIds) {
+  if (_reorderTimeout) clearTimeout(_reorderTimeout)
+  _reorderTimeout = setTimeout(async () => {
+    _reorderTimeout = null
+    try {
+      await fetch(`/api/pages/${pageId}/reorder-subpages`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pageIds: orderedIds }),
+        credentials: 'same-origin',
+      })
+    } catch (e) {
+      console.error('Reorder failed:', e)
+    }
+  }, 600)
+}
+
+// ─── Extract pageReference node order from editor ────────────────
+function getSubpageOrder(editor) {
+  const ids = []
+  editor.state.doc.descendants(node => {
+    if (node.type.name === 'pageReference' && node.attrs.pageId) {
+      ids.push(node.attrs.pageId)
+    }
+  })
+  return ids
+}
+
+// ─── Page-reference click handler (double-click to open) ─────────
+function setupPageReferenceClicks() {
+  document.addEventListener('click', function handler(e) {
+    const openEl = e.target.closest('.page-ref-open')
+    if (!openEl) return
+    e.preventDefault()
+    e.stopPropagation()
+    const block = openEl.closest('[data-page-ref]')
+    if (block) {
+      const pageId = block.getAttribute('data-page-ref')
+      if (pageId) window.location.href = `/page/${pageId}`
+    }
+  })
+}
+
 // ─── Callout context menus (emoji + color) ───────────────────────
 let calloutMenuEl = null
 let calloutMenuTarget = null // 'icon' or 'color'
@@ -308,20 +419,20 @@ function setupCalloutMenus() {
 
 // ─── Slash item definitions ──────────────────────────────────────
 const slashItems = [
-  { title: 'Text',          desc: 'Plain paragraph',           icon: 'Aa',  run: e => e.chain().focus().clearNodes().setParagraph().run() },
-  { title: 'Heading 1',     desc: 'Large heading',             icon: 'H1',  run: e => e.chain().focus().clearNodes().toggleHeading({ level: 1 }).run() },
-  { title: 'Heading 2',     desc: 'Medium heading',            icon: 'H2',  run: e => e.chain().focus().clearNodes().toggleHeading({ level: 2 }).run() },
-  { title: 'Heading 3',     desc: 'Small heading',             icon: 'H3',  run: e => e.chain().focus().clearNodes().toggleHeading({ level: 3 }).run() },
-  { title: 'Bullet List',   desc: 'Unordered items',           icon: '•',   run: e => e.chain().focus().clearNodes().toggleBulletList().run() },
-  { title: 'Numbered List', desc: 'Ordered items',             icon: '1.',  run: e => e.chain().focus().clearNodes().toggleOrderedList().run() },
-  { title: 'Task List',     desc: 'Checklist',                 icon: '☑',   run: e => e.chain().focus().clearNodes().toggleTaskList().run() },
-  { title: 'Quote',         desc: 'Blockquote',                icon: '"',   run: e => e.chain().focus().clearNodes().toggleBlockquote().run() },
-  { title: 'Code Block',    desc: 'Code fence',                icon: '</>', run: e => e.chain().focus().clearNodes().toggleCodeBlock().run() },
-  { title: 'Divider',       desc: 'Horizontal rule',           icon: '—',   run: e => e.chain().focus().setHorizontalRule().run() },
-  { title: 'Image',         desc: 'Upload an image',            icon: '🖼️',  run: e => { triggerImageUpload(e); } },
-  { title: 'Table',         desc: 'Insert a 3×3 table',         icon: '⊞',   run: e => e.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run() },
-  { title: 'Callout',       desc: 'Colored callout box',        icon: '📌',  run: e => e.chain().focus().clearNodes().setCallout().run() },
-  { title: 'Toggle',        desc: 'Insert collapsible section',  icon: '▶',  run: (e, pos) => {
+  { title: 'Text',          desc: 'Plain paragraph',           icon: 'Aa',  md: '',                              run: e => e.chain().focus().clearNodes().setParagraph().run() },
+  { title: 'Heading 1',     desc: 'Large heading',             icon: 'H1',  md: '#',                             run: e => e.chain().focus().clearNodes().toggleHeading({ level: 1 }).run() },
+  { title: 'Heading 2',     desc: 'Medium heading',            icon: 'H2',  md: '##',                            run: e => e.chain().focus().clearNodes().toggleHeading({ level: 2 }).run() },
+  { title: 'Heading 3',     desc: 'Small heading',             icon: 'H3',  md: '###',                           run: e => e.chain().focus().clearNodes().toggleHeading({ level: 3 }).run() },
+  { title: 'Bullet List',   desc: 'Unordered items',           icon: '•',   md: '- ',                            run: e => e.chain().focus().clearNodes().toggleBulletList().run() },
+  { title: 'Numbered List', desc: 'Ordered items',             icon: '1.',  md: '1. ',                           run: e => e.chain().focus().clearNodes().toggleOrderedList().run() },
+  { title: 'Task List',     desc: 'Checklist',                 icon: '☑',   md: '[ ]',                           run: e => e.chain().focus().clearNodes().toggleTaskList().run() },
+  { title: 'Quote',         desc: 'Blockquote',                icon: '"',   md: '> ',                            run: e => e.chain().focus().clearNodes().toggleBlockquote().run() },
+  { title: 'Code Block',    desc: 'Code fence',                icon: '</>', md: '```',                           run: e => e.chain().focus().clearNodes().toggleCodeBlock().run() },
+  { title: 'Divider',       desc: 'Horizontal rule',           icon: '—',   md: '---',                           run: e => e.chain().focus().setHorizontalRule().run() },
+  { title: 'Image',         desc: 'Upload an image',            icon: '🖼️',  md: '',                              run: e => { triggerImageUpload(e); } },
+  { title: 'Table',         desc: 'Insert a 3×3 table',         icon: '⊞',   md: '',                              run: e => e.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run() },
+  { title: 'Callout',       desc: 'Colored callout box',        icon: '📌',  md: '',                              run: e => e.chain().focus().clearNodes().setCallout().run() },
+  { title: 'Toggle',        desc: 'Insert collapsible section',  icon: '▶',  md: '',                              run: (e, pos) => {
     // Inside a container (toggle/callout): insert child. Top-level: insert as sibling.
     const { $from } = e.state.selection
     let inside = false
@@ -332,10 +443,22 @@ const slashItems = [
       e.chain().focus().clearNodes().setToggle().run()
     }
   } },
-  { title: 'Subpage',       desc: 'Create a child page',          icon: '📄',  run: e => {
-    // Create a subpage (child page) of the current page via Blazor interop
+  { title: 'Subpage',       desc: 'Create a child page',          icon: '📄',  md: '',                              run: async (e) => {
+    // Create a subpage (child page) via Blazor interop, then insert a page-reference block
     const inst = Array.from(instances.values()).find(i => i.editor === e)
-    if (inst && inst.dotNetRef) invokeCb(inst.dotNetRef, 'CreateSubpage', inst.blockId)
+    if (inst && inst.dotNetRef) {
+      try {
+        const result = await inst.dotNetRef.invokeMethodAsync('CreateSubpage', inst.blockId)
+        if (result && result.id) {
+          e.chain().focus().insertContent({
+            type: 'pageReference',
+            attrs: { pageId: result.id, title: result.title, icon: result.icon || '📄' }
+          }).run()
+        }
+      } catch (err) {
+        console.error('CreateSubpage error:', err)
+      }
+    }
   } },
 ]
 
@@ -395,7 +518,9 @@ function renderSlash() {
   slashMenuEl.innerHTML = items.map((it, i) =>
     `<button class="slash-item${i === slashIdx ? ' active' : ''}" data-idx="${i}">` +
     `<span class="slash-icon">${it.icon}</span>` +
-    `<span class="slash-text"><strong>${it.title}</strong><span class="slash-desc">${it.desc}</span></span></button>`
+    `<span class="slash-text"><strong>${it.title}</strong><span class="slash-desc">${it.desc}</span></span>` +
+    (it.md ? `<span class="slash-md">${it.md}</span>` : '') +
+    `</button>`
   ).join('')
   slashMenuEl.querySelectorAll('.slash-item').forEach(btn => {
     const idx = parseInt(btn.dataset.idx, 10)
@@ -628,6 +753,86 @@ function checkWiki(editor) {
   }
 }
 
+// ─── Table Floating Bubble Menu ────────────────────────────────
+function closeTableBubbleMenu(elementId) {
+  const inst = instances.get(elementId)
+  if (inst && inst.tableMenuEl) {
+    inst.tableMenuEl.remove()
+    inst.tableMenuEl = null
+  }
+}
+
+function updateTableBubbleMenu(editor, elementId) {
+  const inst = instances.get(elementId)
+  if (!inst) return
+
+  const { state, view } = editor
+  const { selection } = state
+  const isTableActive = state.schema.nodes.table && editor.isActive('table')
+
+  if (!isTableActive) {
+    closeTableBubbleMenu(elementId)
+    return
+  }
+
+  // Find the selected cell or parent cell element
+  const cellPos = selection.$from.pos
+  let cellDOM = null
+  try {
+    cellDOM = view.nodeDOM(selection.$from.before(selection.$from.depth))
+  } catch (e) {}
+
+  if (!cellDOM || !cellDOM.closest) {
+    // Fallback: look for parent td/th in DOM
+    const selectionDOM = window.getSelection()?.anchorNode
+    if (selectionDOM) {
+      cellDOM = selectionDOM.closest ? selectionDOM.closest('td, th') : selectionDOM.parentElement?.closest('td, th')
+    }
+  }
+
+  if (!cellDOM) {
+    closeTableBubbleMenu(elementId)
+    return
+  }
+
+  // Create table menu element if not exists
+  if (!inst.tableMenuEl) {
+    const menu = document.createElement('div')
+    menu.className = 'table-bubble-menu'
+    menu.style.cssText = 'position:fixed;z-index:99999;display:flex;gap:4px;padding:4px;background:var(--card-bg, #ffffff);border:1px solid var(--border, rgba(0,0,0,0.12));border-radius:6px;box-shadow:0 4px 12px rgba(0,0,0,0.1);'
+    menu.innerHTML = `
+      <button class="table-menu-btn" data-action="addRowAfter" title="Add Row Below">➕ Row</button>
+      <button class="table-menu-btn" data-action="deleteRow" title="Delete Row">❌ Row</button>
+      <button class="table-menu-btn" data-action="addColumnAfter" title="Add Column Right">➕ Col</button>
+      <button class="table-menu-btn" data-action="deleteColumn" title="Delete Column">❌ Col</button>
+      <button class="table-menu-btn table-menu-btn-danger" data-action="deleteTable" title="Delete Table">🗑️ Table</button>
+    `
+    // Prevent menu clicks from blurring the editor
+    menu.addEventListener('mousedown', e => e.preventDefault())
+    menu.querySelectorAll('.table-menu-btn').forEach(btn => {
+      btn.onclick = (e) => {
+        e.preventDefault()
+        const action = btn.dataset.action
+        if (action && editor.commands[action]) {
+          editor.chain().focus()[action]().run()
+        }
+      }
+    })
+    document.body.appendChild(menu)
+    inst.tableMenuEl = menu
+  }
+
+  // Position the menu above the cell
+  const rect = cellDOM.getBoundingClientRect()
+  const menuRect = inst.tableMenuEl.getBoundingClientRect()
+  const top = rect.top - menuRect.height - 8
+  const left = rect.left + (rect.width / 2) - (menuRect.width / 2)
+
+  inst.tableMenuEl.style.top = Math.max(8, top) + 'px'
+  inst.tableMenuEl.style.left = Math.max(8, left) + 'px'
+}
+
+
 // ─── Per-instance state ─────────────────────────────────────────
 const instances = new Map()
 
@@ -708,7 +913,7 @@ export function createEditor(elementId, content, dotNetRef, blockId) {
   const el = document.getElementById(elementId)
   if (!el) return null
 
-  const inst = { dotNetRef, blockId, firstUpdate: true, editor: null, listeners: [] }
+  const inst = { dotNetRef, blockId, firstUpdate: true, editor: null, listeners: [], _lastSubpageOrder: 'pending' }
 
   const editor = new Editor({
     element: el,
@@ -748,6 +953,7 @@ export function createEditor(elementId, content, dotNetRef, blockId) {
       TableCell,
       Callout,
       Toggle,
+      PageReference,
     ],
     content: content || '',
     contentType: 'markdown',
@@ -765,12 +971,21 @@ export function createEditor(elementId, content, dotNetRef, blockId) {
           })
           return true
         }
-        const text = event.clipboardData?.getData('text/plain')
+        var text = event.clipboardData?.getData('text/plain')
         if (text && /^https?:\/\/.*\.(png|jpg|jpeg|gif|webp|svg)(\?.*)?$/i.test(text.trim())) {
           event.preventDefault()
           view.dispatch(view.state.tr.replaceSelectionWith(
             view.state.schema.nodes.image.create(null, { src: text.trim() })
           ))
+          return true
+        }
+        // Paste markdown table text -> convert to table node
+        if (text && /^\|[^\n]+\n\|[\s:-]+\|/.test(text.trim())) {
+          event.preventDefault()
+          try {
+            var html = marked.parse(text.trim())
+            view.pasteHTML(html, { event: event })
+          } catch(e) { console.warn('table paste failed', e) }
           return true
         }
         return false
@@ -791,26 +1006,50 @@ export function createEditor(elementId, content, dotNetRef, blockId) {
         return false
       },
     },
-    onUpdate: ({ editor: ed }) => {
+    onCreate: ({ editor: ed }) => {
+      // Inject subpage blocks into the editor after content is loaded
+      if (blockId) {
+        loadAndInjectSubpages(ed, blockId).then(() => {
+          // Record initial subpage order after injection
+          inst._lastSubpageOrder = getSubpageOrder(ed).join(',')
+        })
+      }
+    },
+    onUpdate: ({ editor: ed, transaction }) => {
+      // Skip if this transaction was a subpage injection
+      if (transaction?.getMeta('subpageInject')) return
       // First onUpdate fires during editor construction — skip it (initial parse)
       if (inst.firstUpdate) { inst.firstUpdate = false; return }
       invokeCb(inst.dotNetRef, 'OnMarkdownChanged', inst.blockId, ed.getMarkdown())
       checkSlash(ed)
       checkWiki(ed)
+      updateTableBubbleMenu(ed, elementId)
+      // Detect subpage reorder and save to backend
+      if (inst.blockId && ed.state.doc.childCount > 0) {
+        const order = getSubpageOrder(ed)
+        const orderKey = order.join(',')
+        if (inst._lastSubpageOrder !== 'pending' && order.length > 0 && orderKey !== inst._lastSubpageOrder) {
+          inst._lastSubpageOrder = orderKey
+          scheduleSubpageReorder(inst.blockId, order)
+        }
+      }
     },
     onSelectionUpdate: ({ editor: ed }) => {
       if (slashActive) checkSlash(ed)
       if (wikiActive) checkWiki(ed)
+      updateTableBubbleMenu(ed, elementId)
     },
     onFocus: () => invokeCb(inst.dotNetRef, 'OnFocus', inst.blockId),
     onBlur: () => {
       if (slashActive) closeSlash()
       if (wikiActive) closeWiki()
+      closeTableBubbleMenu(elementId)
       invokeCb(inst.dotNetRef, 'OnBlur', inst.blockId)
     },
   })
 
   inst.editor = editor
+  inst.tableMenuEl = null
 
   // Image upload button
   const uploadBtn = document.getElementById('btn-upload-image')
@@ -848,6 +1087,7 @@ export function createEditor(elementId, content, dotNetRef, blockId) {
 export function destroyEditor(elementId) {
   const inst = instances.get(elementId)
   if (!inst) return
+  closeTableBubbleMenu(elementId)
   inst.listeners.forEach(l => document.removeEventListener(l.type, l.handler))
   inst.listeners = []
   // Kill Blazor ref BEFORE destroying editor — editor.destroy() fires
@@ -873,3 +1113,4 @@ window.focusTipTap = focusEditor
 window.blurTipTap = blurEditor
 setupCalloutMenus()
 setupToggleClicks()
+setupPageReferenceClicks()

@@ -72,33 +72,7 @@
             </div>
         }
 
-        @* Subpages block *@
-        <div class="editor-subpages">
-            <div class="editor-subpages-header">
-                <h4>Subpages</h4>
-                <button class="btn-new-subpage" @onclick="CreateSubpageFromBlock" title="Create subpage">+ New</button>
-            </div>
-            @if (_loadingSubpages)
-            {
-                <div class="subpages-loading">Loading...</div>
-            }
-            else if (_subpages != null && _subpages.Count > 0)
-            {
-                <div class="subpages-list">
-                    @foreach (var sp in _subpages)
-                    {
-                        <a href="/page/@sp.Id" class="subpage-item">
-                            <span class="subpage-icon">@(sp.Icon ?? "📄")</span>
-                            <span class="subpage-title">@sp.Title</span>
-                        </a>
-                    }
-                </div>
-            }
-            else
-            {
-                <div class="subpages-empty">No subpages yet</div>
-            }
-        </div>
+        @* Subpages are rendered inline inside the TipTap editor as page-reference blocks *@
     }
 </div>
 
@@ -124,9 +98,6 @@
         "❤️", "💪", "🧠", "🎉", "✅", "🔄", "📊", "🗂️", "📁", "🔐",
         "🌍", "🎓", "💼", "🎮", "📱", "☕", "🍕", "🏀", "⚽", "🎸"
     };
-
-    private List<PageDto>? _subpages;
-    private bool _loadingSubpages;
 
     private void ToggleEmojiPicker() => _showEmojiPicker = !_showEmojiPicker;
 
@@ -205,12 +176,6 @@
             loading = false;
         }
         StateHasChanged();
-
-        // Load subpages for existing pages
-        if (!isNew && page != null)
-        {
-            await LoadSubpagesAsync();
-        }
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -330,9 +295,9 @@
     }
 
     [JSInvokable]
-    public async Task CreateSubpage(string parentPageId)
+    public async Task<PageDto?> CreateSubpage(string parentPageId)
     {
-        if (!Guid.TryParse(parentPageId, out var parentGuid)) return;
+        if (!Guid.TryParse(parentPageId, out var parentGuid)) return null;
 
         var newPage = await PageService.CreateAsync(new CreatePageDto
         {
@@ -345,8 +310,9 @@
         if (newPage != null)
         {
             OnPageDataChanged?.Invoke();
-            Navigation.NavigateTo($"/page/{newPage.Id}");
+            // JS will insert a page-reference block into the editor
         }
+        return newPage;
     }
 
     private async Task HandleTitleKeyDown(KeyboardEventArgs e)
@@ -384,41 +350,6 @@
             }
         }
         catch { }
-    }
-
-    private async Task LoadSubpagesAsync()
-    {
-        if (page == null) return;
-        _loadingSubpages = true;
-        StateHasChanged();
-        try
-        {
-            var children = await PageService.GetChildrenAsync(page.Id, currentUserId);
-            _subpages = children.ToList();
-        }
-        catch
-        {
-            _subpages = new();
-        }
-        _loadingSubpages = false;
-        StateHasChanged();
-    }
-
-    private async Task CreateSubpageFromBlock()
-    {
-        if (page == null) return;
-        var newPage = await PageService.CreateAsync(new CreatePageDto
-        {
-            Title = "Untitled",
-            Icon = "📄",
-            Content = "",
-            ParentPageId = page.Id,
-        }, currentUserId);
-        if (newPage != null)
-        {
-            OnPageDataChanged?.Invoke();
-            Navigation.NavigateTo($"/page/{newPage.Id}");
-        }
     }
 
     private async Task DeletePage()

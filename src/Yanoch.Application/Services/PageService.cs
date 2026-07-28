@@ -113,6 +113,19 @@ public class PageService : IPageService
         await UpdateBacklinksFromContent(pageId, content);
     }
 
+    public async Task ReorderSubpagesAsync(Guid parentId, List<Guid> pageIds, Guid userId)
+    {
+        for (int i = 0; i < pageIds.Count; i++)
+        {
+            var page = await _pages.GetByIdTrackedAsync(pageIds[i], userId);
+            if (page != null && page.ParentPageId == parentId)
+            {
+                page.SortOrder = i;
+                await _pages.UpdateAsync(page);
+            }
+        }
+    }
+
     private async Task UpdateBacklinksFromContent(Guid sourcePageId, string content)
     {
         var page = await _pages.GetByIdAsync(sourcePageId, Guid.Empty);

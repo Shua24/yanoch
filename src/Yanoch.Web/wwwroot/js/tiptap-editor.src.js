@@ -192,6 +192,116 @@ function setupToggleClicks() {
   })
 }
 
+// ─── PageReference node (inline subpage block) ──────────────────
+// A void block node that renders a draggable page reference inside the editor.
+// Not serialized to markdown — subpages are loaded from the backend separately.
+const PageReference = Node.create({
+  name: 'pageReference',
+  group: 'block',
+  atom: true,
+  selectable: true,
+  draggable: false, // DragHandle extension handles dragging
+  addAttributes() {
+    return {
+      pageId: { default: '' },
+      title: { default: 'Untitled' },
+      icon: { default: '📄' },
+    }
+  },
+  parseHTML() {
+    return [{ tag: 'div[data-page-ref]' }]
+  },
+  renderHTML({ HTMLAttributes }) {
+    const { pageId, title, icon } = HTMLAttributes
+    return ['div', { 'data-page-ref': pageId, class: 'page-ref-block' },
+      ['span', { class: 'page-ref-icon' }, icon || '📄'],
+      ['span', { class: 'page-ref-title' }, title || 'Untitled'],
+      ['span', { class: 'page-ref-open', title: 'Open page' }, '↗'],
+    ]
+  },
+  // Prevent serialization to markdown — subpages are managed via API
+  renderMarkdown(state, node) {
+    // Output nothing — pageReference nodes are not persisted in markdown
+  },
+})
+
+// ─── Load subpages from API and inject as pageReference nodes ────
+let _suppressSubpageSave = false
+
+async function loadAndInjectSubpages(editor, pageId) {
+  try {
+    const r = await fetch(`/api/pages/children/${pageId}`, { credentials: 'same-origin' })
+    if (!r.ok) return
+    const subpages = await r.json()
+    if (!subpages || !subpages.length) return
+
+    const { schema } = editor.state
+    const nodes = subpages
+      .filter(sp => sp && sp.id)
+      .map(sp => schema.nodes.pageReference.create({
+        pageId: sp.id,
+        title: sp.title || 'Untitled',
+        icon: sp.icon || '📄',
+      }))
+
+    if (!nodes.length) return
+
+    const pos = editor.state.doc.content.size
+    const tr = editor.state.tr.replaceWith(pos, pos, nodes)
+    // Mark transaction so onUpdate can skip saving
+    tr.setMeta('subpageInject', true)
+    editor.view.dispatch(tr)
+  } catch (e) {
+    console.error('Failed to load subpages:', e)
+  }
+}
+
+// ─── Save subpage order to backend ───────────────────────────────
+let _reorderTimeout = null
+
+function scheduleSubpageReorder(pageId, orderedIds) {
+  if (_reorderTimeout) clearTimeout(_reorderTimeout)
+  _reorderTimeout = setTimeout(async () => {
+    _reorderTimeout = null
+    try {
+      await fetch(`/api/pages/${pageId}/reorder-subpages`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pageIds: orderedIds }),
+        credentials: 'same-origin',
+      })
+    } catch (e) {
+      console.error('Reorder failed:', e)
+    }
+  }, 600)
+}
+
+// ─── Extract pageReference node order from editor ────────────────
+function getSubpageOrder(editor) {
+  const ids = []
+  editor.state.doc.descendants(node => {
+    if (node.type.name === 'pageReference' && node.attrs.pageId) {
+      ids.push(node.attrs.pageId)
+    }
+  })
+  return ids
+}
+
+// ─── Page-reference click handler (double-click to open) ─────────
+function setupPageReferenceClicks() {
+  document.addEventListener('click', function handler(e) {
+    const openEl = e.target.closest('.page-ref-open')
+    if (!openEl) return
+    e.preventDefault()
+    e.stopPropagation()
+    const block = openEl.closest('[data-page-ref]')
+    if (block) {
+      const pageId = block.getAttribute('data-page-ref')
+      if (pageId) window.location.href = `/page/${pageId}`
+    }
+  })
+}
+
 // ─── Callout context menus (emoji + color) ───────────────────────
 let calloutMenuEl = null
 let calloutMenuTarget = null // 'icon' or 'color'
@@ -333,10 +443,22 @@ const slashItems = [
       e.chain().focus().clearNodes().setToggle().run()
     }
   } },
-  { title: 'Subpage',       desc: 'Create a child page',          icon: '📄',  md: '',                              run: e => {
-    // Create a subpage (child page) of the current page via Blazor interop
+  { title: 'Subpage',       desc: 'Create a child page',          icon: '📄',  md: '',                              run: async (e) => {
+    // Create a subpage (child page) via Blazor interop, then insert a page-reference block
     const inst = Array.from(instances.values()).find(i => i.editor === e)
-    if (inst && inst.dotNetRef) invokeCb(inst.dotNetRef, 'CreateSubpage', inst.blockId)
+    if (inst && inst.dotNetRef) {
+      try {
+        const result = await inst.dotNetRef.invokeMethodAsync('CreateSubpage', inst.blockId)
+        if (result && result.id) {
+          e.chain().focus().insertContent({
+            type: 'pageReference',
+            attrs: { pageId: result.id, title: result.title, icon: result.icon || '📄' }
+          }).run()
+        }
+      } catch (err) {
+        console.error('CreateSubpage error:', err)
+      }
+    }
   } },
 ]
 
@@ -791,7 +913,7 @@ export function createEditor(elementId, content, dotNetRef, blockId) {
   const el = document.getElementById(elementId)
   if (!el) return null
 
-  const inst = { dotNetRef, blockId, firstUpdate: true, editor: null, listeners: [] }
+  const inst = { dotNetRef, blockId, firstUpdate: true, editor: null, listeners: [], _lastSubpageOrder: 'pending' }
 
   const editor = new Editor({
     element: el,
@@ -831,6 +953,7 @@ export function createEditor(elementId, content, dotNetRef, blockId) {
       TableCell,
       Callout,
       Toggle,
+      PageReference,
     ],
     content: content || '',
     contentType: 'markdown',
@@ -883,13 +1006,33 @@ export function createEditor(elementId, content, dotNetRef, blockId) {
         return false
       },
     },
-    onUpdate: ({ editor: ed }) => {
+    onCreate: ({ editor: ed }) => {
+      // Inject subpage blocks into the editor after content is loaded
+      if (blockId) {
+        loadAndInjectSubpages(ed, blockId).then(() => {
+          // Record initial subpage order after injection
+          inst._lastSubpageOrder = getSubpageOrder(ed).join(',')
+        })
+      }
+    },
+    onUpdate: ({ editor: ed, transaction }) => {
+      // Skip if this transaction was a subpage injection
+      if (transaction?.getMeta('subpageInject')) return
       // First onUpdate fires during editor construction — skip it (initial parse)
       if (inst.firstUpdate) { inst.firstUpdate = false; return }
       invokeCb(inst.dotNetRef, 'OnMarkdownChanged', inst.blockId, ed.getMarkdown())
       checkSlash(ed)
       checkWiki(ed)
       updateTableBubbleMenu(ed, elementId)
+      // Detect subpage reorder and save to backend
+      if (inst.blockId && ed.state.doc.childCount > 0) {
+        const order = getSubpageOrder(ed)
+        const orderKey = order.join(',')
+        if (inst._lastSubpageOrder !== 'pending' && order.length > 0 && orderKey !== inst._lastSubpageOrder) {
+          inst._lastSubpageOrder = orderKey
+          scheduleSubpageReorder(inst.blockId, order)
+        }
+      }
     },
     onSelectionUpdate: ({ editor: ed }) => {
       if (slashActive) checkSlash(ed)
@@ -970,3 +1113,4 @@ window.focusTipTap = focusEditor
 window.blurTipTap = blurEditor
 setupCalloutMenus()
 setupToggleClicks()
+setupPageReferenceClicks()

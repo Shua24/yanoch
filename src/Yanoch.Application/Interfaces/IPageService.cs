@@ -21,5 +21,6 @@ public interface IPageService
     Task<string?> GetContentAsync(Guid pageId, Guid userId);
     Task SetContentAsync(Guid pageId, string content);
     Task<PageDto?> GetSubtreeIncludingDeletedAsync(Guid id, Guid userId);
+    Task ReorderSubpagesAsync(Guid parentId, List<Guid> pageIds, Guid userId);
 
 }
