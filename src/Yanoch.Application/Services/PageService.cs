@@ -12,10 +12,17 @@ public class PageService : IPageService
     private readonly ITagRepository _tags;
     private readonly IPageVersionRepository _versions;
     private readonly IBacklinkRepository _backlinks;
+    private readonly IFileStorageService _fileStorage;
 
-    public PageService(IPageRepository pages, ITagRepository tags, IPageVersionRepository versions, IBacklinkRepository backlinks)
+    // Matches uploaded-file URLs of the form /uploads/{name}.{ext} as produced
+    // by LocalFileStorageService.SaveAsync, wherever they show up in page
+    // content (image embeds) or the CoverUrl field.
+    private static readonly Regex UploadedFileUrlRegex =
+        new(@"/uploads/[A-Za-z0-9\-_]+\.(?:png|jpe?g|gif|webp|svg)", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
+    public PageService(IPageRepository pages, ITagRepository tags, IPageVersionRepository versions, IBacklinkRepository backlinks, IFileStorageService fileStorage)
     {
-        _pages = pages; _tags = tags; _versions = versions; _backlinks = backlinks;
+        _pages = pages; _tags = tags; _versions = versions; _backlinks = backlinks; _fileStorage = fileStorage;
     }
 
     public async Task<PageDto?> GetByIdAsync(Guid id, Guid userId)
@@ -145,10 +152,81 @@ public class PageService : IPageService
         return null;
     }
 
-    public async Task DeleteAsync(Guid id, Guid userId)
+    public async Task DeleteAsync(Guid id, Guid userId) => await SoftDeleteAsync(id, userId);
+
+    public async Task SoftDeleteAsync(Guid id, Guid userId)
     {
         var page = await _pages.GetByIdAsync(id, userId);
-        if (page != null) await _pages.DeleteAsync(page);
+        if (page == null) return;
+        await _pages.SoftDeleteAsync(page);
+    }
+
+    public async Task HardDeleteAsync(Guid id, Guid userId)
+    {
+        // Look up including soft-deleted pages so a page can be purged either
+        // straight from the tree or from the trash.
+        var page = await _pages.GetByIdIncludingDeletedAsync(id, userId);
+        if (page == null) return;
+
+        // Gather every uploaded-file URL referenced anywhere in this page's
+        // subtree (content + cover images) before we delete the rows -
+        // once the pages are gone we'd have no way to find them.
+        var subtree = await _pages.GetSubtreeIncludingDeletedAsync(id, userId);
+        var fileUrls = CollectReferencedFileUrls(subtree);
+
+        // Repository cascades through children, versions, tags, and backlinks.
+        await _pages.HardDeleteAsync(page);
+
+        // Only remove files once the DB rows are actually gone, and don't let
+        // a missing/already-removed file block the rest of the cleanup.
+        foreach (var url in fileUrls)
+        {
+            try { await _fileStorage.DeleteAsync(url); }
+            catch { /* best-effort cleanup; orphaned file beats a failed delete */ }
+        }
+    }
+
+    private static IReadOnlySet<string> CollectReferencedFileUrls(IEnumerable<Page> pages)
+    {
+        var urls = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var p in pages)
+        {
+            if (!string.IsNullOrEmpty(p.CoverUrl) && UploadedFileUrlRegex.IsMatch(p.CoverUrl))
+                urls.Add(p.CoverUrl);
+
+            if (string.IsNullOrEmpty(p.Content)) continue;
+            foreach (Match m in UploadedFileUrlRegex.Matches(p.Content))
+                urls.Add(m.Value);
+        }
+        return urls;
+    }
+
+    public async Task<PageDto?> RestoreAsync(Guid id, Guid userId)
+    {
+        var page = await _pages.GetByIdIncludingDeletedAsync(id, userId);
+        if (page == null || !page.IsDeleted) return null;
+
+        await _pages.RestoreAsync(page);
+
+        var restored = await _pages.GetByIdAsync(page.Id, userId);
+        return restored == null ? null : MapToDto(restored);
+    }
+
+    public async Task<IEnumerable<PageDto>> GetDeletedAsync(Guid userId)
+    {
+        var pages = await _pages.GetDeletedAsync(userId);
+        return pages.Select(MapToDto);
+    }
+
+    public async Task<PageDto?> GetSubtreeIncludingDeletedAsync(Guid id, Guid userId)
+    {
+        // Return the root of the subtree (or null if the page doesn't exist or
+        // belongs to a different user). The repository's GetSubtreeIncludingDeletedAsync
+        // walks every descendant for callers that need to act on the whole tree
+        // (e.g. HardDeleteAsync gathering file URLs); this service entrypoint just
+        // exposes the root identity.
+        var root = await _pages.GetByIdIncludingDeletedAsync(id, userId);
+        return root == null ? null : MapToDto(root);
     }
 
     public async Task<IEnumerable<SearchResultDto>> SearchAsync(string query, Guid userId)
@@ -208,6 +286,8 @@ public class PageService : IPageService
         Content = p.Content,
         CreatedAt = p.CreatedAt,
         UpdatedAt = p.UpdatedAt,
+        IsDeleted = p.IsDeleted,
+        DeletedAt = p.DeletedAt,
         Tags = p.PageTags?.Select(pt => new TagDto { Id = pt.TagId, Name = pt.Tag?.Name ?? "", Color = pt.Tag?.Color }).ToList() ?? new(),
         VersionCount = p.Versions?.Count ?? 0,
         Backlinks = p.Backlinks?.Select(b => new BacklinkDto

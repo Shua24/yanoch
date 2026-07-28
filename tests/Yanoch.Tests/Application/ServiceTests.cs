@@ -13,6 +13,7 @@ public class PageServiceTests
     private readonly Mock<ITagRepository> _tags;
     private readonly Mock<IPageVersionRepository> _versions;
     private readonly Mock<IBacklinkRepository> _backlinks;
+    private readonly Mock<IFileStorageService> _fileStorage;
     private readonly PageService _svc;
     private readonly Guid _userId = Guid.NewGuid();
 
@@ -22,7 +23,10 @@ public class PageServiceTests
         _tags = new Mock<ITagRepository>(MockBehavior.Strict);
         _versions = new Mock<IPageVersionRepository>(MockBehavior.Strict);
         _backlinks = new Mock<IBacklinkRepository>(MockBehavior.Strict);
-        _svc = new PageService(_pages.Object, _tags.Object, _versions.Object, _backlinks.Object);
+        // File storage is only touched on HardDeleteAsync; Loose so other tests
+        // don't have to stub unrelated calls.
+        _fileStorage = new Mock<IFileStorageService>(MockBehavior.Loose);
+        _svc = new PageService(_pages.Object, _tags.Object, _versions.Object, _backlinks.Object, _fileStorage.Object);
     }
 
     [Fact]
@@ -108,11 +112,12 @@ public class PageServiceTests
         var pageId = Guid.NewGuid();
         var page = new Page { Id = pageId, UserId = _userId };
         _pages.Setup(r => r.GetByIdAsync(pageId, _userId)).ReturnsAsync(page);
-        _pages.Setup(r => r.DeleteAsync(page)).Returns(Task.CompletedTask);
+        // DeleteAsync now delegates to SoftDeleteAsync; mock that surface.
+        _pages.Setup(r => r.SoftDeleteAsync(page)).Returns(Task.CompletedTask);
 
         await _svc.DeleteAsync(pageId, _userId);
 
-        _pages.Verify(r => r.DeleteAsync(page), Times.Once);
+        _pages.Verify(r => r.SoftDeleteAsync(page), Times.Once);
     }
 
     [Fact]
@@ -122,7 +127,7 @@ public class PageServiceTests
 
         await _svc.DeleteAsync(Guid.NewGuid(), _userId);
 
-        _pages.Verify(r => r.DeleteAsync(It.IsAny<Page>()), Times.Never);
+        _pages.Verify(r => r.SoftDeleteAsync(It.IsAny<Page>()), Times.Never);
     }
 
     [Fact]
@@ -289,6 +294,145 @@ public class PageServiceTests
         var result = await _svc.RestoreVersionAsync(Guid.NewGuid(), version.Id, _userId);
 
         Assert.Null(result);
+    }
+
+    [Fact]
+    public async Task SoftDelete_MarksPageAndChildrenDeleted()
+    {
+        var pageId = Guid.NewGuid();
+        var page = new Page { Id = pageId, UserId = _userId };
+        _pages.Setup(r => r.GetByIdAsync(pageId, _userId)).ReturnsAsync(page);
+        _pages.Setup(r => r.SoftDeleteAsync(page)).Returns(Task.CompletedTask);
+
+        await _svc.SoftDeleteAsync(pageId, _userId);
+
+        _pages.Verify(r => r.SoftDeleteAsync(page), Times.Once);
+    }
+
+    [Fact]
+    public async Task SoftDelete_SkipsWhenPageMissing()
+    {
+        _pages.Setup(r => r.GetByIdAsync(It.IsAny<Guid>(), _userId)).ReturnsAsync((Page?)null);
+
+        await _svc.SoftDeleteAsync(Guid.NewGuid(), _userId);
+
+        _pages.Verify(r => r.SoftDeleteAsync(It.IsAny<Page>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task Delete_DefaultsToSoftDelete()
+    {
+        var pageId = Guid.NewGuid();
+        var page = new Page { Id = pageId, UserId = _userId };
+        _pages.Setup(r => r.GetByIdAsync(pageId, _userId)).ReturnsAsync(page);
+        _pages.Setup(r => r.SoftDeleteAsync(page)).Returns(Task.CompletedTask);
+
+        await _svc.DeleteAsync(pageId, _userId);
+
+        _pages.Verify(r => r.SoftDeleteAsync(page), Times.Once);
+    }
+
+    [Fact]
+    public async Task HardDelete_AcceptsSoftDeletedPage()
+    {
+        var pageId = Guid.NewGuid();
+        // In the trash, GetByIdAsync (filtered) returns null, but
+        // GetByIdIncludingDeletedAsync returns the page.
+        var page = new Page { Id = pageId, UserId = _userId, IsDeleted = true };
+        _pages.Setup(r => r.GetByIdAsync(pageId, _userId)).ReturnsAsync((Page?)null);
+        _pages.Setup(r => r.GetByIdIncludingDeletedAsync(pageId, _userId)).ReturnsAsync(page);
+        _pages.Setup(r => r.GetSubtreeIncludingDeletedAsync(pageId, _userId)).ReturnsAsync([page]);
+        _pages.Setup(r => r.HardDeleteAsync(page)).Returns(Task.CompletedTask);
+
+        await _svc.HardDeleteAsync(pageId, _userId);
+
+        _pages.Verify(r => r.HardDeleteAsync(page), Times.Once);
+    }
+
+    [Fact]
+    public async Task HardDelete_RemovesReferencedUploadFiles()
+    {
+        var pageId = Guid.NewGuid();
+        var page = new Page
+        {
+            Id = pageId,
+            UserId = _userId,
+            Content = "see ![](https://x/y.png) and <img src=\"/uploads/abc123.png\" />"
+        };
+        _pages.Setup(r => r.GetByIdIncludingDeletedAsync(pageId, _userId)).ReturnsAsync(page);
+        _pages.Setup(r => r.GetSubtreeIncludingDeletedAsync(pageId, _userId)).ReturnsAsync([page]);
+        _pages.Setup(r => r.HardDeleteAsync(page)).Returns(Task.CompletedTask);
+
+        await _svc.HardDeleteAsync(pageId, _userId);
+
+        _fileStorage.Verify(f => f.DeleteAsync("/uploads/abc123.png"), Times.Once);
+    }
+
+    [Fact]
+    public async Task HardDelete_SkipsWhenPageMissing()
+    {
+        _pages.Setup(r => r.GetByIdIncludingDeletedAsync(It.IsAny<Guid>(), _userId)).ReturnsAsync((Page?)null);
+
+        await _svc.HardDeleteAsync(Guid.NewGuid(), _userId);
+
+        _pages.Verify(r => r.HardDeleteAsync(It.IsAny<Page>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task Restore_ReturnsDto_WhenPageInTrash()
+    {
+        var pageId = Guid.NewGuid();
+        var page = new Page { Id = pageId, UserId = _userId, IsDeleted = true, DeletedAt = DateTime.UtcNow };
+        var restored = new Page { Id = pageId, UserId = _userId, IsDeleted = false, DeletedAt = null };
+        _pages.Setup(r => r.GetByIdIncludingDeletedAsync(pageId, _userId)).ReturnsAsync(page);
+        // Mock the repository's RestoreAsync as a real mutation, so the DTO mapping
+        // reflects post-restore state.
+        _pages.Setup(r => r.RestoreAsync(page)).Callback<Page>(p => { p.IsDeleted = false; p.DeletedAt = null; }).Returns(Task.CompletedTask);
+        _pages.Setup(r => r.GetByIdAsync(pageId, _userId)).ReturnsAsync(restored);
+
+        var result = await _svc.RestoreAsync(pageId, _userId);
+
+        Assert.NotNull(result);
+        Assert.False(result!.IsDeleted);
+        _pages.Verify(r => r.RestoreAsync(page), Times.Once);
+    }
+
+    [Fact]
+    public async Task Restore_ReturnsNull_WhenPageNotInTrash()
+    {
+        var pageId = Guid.NewGuid();
+        var page = new Page { Id = pageId, UserId = _userId }; // IsDeleted = false
+        _pages.Setup(r => r.GetByIdIncludingDeletedAsync(pageId, _userId)).ReturnsAsync(page);
+
+        var result = await _svc.RestoreAsync(pageId, _userId);
+
+        Assert.Null(result);
+        _pages.Verify(r => r.RestoreAsync(It.IsAny<Page>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task GetDeleted_ReturnsTrashDtos()
+    {
+        var page = new Page { Id = Guid.NewGuid(), UserId = _userId, IsDeleted = true };
+        _pages.Setup(r => r.GetDeletedAsync(_userId)).ReturnsAsync([page]);
+
+        var result = (await _svc.GetDeletedAsync(_userId)).ToList();
+
+        Assert.Single(result);
+        Assert.True(result[0].IsDeleted);
+    }
+
+    [Fact]
+    public async Task GetSubtreeIncludingDeleted_ReturnsRootDto_EvenWhenDeleted()
+    {
+        var pageId = Guid.NewGuid();
+        var page = new Page { Id = pageId, UserId = _userId, IsDeleted = true };
+        _pages.Setup(r => r.GetByIdIncludingDeletedAsync(pageId, _userId)).ReturnsAsync(page);
+
+        var result = await _svc.GetSubtreeIncludingDeletedAsync(pageId, _userId);
+
+        Assert.NotNull(result);
+        Assert.True(result!.IsDeleted);
     }
 }
 

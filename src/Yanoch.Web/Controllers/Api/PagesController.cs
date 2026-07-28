@@ -51,9 +51,29 @@ public class PagesController : ControllerBase
     [HttpDelete("{id}")]
     public async Task<IActionResult> Delete(Guid id)
     {
-        await _pages.DeleteAsync(id, UserId());
+        // Soft delete: moves the page (and its descendants) to the trash.
+        await _pages.SoftDeleteAsync(id, UserId());
         return NoContent();
     }
+
+    [HttpDelete("{id}/permanent")]
+    public async Task<IActionResult> HardDelete(Guid id)
+    {
+        // Hard delete: permanently removes the page, its descendants,
+        // versions, tags, and backlinks. Cannot be undone.
+        await _pages.HardDeleteAsync(id, UserId());
+        return NoContent();
+    }
+
+    [HttpPost("{id}/restore")]
+    public async Task<IActionResult> RestoreFromTrash(Guid id)
+    {
+        var page = await _pages.RestoreAsync(id, UserId());
+        return page == null ? NotFound() : Ok(page);
+    }
+
+    [HttpGet("trash")]
+    public async Task<IActionResult> GetTrash() => Ok(await _pages.GetDeletedAsync(UserId()));
 
     [HttpGet("versions/{pageId}")]
     public async Task<IActionResult> GetVersions(Guid pageId) => Ok(await _pages.GetVersionsAsync(pageId, UserId()));

@@ -1,19 +1,84 @@
-﻿@inject NavigationManager Navigation
+﻿@inject IPageService PageService
+@inject NavigationManager Navigation
+@inject AuthenticationStateProvider AuthState
+@inject UserManager<IdentityUser> UserManager
 
 <div class="tree-node" style="padding-left: @(Depth * 16)px">
-    <a href="/page/@Page.Id" class="tree-node-link @(IsActive ? "active" : "")">
-        <span class="tree-node-icon">@(Page.Icon ?? "📄")</span>
-        <span class="tree-node-title">@Page.Title</span>
-        @if (Page.ChildCount > 0)
-        {
-            <span class="tree-node-count">@Page.ChildCount</span>
-        }
-    </a>
+    <div class="tree-node-row">
+        <a href="/page/@Page.Id" class="tree-node-link @(IsActive ? "active" : "")">
+            <span class="tree-node-icon">@(Page.Icon ?? "📄")</span>
+            <span class="tree-node-title">@Page.Title</span>
+            @if (Page.ChildCount > 0)
+            {
+                <span class="tree-node-count">@Page.ChildCount</span>
+            }
+        </a>
+        <button class="tree-node-menu-btn" @onclick="ToggleMenu" @onclick:stopPropagation>⋮</button>
+    </div>
+    @if (showMenu)
+    {
+        <div class="tree-node-menu" @onclick:stopPropagation>
+            <button class="tree-node-menu-item tree-node-menu-item-danger" @onclick="OpenDeleteConfirm">Delete</button>
+        </div>
+    }
+    @if (showDeleteConfirm)
+    {
+        <div class="confirm-dialog" @onclick:stopPropagation>
+            <div class="confirm-dialog-box">
+                <div class="confirm-dialog-text">Delete this page?</div>
+                <div class="confirm-dialog-actions">
+                    <button class="btn-cancel" @onclick="CloseDeleteConfirm">Cancel</button>
+                    <button class="btn-confirm-delete" @onclick="ConfirmDelete">Delete</button>
+                </div>
+            </div>
+        </div>
+    }
 </div>
 
 @code {
     [Parameter] public PageDto Page { get; set; } = new();
     [Parameter] public int Depth { get; set; } = 0;
 
+    private bool showMenu;
+    private bool showDeleteConfirm;
+    private Guid currentUserId;
+
     private bool IsActive => Navigation.Uri.Contains($"/page/{Page.Id}") || Navigation.Uri.Contains($"/editor/{Page.Id}");
+
+    protected override async Task OnInitializedAsync()
+    {
+        var state = await AuthState.GetAuthenticationStateAsync();
+        if (state.User.Identity?.IsAuthenticated == true)
+        {
+            var user = await UserManager.GetUserAsync(state.User);
+            if (user != null) currentUserId = Guid.Parse(user.Id);
+        }
+    }
+
+    private void ToggleMenu()
+    {
+        showMenu = !showMenu;
+        StateHasChanged();
+    }
+
+    private void OpenDeleteConfirm()
+    {
+        showMenu = false;
+        showDeleteConfirm = true;
+        StateHasChanged();
+    }
+
+    private void CloseDeleteConfirm()
+    {
+        showDeleteConfirm = false;
+        StateHasChanged();
+    }
+
+    private async Task ConfirmDelete()
+    {
+        showDeleteConfirm = false;
+        await PageService.SoftDeleteAsync(Page.Id, currentUserId);
+        
+        StateHasChanged();
+    }
 }

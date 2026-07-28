@@ -23,7 +23,10 @@
         <div class="sidebar-footer">
             <AuthorizeView>
                 <Authorized>
-                    <span>@context.User.Identity?.Name</span>
+                    <div class="user-handle">
+                        <a href="/trash" class="btn-trash" title="Trash">Trash</a>
+                        <span class="user-name">@context.User.Identity?.Name</span>
+                    </div>
                     <a href="/logout" class="btn-logout">Sign out</a>
                 </Authorized>
                 <NotAuthorized>
@@ -45,8 +48,8 @@
         if (firstRender)
         {
             var state = await AuthState.GetAuthenticationStateAsync();
-            if (!state.User.Identity?.IsAuthenticated == true 
-                && !Navigation.Uri.Contains("/login") 
+            if (!state.User.Identity?.IsAuthenticated == true
+                && !Navigation.Uri.Contains("/login")
                 && !Navigation.Uri.Contains("/register"))
             {
                 Navigation.NavigateTo("/login");

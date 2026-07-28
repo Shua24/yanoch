@@ -1,0 +1,88 @@
+@page "/trash"
+@layout MainLayout
+@inject IPageService PageService
+@inject NavigationManager Navigation
+@inject AuthenticationStateProvider AuthState
+@inject UserManager<IdentityUser> UserManager
+@implements IDisposable
+
+<div class="trash-page">
+    <div class="trash-header">
+        <h2>Trash</h2>
+    </div>
+
+    @if (pages == null)
+    {
+        <div class="loading">Loading trash...</div>
+    }
+    else if (!pages.Any())
+    {
+        <div class="empty-state">
+            <p>Trash is empty</p>
+        </div>
+    }
+    else
+    {
+        <div class="trash-list">
+            @foreach (var entry in pages)
+            {
+                <div class="trash-item">
+                    <div class="trash-item-info">
+                        <span class="trash-item-icon">@(entry.Icon ?? "📄")</span>
+                        <div class="trash-item-text">
+                            <div class="trash-item-title">@entry.Title</div>
+                            <div class="trash-item-date">Deleted @entry.DeletedAt?.ToLocalTime().ToString("MMM dd, yyyy HH:mm")</div>
+                        </div>
+                    </div>
+                    <div class="trash-item-actions">
+                        <button class="btn-restore" @onclick="() => RestorePage(entry.Id)">Restore</button>
+                        <button class="btn-hard-delete" @onclick="() => PermanentDelete(entry.Id)">Delete forever</button>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    private List<PageDto>? pages;
+    private Guid currentUserId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var state = await AuthState.GetAuthenticationStateAsync();
+        if (state.User.Identity?.IsAuthenticated != true)
+        {
+            Navigation.NavigateTo("/login");
+            return;
+        }
+        var user = await UserManager.GetUserAsync(state.User);
+        currentUserId = Guid.Parse(user!.Id);
+        await LoadTrash();
+    }
+
+    private async Task LoadTrash()
+    {
+        pages = (await PageService.GetDeletedAsync(currentUserId)).ToList();
+        StateHasChanged();
+    }
+
+    private async Task RestorePage(Guid id)
+    {
+        var restored = await PageService.RestoreAsync(id, currentUserId);
+        if (restored != null)
+        {
+            await LoadTrash();
+        }
+    }
+
+    private async Task PermanentDelete(Guid id)
+    {
+        await PageService.HardDeleteAsync(id, currentUserId);
+        await LoadTrash();
+    }
+
+    public void Dispose()
+    {
+    }
+}

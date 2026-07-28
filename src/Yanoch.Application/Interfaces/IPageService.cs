@@ -10,10 +10,16 @@ public interface IPageService
     Task<PageDto> CreateAsync(CreatePageDto dto, Guid userId);
     Task<PageDto?> UpdateAsync(Guid id, UpdatePageDto dto, Guid userId);
     Task DeleteAsync(Guid id, Guid userId);
+    Task SoftDeleteAsync(Guid id, Guid userId);
+    Task HardDeleteAsync(Guid id, Guid userId);
+    Task<PageDto?> RestoreAsync(Guid id, Guid userId);
+    Task<IEnumerable<PageDto>> GetDeletedAsync(Guid userId);
     Task<IEnumerable<SearchResultDto>> SearchAsync(string query, Guid userId);
     Task<IEnumerable<PageDto>> GetRecentAsync(Guid userId);
     Task<IEnumerable<PageVersionDto>> GetVersionsAsync(Guid pageId, Guid userId);
     Task<PageDto?> RestoreVersionAsync(Guid pageId, Guid versionId, Guid userId);
     Task<string?> GetContentAsync(Guid pageId, Guid userId);
     Task SetContentAsync(Guid pageId, string content);
+    Task<PageDto?> GetSubtreeIncludingDeletedAsync(Guid id, Guid userId);
+
 }
