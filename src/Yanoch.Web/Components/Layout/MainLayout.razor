@@ -1,6 +1,7 @@
 @inherits LayoutComponentBase
 @inject NavigationManager Navigation
 @inject AuthenticationStateProvider AuthState
+@inject IJSRuntime JSRuntime
 
 <div class="yanoch-layout">
     <aside class="yanoch-sidebar">
@@ -40,6 +41,15 @@
     </main>
 </div>
 
+<button class="theme-toggle"
+        type="button"
+        title="Toggle dark mode"
+        aria-label="Toggle dark mode"
+        @onclick="ToggleTheme">
+    <span class="icon-moon" aria-hidden="true">🌙</span>
+    <span class="icon-sun" aria-hidden="true">☀️</span>
+</button>
+
 @code {
     private string searchQuery = "";
 
@@ -68,5 +78,22 @@
     private void CreateNewPage()
     {
         Navigation.NavigateTo("/new");
+    }
+
+    private async Task ToggleTheme()
+    {
+        // The script is loaded synchronously in <head> from App.razor, so
+        // window.yanochTheme is available as soon as the circuit is up.
+        // Fire-and-forget: there's no UI state on the component itself,
+        // the .dark class on <html> drives everything via CSS variables.
+        try
+        {
+            await JSRuntime.InvokeVoidAsync("yanochTheme.toggle");
+        }
+        catch (InvalidOperationException)
+        {
+            // Pre-render / circuit not ready — ignore. The button only
+            // matters on interactive sessions, and theme.js is idempotent.
+        }
     }
 }

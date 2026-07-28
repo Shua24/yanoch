@@ -15,8 +15,51 @@
     --callout-bg: #f1f5f9;
     --code-bg: #f4f4f5;
     --quote-border: #2383e2;
-    --radius: 6px;
+    --input-bg: #ffffff;
+    --button-bg: #ffffff;
+    --hover-bg: rgba(0,0,0,0.04);
+    --card-bg: #ffffff;
+    --surface: #ffffff;
     --shadow: 0 1px 3px rgba(0,0,0,0.06);
+    color-scheme: light;
+    --radius: 6px;
+}
+
+/* DARK PALETTE — toggled by adding .dark to <html> (or any ancestor) */
+.dark, :root.dark {
+    --sidebar-bg: #1f2024;
+    --sidebar-hover: #2a2c31;
+    --sidebar-active: #34373d;
+    --main-bg: #191a1d;
+    --text-primary: #e6e6e6;
+    --text-secondary: #a1a1a6;
+    --text-tertiary: #6e6e72;
+    --accent: #4d9bf5;
+    --accent-hover: #6cadf7;
+    --border: #2e3036;
+    --warning: #f06060;
+    --success: #4cc28a;
+    --callout-bg: #23252a;
+    --code-bg: #23252a;
+    --quote-border: #4d9bf5;
+    --input-bg: #23252a;
+    --button-bg: #23252a;
+    --hover-bg: rgba(255,255,255,0.06);
+    --card-bg: #23252a;
+    --surface: #23252a;
+    --shadow: 0 1px 3px rgba(0,0,0,0.4);
+    color-scheme: dark;
+}
+
+/* Smooth theme transitions everywhere */
+body, .yanoch-sidebar, .yanoch-main, .sidebar-search input,
+.btn-new-page, .btn-cancel, .btn-restore, .page-card,
+.search-bar input, .search-result-item, .form-control,
+.auth-card, .subpage-item, .backlink-item, .trash-item,
+.tree-node-menu, .emoji-picker, .callout-menu,
+.confirm-dialog-box, .tiptap-editor, .title-input,
+.tiptap-editor pre, .tiptap-editor code {
+    transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -1388,3 +1431,72 @@ body {
 .dark .table-menu-btn:hover {
     background: rgba(255, 255, 255, 0.08);
 }
+
+/* DARK MODE: hardcoded whites that the var swap doesn't reach */
+.dark body { background: var(--main-bg); color: var(--text-primary); }
+.dark .sidebar-search input { background: var(--input-bg); color: var(--text-primary); }
+.dark .btn-new-page { background: var(--button-bg); }
+.dark .tiptap-editor { color: var(--text-primary); }
+.dark .tiptap-editor pre { background: var(--code-bg); }
+.dark .tiptap-editor code { background: var(--code-bg); color: var(--text-primary); }
+.dark .tiptap-editor blockquote { color: var(--text-secondary); }
+.dark .title-input { color: var(--text-primary); }
+.dark .form-control { background: var(--input-bg); color: var(--text-primary); }
+.dark .btn-cancel { background: var(--button-bg); color: var(--text-primary); }
+.dark .btn-restore { background: var(--button-bg); }
+.dark .emoji-picker { background: var(--surface); }
+.dark .callout-menu { background: var(--surface); }
+.dark .callout-color-dot { border-color: var(--border); }
+.dark .callout-icon-btn:hover,
+.dark .callout-color-btn:hover,
+.dark .callout-menu-item:hover,
+.dark .callout-menu-item.active { background: var(--hover-bg); }
+.dark .callout-menu-color:hover,
+.dark .callout-menu-color.active { background: var(--hover-bg); }
+.dark .tree-node-menu { background: var(--surface); }
+.dark .confirm-dialog-box { background: var(--surface); }
+.dark .slash-menu { background: var(--surface); }
+.dark .wiki-menu { background: var(--surface); }
+.dark .slash-item:hover, .dark .slash-item.active { background: var(--hover-bg); }
+.dark .wiki-menu button:hover, .dark .wiki-menu button.active { background: var(--hover-bg); }
+.dark .btn-upload-image { background: var(--button-bg); color: var(--text-primary); }
+.dark .alert-danger { background: rgba(240, 96, 96, 0.1); color: var(--warning); border-color: rgba(240, 96, 96, 0.3); }
+.dark .btn-hard-delete:hover { background: rgba(240, 96, 96, 0.12); }
+.dark .toggle:hover { background: var(--hover-bg); }
+
+/* THEME TOGGLE — floating button in the corner of the page */
+.theme-toggle {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    border: 1px solid var(--border);
+    background: var(--button-bg);
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    box-shadow: var(--shadow);
+    z-index: 900;
+    padding: 0;
+    transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease, transform 0.15s ease;
+    font-size: 18px;
+    line-height: 1;
+}
+
+.theme-toggle:hover {
+    transform: scale(1.06);
+    border-color: var(--accent);
+    color: var(--accent);
+}
+
+.theme-toggle:active { transform: scale(0.95); }
+
+.theme-toggle .icon-sun { display: none; }
+.theme-toggle .icon-moon { display: inline-block; }
+
+.dark .theme-toggle .icon-sun { display: inline-block; }
+.dark .theme-toggle .icon-moon { display: none; }
