@@ -232,8 +232,10 @@ public class PageRepository : IPageRepository
 
     public async Task SetContentAsync(Guid pageId, string content)
     {
-        await _db.Database.ExecuteSqlRawAsync(
-            "UPDATE \"Pages\" SET \"Content\" = {0}, \"UpdatedAt\" = {1} WHERE \"Id\" = {2}",
-            content, DateTime.UtcNow, pageId);
+        await _db.Pages
+            .Where(p => p.Id == pageId)
+            .ExecuteUpdateAsync(p => p
+                .SetProperty(x => x.Content, content)
+                .SetProperty(x => x.UpdatedAt, DateTime.UtcNow));
     }
 }
