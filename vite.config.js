@@ -3,7 +3,7 @@ import path from 'path'
 
 export default defineConfig({
   root: 'src/Yanoch.Web',
-  publicDir: 'wwwroot',
+  publicDir: false,
   build: {
     outDir: 'wwwroot',
     emptyOutDir: false,
