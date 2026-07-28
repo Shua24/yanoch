@@ -836,6 +836,87 @@ function updateTableBubbleMenu(editor, elementId) {
 // ─── Per-instance state ─────────────────────────────────────────
 const instances = new Map()
 
+// ─── Dirty-flag save system ─────────────────────────────────
+// 1) onUpdate marks the instance dirty and stores the latest markdown
+// 2) A 500ms debounce schedules a flush to the backend
+// 3) On successful flush the dirty flag is cleared
+// 4) beforeunload / pagehide force-flush any dirty instance immediately
+// 5) Destroying an editor clears its pending flush timer
+let _flushTimer = null
+const FLUSH_DEBOUNCE_MS = 500
+
+function markDirty(inst, markdown) {
+  inst._dirty = true
+  inst._pendingMarkdown = markdown
+  if (!_flushTimer) {
+    _flushTimer = setTimeout(flushAllDirty, FLUSH_DEBOUNCE_MS)
+  }
+}
+
+function clearDirty(inst) {
+  inst._dirty = false
+  inst._pendingMarkdown = null
+  if (_flushTimer) {
+    clearTimeout(_flushTimer)
+    _flushTimer = null
+  }
+}
+
+async function flushAllDirty() {
+  _flushTimer = null
+  const dirty = [...instances.values()].filter(i => i._dirty && i.dotNetRef && i.editor)
+  if (!dirty.length) return
+  // Flush each dirty instance in parallel (each self-throttled on success)
+  await Promise.all(dirty.map(inst => flushInstance(inst)))
+}
+
+async function flushInstance(inst) {
+  if (!inst._dirty || !inst.dotNetRef || !inst.editor) return
+  const markdown = inst._pendingMarkdown ?? inst.editor.getMarkdown()
+  try {
+    await inst.dotNetRef.invokeMethodAsync('OnMarkdownChanged', inst.blockId, markdown)
+    // Only clear dirty if the server accepted it.  The C# OnMarkdownChanged
+    // guard (debounce / null page) may swallow the call; that's fine — the
+    // next real edit will re-mark dirty.
+    clearDirty(inst)
+  } catch {
+    // Leave dirty so a later timer or beforeunload retry will flush it
+  }
+}
+
+function scheduleFlush(inst, markdown) {
+  markDirty(inst, markdown)
+}
+
+// Wire up beforeunload / pagehide so unsaved changes are flushed on navigation
+// or tab close.  Both events fire even when the browser is being closed.
+// We use navigator.sendBeacon — it's designed to survive page
+// unload.  The content-type defaults to text/plain; for JSON we
+// explicitly pass a Blob so the server receives the correct type.
+// (fetch+keepalive also works in modern browsers; sendBeacon has
+// better delivery guarantees during pagehide across all browsers.)
+function setupFlushOnUnload() {
+  const handler = async () => {
+    const dirty = [...instances.values()].filter(i => i._dirty && i.dotNetRef && i.editor)
+    if (!dirty.length) return
+    for (const inst of dirty) {
+      const markdown = inst._pendingMarkdown ?? inst.editor.getMarkdown()
+      try {
+        const blob = new Blob([JSON.stringify({ content: markdown })], { type: 'application/json' })
+        await navigator.sendBeacon(`/api/pages/${inst.blockId}/content`, blob)
+        clearDirty(inst)
+      } catch {
+        // leave dirty — nothing more we can do at this point
+      }
+    }
+  }
+  window.addEventListener('beforeunload', handler)
+  window.addEventListener('pagehide', handler)
+}
+
+// Run once at module load
+setupFlushOnUnload()
+
 function triggerImageUpload(editor) {
   const inp = ensureImageInput()
   inp.onchange = async () => {
@@ -1020,7 +1101,7 @@ export function createEditor(elementId, content, dotNetRef, blockId) {
       if (transaction?.getMeta('subpageInject')) return
       // First onUpdate fires during editor construction — skip it (initial parse)
       if (inst.firstUpdate) { inst.firstUpdate = false; return }
-      invokeCb(inst.dotNetRef, 'OnMarkdownChanged', inst.blockId, ed.getMarkdown())
+      scheduleFlush(inst, ed.getMarkdown())
       checkSlash(ed)
       checkWiki(ed)
       updateTableBubbleMenu(ed, elementId)
@@ -1087,6 +1168,9 @@ export function createEditor(elementId, content, dotNetRef, blockId) {
 export function destroyEditor(elementId) {
   const inst = instances.get(elementId)
   if (!inst) return
+  // Clear any pending save so a destroyed editor doesn't leak timers
+  inst._dirty = false
+  inst._pendingMarkdown = null
   closeTableBubbleMenu(elementId)
   inst.listeners.forEach(l => document.removeEventListener(l.type, l.handler))
   inst.listeners = []
@@ -1095,6 +1179,10 @@ export function destroyEditor(elementId) {
   inst.dotNetRef = null
   if (inst.editor) { inst.editor.destroy(); inst.editor = null }
   instances.delete(elementId)
+  // Clear the global flush timer if no more dirty instances remain
+  if (![...instances.values()].some(i => i._dirty)) {
+    if (_flushTimer) { clearTimeout(_flushTimer); _flushTimer = null }
+  }
 }
 
 // ─── Utility exports ────────────────────────────────────────────

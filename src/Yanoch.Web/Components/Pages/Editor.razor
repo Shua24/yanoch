@@ -88,8 +88,6 @@
     private bool _showEmojiPicker;
     private DotNetObjectReference<Editor>? _dotNetRef;
     private bool _editorInitialized;
-    private DateTime _lastSave = DateTime.MinValue;
-    private const int SaveDebounceMs = 800;
 
     private static readonly string[] _emojis = new[] {
         "📄", "📝", "📋", "📌", "📎", "✏️", "📖", "📕", "📗", "📘",
@@ -261,17 +259,13 @@
             return;
         }
 
-        var now = DateTime.UtcNow;
-        if ((now - _lastSave).TotalMilliseconds < SaveDebounceMs) return;
-        _lastSave = now;
-
         try
         {
             _saveStatus = "Saving...";
             StateHasChanged();
             await PageService.SetContentAsync(page.Id, markdown);
             page.Content = markdown;
-            page.UpdatedAt = now;
+            page.UpdatedAt = DateTime.UtcNow;
             OnPageDataChanged?.Invoke();
             _saveStatus = "";
             StateHasChanged();

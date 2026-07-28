@@ -24307,7 +24307,7 @@ var cN = [
 		icon: "🖼️",
 		md: "",
 		run: (e) => {
-			VN(e);
+			YN(e);
 		}
 	},
 	{
@@ -24581,8 +24581,43 @@ function zN(e, t) {
 	let s = o.getBoundingClientRect(), c = n.tableMenuEl.getBoundingClientRect(), l = s.top - c.height - 8, u = s.left + s.width / 2 - c.width / 2;
 	n.tableMenuEl.style.top = Math.max(8, l) + "px", n.tableMenuEl.style.left = Math.max(8, u) + "px";
 }
-var BN = /* @__PURE__ */ new Map();
-function VN(e) {
+var BN = /* @__PURE__ */ new Map(), VN = null, HN = 500;
+function UN(e, t) {
+	e._dirty = !0, e._pendingMarkdown = t, VN ||= setTimeout(GN, HN);
+}
+function WN(e) {
+	e._dirty = !1, e._pendingMarkdown = null, VN &&= (clearTimeout(VN), null);
+}
+async function GN() {
+	VN = null;
+	let e = [...BN.values()].filter((e) => e._dirty && e.dotNetRef && e.editor);
+	e.length && await Promise.all(e.map((e) => KN(e)));
+}
+async function KN(e) {
+	if (!e._dirty || !e.dotNetRef || !e.editor) return;
+	let t = e._pendingMarkdown ?? e.editor.getMarkdown();
+	try {
+		await e.dotNetRef.invokeMethodAsync("OnMarkdownChanged", e.blockId, t), WN(e);
+	} catch {}
+}
+function qN(e, t) {
+	UN(e, t);
+}
+function JN() {
+	let e = async () => {
+		let e = [...BN.values()].filter((e) => e._dirty && e.dotNetRef && e.editor);
+		if (e.length) for (let t of e) {
+			let e = t._pendingMarkdown ?? t.editor.getMarkdown();
+			try {
+				let n = new Blob([JSON.stringify({ content: e })], { type: "application/json" });
+				await navigator.sendBeacon(`/api/pages/${t.blockId}/content`, n), WN(t);
+			} catch {}
+		}
+	};
+	window.addEventListener("beforeunload", e), window.addEventListener("pagehide", e);
+}
+JN();
+function YN(e) {
 	let t = uN();
 	t.onchange = async () => {
 		let n = t.files?.[0];
@@ -24591,7 +24626,7 @@ function VN(e) {
 		r && e.chain().focus().setImage({ src: r }).run(), t.value = "";
 	}, t.click();
 }
-function HN() {
+function XN() {
 	return (e, t) => {
 		if (TN && $ && $.style.display !== "none") {
 			let e = DN.toLowerCase(), n = kN.filter((t) => t.title.toLowerCase().includes(e) || t.snippet && t.snippet.toLowerCase().includes(e));
@@ -24624,13 +24659,13 @@ function HN() {
 		return !1;
 	};
 }
-function UN(e, t, ...n) {
+function ZN(e, t, ...n) {
 	if (e) try {
 		e.invokeMethodAsync(t, ...n).catch(() => {});
 	} catch {}
 }
-function WN(e, t, n, r) {
-	GN(e);
+function QN(e, t, n, r) {
+	$N(e);
 	let i = document.getElementById(e);
 	if (!i) return null;
 	let a = {
@@ -24693,7 +24728,7 @@ function WN(e, t, n, r) {
 				class: "tiptap-editor",
 				"data-block-id": r
 			},
-			handleKeyDown: HN(),
+			handleKeyDown: XN(),
 			handlePaste(e, t) {
 				let n = t.clipboardData?.files;
 				if (n && n[0]?.type.startsWith("image/")) return t.preventDefault(), dN(n[0]).then((t) => {
@@ -24739,7 +24774,7 @@ function WN(e, t, n, r) {
 					a.firstUpdate = !1;
 					return;
 				}
-				if (UN(a.dotNetRef, "OnMarkdownChanged", a.blockId, t.getMarkdown()), CN(t), LN(t), zN(t, e), a.blockId && t.state.doc.childCount > 0) {
+				if (qN(a, t.getMarkdown()), CN(t), LN(t), zN(t, e), a.blockId && t.state.doc.childCount > 0) {
 					let e = $M(t), n = e.join(",");
 					a._lastSubpageOrder !== "pending" && e.length > 0 && n !== a._lastSubpageOrder && (a._lastSubpageOrder = n, QM(a.blockId, e));
 				}
@@ -24748,9 +24783,9 @@ function WN(e, t, n, r) {
 		onSelectionUpdate: ({ editor: t }) => {
 			pN && CN(t), TN && LN(t), zN(t, e);
 		},
-		onFocus: () => UN(a.dotNetRef, "OnFocus", a.blockId),
+		onFocus: () => ZN(a.dotNetRef, "OnFocus", a.blockId),
 		onBlur: () => {
-			pN && xN(), TN && NN(), RN(e), UN(a.dotNetRef, "OnBlur", a.blockId);
+			pN && xN(), TN && NN(), RN(e), ZN(a.dotNetRef, "OnBlur", a.blockId);
 		}
 	});
 	a.editor = o, a.tableMenuEl = null;
@@ -24778,25 +24813,25 @@ function WN(e, t, n, r) {
 		handler: c
 	}), BN.set(e, a), o;
 }
-function GN(e) {
+function $N(e) {
 	let t = BN.get(e);
-	t && (RN(e), t.listeners.forEach((e) => document.removeEventListener(e.type, e.handler)), t.listeners = [], t.dotNetRef = null, t.editor &&= (t.editor.destroy(), null), BN.delete(e));
+	t && (t._dirty = !1, t._pendingMarkdown = null, RN(e), t.listeners.forEach((e) => document.removeEventListener(e.type, e.handler)), t.listeners = [], t.dotNetRef = null, t.editor &&= (t.editor.destroy(), null), BN.delete(e), [...BN.values()].some((e) => e._dirty) || (VN &&= (clearTimeout(VN), null)));
 }
-function KN(e) {
+function eP(e) {
 	return BN.get(e)?.editor?.getMarkdown() ?? "";
 }
-function qN(e, t) {
+function tP(e, t) {
 	BN.get(e)?.editor?.commands.setContent(t, !1, "markdown");
 }
-function JN(e, t) {
+function nP(e, t) {
 	BN.get(e)?.editor?.setEditable(t);
 }
-function YN(e) {
+function rP(e) {
 	BN.get(e)?.editor?.commands.focus();
 }
-function XN(e) {
+function iP(e) {
 	BN.get(e)?.editor?.commands.blur();
 }
-window.initTipTap = WN, window.destroyTipTap = GN, window.getTipTapMarkdown = KN, window.setTipTapContent = qN, window.setTipTapEditable = JN, window.focusTipTap = YN, window.blurTipTap = XN, sN(), JM(), eN();
+window.initTipTap = QN, window.destroyTipTap = $N, window.getTipTapMarkdown = eP, window.setTipTapContent = tP, window.setTipTapEditable = nP, window.focusTipTap = rP, window.blurTipTap = iP, sN(), JM(), eN();
 //#endregion
-export { XN as blurEditor, WN as createEditor, GN as destroyEditor, YN as focusEditor, KN as getMarkdown, qN as setContent, JN as setEditable };
+export { iP as blurEditor, QN as createEditor, $N as destroyEditor, rP as focusEditor, eP as getMarkdown, tP as setContent, nP as setEditable };
