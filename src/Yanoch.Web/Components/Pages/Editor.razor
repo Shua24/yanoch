@@ -353,7 +353,7 @@
         try
         {
             await PageService.DeleteAsync(page.Id, currentUserId);
-            PageDataNotifier.NotifyPageDataChanged(page.Id);
+            PageDataNotifier.NotifyPageDataChanged(null);
             Navigation.NavigateTo("/");
         }
         catch (Exception ex)
