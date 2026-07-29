@@ -26,6 +26,7 @@ export const slashItems = [
       }
     }
   },
+  { title: 'Status',        desc: 'Inline status badge',        icon: '🏷️',  md: '',      run: e => e.chain().focus().insertContent({ type: 'status', attrs: { status: 'todo' } }).run() },
   { title: 'Subpage',       desc: 'Create a child page',       icon: '📄',  md: '',      run: async (e) => {
       const inst = Array.from(instances.values()).find(i => i.editor === e)
       if (inst && inst.dotNetRef) {

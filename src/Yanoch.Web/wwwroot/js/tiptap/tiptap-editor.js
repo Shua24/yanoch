@@ -17,6 +17,7 @@ import { marked } from 'marked'
 
 // Custom extensions
 import { Callout, Toggle, PageReference, findEditorForElement } from './tiptap-extensions.js'
+import { Status, setupStatusMenus, updateStatusMenu, closeStatusMenu } from './tiptap-status-column.js'
 
 // Modules
 import { setupSlashMenu, getSlashState, closeSlash, triggerImageUpload, ensureImageInput, uploadImage, renderSlash, runSlashItem, slashNavNext, slashNavPrev, checkSlash } from './tiptap-slash-menu.js'
@@ -30,6 +31,7 @@ const instances = new Map()
 
 // Initialize global handlers
 const calloutMenus = initCalloutMenus()
+const statusMenus = setupStatusMenus()
 
 // ─── Safe Blazor invoke ─────────────────────────────────────────
 function invokeCb(dotNetRef, method, ...args) {
@@ -110,6 +112,7 @@ function handleUpdate(inst) {
     checkSlash(ed)
     checkWiki(ed)
     updateTableBubbleMenu(ed, inst)
+    updateStatusMenu(ed, inst)
 
     // Subpage reorder
     if (inst.blockId && ed.state.doc.childCount > 0) {
@@ -129,6 +132,7 @@ function handleSelectionUpdate(inst) {
     if (getSlashState().slashActive) checkSlash(ed)
     if (getWikiState().wikiActive) checkWiki(ed)
     updateTableBubbleMenu(ed, inst)
+    updateStatusMenu(ed, inst)
   }
 }
 
@@ -145,6 +149,7 @@ function handleBlur(inst) {
     if (getSlashState().slashActive) closeSlash()
     if (getWikiState().wikiActive) closeWiki()
     closeTableBubbleMenu(inst)
+    closeStatusMenu(inst)
     invokeCb(inst.dotNetRef, 'OnBlur', inst.blockId)
   }
 }
@@ -251,9 +256,10 @@ export function createEditor(elementId, content, dotNetRef, blockId) {
       TableRow,
       TableHeader,
       TableCell,
-      Callout,
+Callout,
       Toggle,
       PageReference,
+      Status,
     ],
     content: content || '',
     contentType: 'markdown',

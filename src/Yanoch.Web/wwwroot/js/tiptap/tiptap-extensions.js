@@ -158,6 +158,9 @@ export const PageReference = Node.create({
   },
 })
 
+// ─── Status Badge Node ──────────────────────────────────────────
+export { Status, setupStatusMenus, updateStatusMenu, closeStatusMenu, statusTypes } from './tiptap-status-column.js'
+
 // ─── Shared utilities ───────────────────────────────────────────
 export function updateCalloutAttr(editor, calloutEl, attr, value) {
   updateBlockAttr(editor, calloutEl, 'callout', attr, value)

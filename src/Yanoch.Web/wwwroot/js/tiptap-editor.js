@@ -23832,6 +23832,156 @@ N.create({
 //#region node_modules/@tiptap/extension-table-row/dist/index.js
 var PM = vM, FM = gM, IM = _M, LM = [
 	{
+		id: "todo",
+		label: "Todo",
+		color: "#f59e0b",
+		bg: "#fef3c7",
+		text: "#92400e"
+	},
+	{
+		id: "in-progress",
+		label: "In Progress",
+		color: "#3b82f6",
+		bg: "#dbeafe",
+		text: "#1e40af"
+	},
+	{
+		id: "done",
+		label: "Done",
+		color: "#22c55e",
+		bg: "#dcfce7",
+		text: "#166534"
+	}
+], RM = Object.fromEntries(LM.map((e) => [e.id, e])), zM = md({
+	nodeName: "status",
+	name: "status",
+	content: "inline*",
+	defaultAttributes: { status: "todo" },
+	allowedAttributes: ["status"]
+}), BM = P.create({
+	name: "status",
+	group: "inline",
+	inline: !0,
+	atom: !0,
+	selectable: !1,
+	draggable: !1,
+	addAttributes() {
+		return { status: { default: "todo" } };
+	},
+	parseHTML() {
+		return [{
+			tag: "span[data-status]",
+			getAttrs: (e) => ({ status: e.getAttribute("data-status") || "todo" })
+		}];
+	},
+	renderHTML({ HTMLAttributes: e }) {
+		let t = e.status || "todo", n = RM[t] || RM.todo;
+		return [
+			"span",
+			{
+				"data-status": t,
+				class: `status-badge status-${t}`,
+				style: `background:${n.bg};color:${n.text};border-color:${n.color};`,
+				contenteditable: "false"
+			},
+			n.label
+		];
+	},
+	addCommands() {
+		return {
+			setStatus: (e = {}) => ({ commands: t }) => t.insertContent({
+				type: "status",
+				attrs: e
+			}),
+			updateStatus: (e = {}) => ({ commands: t, state: n }) => {
+				let { selection: r } = n;
+				if (!r.empty) return !1;
+				let i = r.$from.nodeAfter;
+				return !i || i.type.name !== "status" ? !1 : t.updateAttributes("status", e);
+			}
+		};
+	},
+	addKeyboardShortcuts() {
+		return {
+			Enter: () => !1,
+			Backspace: () => !1
+		};
+	},
+	...zM
+}), VM = null, HM = null, UM = null, WM = null;
+function GM() {
+	let e = document.createElement("div");
+	return e.className = "status-badge-menu", e.style.cssText = "\n    position:fixed;z-index:99999;display:none;\n    background:var(--card-bg,#ffffff);\n    border:1px solid var(--border,rgba(0,0,0,0.12));\n    border-radius:6px;\n    box-shadow:0 4px 12px rgba(0,0,0,0.1);\n    padding:4px;min-width:140px;\n  ", e.innerHTML = LM.map((e) => `
+    <button
+      type="button"
+      data-status="${e.id}"
+      style="
+        display:flex;align-items:center;gap:8px;width:100%;
+        padding:6px 10px;border:none;background:transparent;
+        border-radius:4px;cursor:pointer;font-size:0.875rem;
+        text-align:left;color:var(--text,#1f2937);
+      "
+      title="Set status to ${e.label}"
+    >
+      <span style="width:8px;height:8px;border-radius:50%;background:${e.color};flex-shrink:0;"></span>
+      ${e.label}
+    </button>
+  `).join(""), e.addEventListener("mousedown", (e) => e.preventDefault()), e.querySelectorAll("button").forEach((e) => {
+		e.onclick = (t) => {
+			t.preventDefault();
+			let n = e.dataset.status;
+			n && UM && WM !== null && UM.view.dispatch(UM.state.tr.setNodeMarkup(WM, null, {
+				...UM.state.doc.nodeAt(WM).attrs,
+				status: n
+			}).scrollIntoView()), qM();
+		};
+	}), document.body.appendChild(e), VM = e, document.addEventListener("mousedown", (e) => {
+		VM && VM.style.display !== "none" && !VM.contains(e.target) && e.target !== HM && qM();
+	}), {
+		closeStatusMenu: qM,
+		updateStatusMenu: KM
+	};
+}
+function KM(e, t) {
+	let { state: n, view: r } = e, { selection: i } = n, a = null, o = null;
+	if (!i.empty) {
+		qM(t);
+		return;
+	}
+	let s = i.$from, c = s.nodeAfter;
+	if (c && c.type.name === "status") a = c, o = s.pos;
+	else {
+		let e = s.nodeBefore;
+		e && e.type.name === "status" && (a = e, o = s.pos - e.nodeSize);
+	}
+	if (!a || o === null) {
+		qM(t);
+		return;
+	}
+	let l = null;
+	try {
+		l = r.nodeDOM(o);
+	} catch {}
+	if (!l) {
+		qM(t);
+		return;
+	}
+	if (!VM) return;
+	HM = l, UM = e, WM = o;
+	let u = a.attrs.status;
+	VM.querySelectorAll("button").forEach((e) => {
+		e.style.background = e.dataset.status === u ? "var(--hover-bg, #f3f4f6)" : "transparent", e.style.fontWeight = e.dataset.status === u ? "600" : "400";
+	});
+	let d = l.getBoundingClientRect(), f = VM.getBoundingClientRect(), p = d.bottom + 4, m = d.left + d.width / 2 - f.width / 2;
+	VM.style.top = Math.max(8, p) + "px", VM.style.left = Math.max(8, m) + "px", VM.style.display = "block";
+}
+function qM(e) {
+	VM && (VM.style.display = "none"), HM = null, UM = null, WM = null;
+}
+//#endregion
+//#region src/Yanoch.Web/wwwroot/js/tiptap/tiptap-extensions.js
+var JM = [
+	{
 		id: "info",
 		icon: "💡",
 		label: "Info",
@@ -23909,13 +24059,13 @@ var PM = vM, FM = gM, IM = _M, LM = [
 		label: "Red",
 		color: "#e5484d"
 	}
-], RM = /* @__PURE__ */ "💡.ℹ️.❓.🔥.⭐.🎯.📌.📎.✏️.📖.❤️.💚.💙.💜.🧡.🖤.🤍.💛.💗.🤎.✅.❌.⚠️.🚀.📝.🔒.🔓.👀.💪.🧠.🎨.🎵.📷.🔧.⚙️.🔗.📊.📁.🏠.🌍.☀️.🌙.☁️.🌈.💧.🌱.🌸.🍀.🎉.🔴".split("."), zM = Object.fromEntries(LM.map((e) => [e.id, e])), BM = md({
+], YM = /* @__PURE__ */ "💡.ℹ️.❓.🔥.⭐.🎯.📌.📎.✏️.📖.❤️.💚.💙.💜.🧡.🖤.🤍.💛.💗.🤎.✅.❌.⚠️.🚀.📝.🔒.🔓.👀.💪.🧠.🎨.🎵.📷.🔧.⚙️.🔗.📊.📁.🏠.🌍.☀️.🌙.☁️.🌈.💧.🌱.🌸.🍀.🎉.🔴".split("."), XM = Object.fromEntries(JM.map((e) => [e.id, e])), ZM = md({
 	nodeName: "callout",
 	name: "callout",
 	content: "block",
 	defaultAttributes: { type: "info" },
 	allowedAttributes: ["type", "icon"]
-}), VM = P.create({
+}), QM = P.create({
 	name: "callout",
 	content: "block+",
 	group: "block",
@@ -23936,7 +24086,7 @@ var PM = vM, FM = gM, IM = _M, LM = [
 		}];
 	},
 	renderHTML({ HTMLAttributes: e }) {
-		let t = e.type || "info", n = (zM[t] || zM.info).icon, r = e.icon || n;
+		let t = e.type || "info", n = (XM[t] || XM.info).icon, r = e.icon || n;
 		return [
 			"div",
 			{
@@ -23984,14 +24134,14 @@ var PM = vM, FM = gM, IM = _M, LM = [
 	addCommands() {
 		return { setCallout: (e = {}) => ({ commands: t }) => t.wrapIn(this.name, e) };
 	},
-	...BM
-}), HM = md({
+	...ZM
+}), $M = md({
 	nodeName: "toggle",
 	name: "toggle",
 	content: "block",
 	defaultAttributes: { collapsed: !1 },
 	allowedAttributes: ["collapsed"]
-}), UM = P.create({
+}), eN = P.create({
 	name: "toggle",
 	content: "block+",
 	group: "block",
@@ -24041,8 +24191,8 @@ var PM = vM, FM = gM, IM = _M, LM = [
 			return t.wrapIn(this.name, e);
 		} };
 	},
-	...HM
-}), WM = P.create({
+	...$M
+}), tN = P.create({
 	name: "pageReference",
 	group: "block",
 	atom: !0,
@@ -24088,10 +24238,10 @@ var PM = vM, FM = gM, IM = _M, LM = [
 	},
 	renderMarkdown() {}
 });
-function GM(e, t, n, r) {
-	KM(e, t, "callout", n, r);
+function nN(e, t, n, r) {
+	rN(e, t, "callout", n, r);
 }
-function KM(e, t, n, r, i) {
+function rN(e, t, n, r, i) {
 	let { state: a, view: o } = e, s = o.posAtDOM(t, 0);
 	if (s == null) return;
 	let c = a.doc.resolve(s), l = c.depth;
@@ -24103,13 +24253,13 @@ function KM(e, t, n, r, i) {
 		[r]: i
 	}).scrollIntoView());
 }
-var qM = /* @__PURE__ */ new Map();
-function JM(e) {
-	return Array.from(qM.values()).find((t) => t.editor?.view?.dom?.contains(e))?.editor || null;
+var iN = /* @__PURE__ */ new Map();
+function aN(e) {
+	return Array.from(iN.values()).find((t) => t.editor?.view?.dom?.contains(e))?.editor || null;
 }
 //#endregion
 //#region src/Yanoch.Web/wwwroot/js/tiptap/tiptap-slash-menu.js
-var YM = [
+var oN = [
 	{
 		title: "Text",
 		desc: "Plain paragraph",
@@ -24185,7 +24335,7 @@ var YM = [
 		desc: "Upload an image",
 		icon: "🖼️",
 		md: "",
-		run: (e) => eN(e)
+		run: (e) => dN(e)
 	},
 	{
 		title: "Table",
@@ -24224,12 +24374,22 @@ var YM = [
 		}
 	},
 	{
+		title: "Status",
+		desc: "Inline status badge",
+		icon: "🏷️",
+		md: "",
+		run: (e) => e.chain().focus().insertContent({
+			type: "status",
+			attrs: { status: "todo" }
+		}).run()
+	},
+	{
 		title: "Subpage",
 		desc: "Create a child page",
 		icon: "📄",
 		md: "",
 		run: async (e) => {
-			let t = Array.from(XM.values()).find((t) => t.editor === e);
+			let t = Array.from(sN.values()).find((t) => t.editor === e);
 			if (t && t.dotNetRef) try {
 				let n = await t.dotNetRef.invokeMethodAsync("CreateSubpage", t.blockId);
 				n && n.id && e.chain().focus().insertContent({
@@ -24245,11 +24405,11 @@ var YM = [
 			}
 		}
 	}
-], XM = /* @__PURE__ */ new Map(), ZM = null;
-function QM() {
-	return ZM || (ZM = document.createElement("input"), ZM.type = "file", ZM.accept = "image/*", ZM.style.cssText = "display:none", document.body.appendChild(ZM), ZM);
+], sN = /* @__PURE__ */ new Map(), cN = null;
+function lN() {
+	return cN || (cN = document.createElement("input"), cN.type = "file", cN.accept = "image/*", cN.style.cssText = "display:none", document.body.appendChild(cN), cN);
 }
-async function $M(e) {
+async function uN(e) {
 	let t = new FormData();
 	t.append("file", e);
 	try {
@@ -24264,17 +24424,17 @@ async function $M(e) {
 		return console.error("Upload error:", e), null;
 	}
 }
-function eN(e) {
-	let t = QM();
+function dN(e) {
+	let t = lN();
 	t.onchange = async () => {
 		let n = t.files[0];
 		if (t.value = "", !n) return;
-		let r = await $M(n);
+		let r = await uN(n);
 		r && e.chain().focus().setImage({ src: r }).run();
 	}, t.click();
 }
-var tN = null, nN = !1, rN = 0, iN = -1, aN = "", oN = null;
-function sN(e, t) {
+var fN = null, pN = !1, mN = 0, hN = -1, gN = "", _N = null;
+function vN(e, t) {
 	let n = e.resolve(t);
 	if (!n) return "";
 	try {
@@ -24283,143 +24443,143 @@ function sN(e, t) {
 		return "";
 	}
 }
-function cN(e) {
+function yN(e) {
 	let t = e?.querySelector(".active");
 	t && t.scrollIntoView({ block: "nearest" });
 }
-function lN() {
-	if (!tN) return;
-	let e = aN.toLowerCase(), t = YM.filter((t) => t.title.toLowerCase().includes(e) || t.desc.toLowerCase().includes(e));
-	tN.innerHTML = t.map((e, t) => `<button class="slash-item${t === rN ? " active" : ""}" data-idx="${t}"><span class="slash-icon">${e.icon}</span><span class="slash-text"><strong>${e.title}</strong><span class="slash-desc">${e.desc}</span></span>` + (e.md ? `<span class="slash-md">${e.md}</span>` : "") + "</button>").join(""), tN.querySelectorAll(".slash-item").forEach((e) => {
+function bN() {
+	if (!fN) return;
+	let e = gN.toLowerCase(), t = oN.filter((t) => t.title.toLowerCase().includes(e) || t.desc.toLowerCase().includes(e));
+	fN.innerHTML = t.map((e, t) => `<button class="slash-item${t === mN ? " active" : ""}" data-idx="${t}"><span class="slash-icon">${e.icon}</span><span class="slash-text"><strong>${e.title}</strong><span class="slash-desc">${e.desc}</span></span>` + (e.md ? `<span class="slash-md">${e.md}</span>` : "") + "</button>").join(""), fN.querySelectorAll(".slash-item").forEach((e) => {
 		let t = parseInt(e.dataset.idx, 10);
 		isNaN(t) || (e.onclick = (e) => {
-			e.stopPropagation(), rN = t, pN();
+			e.stopPropagation(), mN = t, wN();
 		}, e.onmouseenter = () => {
-			rN = t, lN();
+			mN = t, bN();
 		});
-	}), cN(tN);
+	}), yN(fN);
 }
-function uN() {
-	tN && (tN.style.display = "none", tN.innerHTML = ""), nN = !1, iN = -1, aN = "", oN = null;
+function xN() {
+	fN && (fN.style.display = "none", fN.innerHTML = ""), pN = !1, hN = -1, gN = "", _N = null;
 }
-function dN(e) {
-	oN = e;
+function SN(e) {
+	_N = e;
 	let { view: t, state: n } = e, { from: r } = n.selection;
-	iN = n.doc.resolve(r).start(), tN || (tN = document.createElement("div"), tN.className = "slash-menu", tN.style.cssText = "position:fixed;z-index:100000;", document.body.appendChild(tN));
+	hN = n.doc.resolve(r).start(), fN || (fN = document.createElement("div"), fN.className = "slash-menu", fN.style.cssText = "position:fixed;z-index:100000;", document.body.appendChild(fN));
 	let i = t.coordsAtPos(r);
-	tN.style.left = Math.max(0, i.left) + "px", tN.style.top = i.bottom + 4 + "px", tN.style.display = "block", rN = 0, aN = "", nN = !0, lN();
+	fN.style.left = Math.max(0, i.left) + "px", fN.style.top = i.bottom + 4 + "px", fN.style.display = "block", mN = 0, gN = "", pN = !0, bN();
 }
-function fN(e) {
+function CN(e) {
 	if (!e) return;
 	let { doc: t, selection: n } = e.state, { $from: r } = n;
 	if (r.parent.type.name === "codeBlock") {
-		nN && uN();
+		pN && xN();
 		return;
 	}
 	if (!e.isFocused) return;
-	let i = r.pos, a = sN(t, i);
-	if (a === "/" && !nN) {
-		dN(e);
+	let i = r.pos, a = vN(t, i);
+	if (a === "/" && !pN) {
+		SN(e);
 		return;
 	}
-	if (nN) if (a.startsWith("/")) {
+	if (pN) if (a.startsWith("/")) {
 		let e = a.slice(1);
-		e !== aN && (aN = e, rN = 0, lN());
-	} else uN();
+		e !== gN && (gN = e, mN = 0, bN());
+	} else xN();
 }
-function pN() {
-	if (!nN || !tN) return;
-	let e = aN.toLowerCase(), t = YM.filter((t) => t.title.toLowerCase().includes(e) || t.desc.toLowerCase().includes(e))[rN];
+function wN() {
+	if (!pN || !fN) return;
+	let e = gN.toLowerCase(), t = oN.filter((t) => t.title.toLowerCase().includes(e) || t.desc.toLowerCase().includes(e))[mN];
 	if (!t) {
-		uN();
+		xN();
 		return;
 	}
-	let n = oN;
+	let n = _N;
 	if (!n) {
-		uN();
+		xN();
 		return;
 	}
-	let { view: r } = n, i = r.state.selection.from, a = iN;
-	uN();
+	let { view: r } = n, i = r.state.selection.from, a = hN;
+	xN();
 	try {
 		r.dispatch(r.state.tr.delete(a, i)), t.run(n), n.commands.focus();
 	} catch (e) {
 		console.error("runSlashItem error:", e);
 	}
 }
-function mN() {
+function TN() {
 	return {
-		slashActive: nN,
-		slashMenuEl: tN,
-		slashQuery: aN,
-		slashItems: YM,
-		slashIdx: rN
+		slashActive: pN,
+		slashMenuEl: fN,
+		slashQuery: gN,
+		slashItems: oN,
+		slashIdx: mN
 	};
 }
-function hN() {
-	if (!YM.length) return;
-	let e = aN.toLowerCase(), t = YM.filter((t) => t.title.toLowerCase().includes(e) || t.desc.toLowerCase().includes(e));
-	t.length && (rN = (rN + 1) % t.length, lN());
+function EN() {
+	if (!oN.length) return;
+	let e = gN.toLowerCase(), t = oN.filter((t) => t.title.toLowerCase().includes(e) || t.desc.toLowerCase().includes(e));
+	t.length && (mN = (mN + 1) % t.length, bN());
 }
-function gN() {
-	if (!YM.length) return;
-	let e = aN.toLowerCase(), t = YM.filter((t) => t.title.toLowerCase().includes(e) || t.desc.toLowerCase().includes(e));
-	t.length && (rN = (rN - 1 + t.length) % t.length, lN());
+function DN() {
+	if (!oN.length) return;
+	let e = gN.toLowerCase(), t = oN.filter((t) => t.title.toLowerCase().includes(e) || t.desc.toLowerCase().includes(e));
+	t.length && (mN = (mN - 1 + t.length) % t.length, bN());
 }
 //#endregion
 //#region src/Yanoch.Web/wwwroot/js/tiptap/tiptap-wiki-autocomplete.js
-var _N = null, vN = !1, yN = -1, bN = "", xN = 0, SN = [], CN = null, wN = null;
-function TN(e) {
+var ON = null, kN = !1, AN = -1, jN = "", MN = 0, NN = [], PN = null, FN = null;
+function IN(e) {
 	let t = e?.querySelector(".active");
 	t && t.scrollIntoView({ block: "nearest" });
 }
-function EN() {
-	if (!_N) return;
-	let e = bN.toLowerCase(), t = SN.filter((t) => t.title.toLowerCase().includes(e) || t.snippet && t.snippet.toLowerCase().includes(e));
+function LN() {
+	if (!ON) return;
+	let e = jN.toLowerCase(), t = NN.filter((t) => t.title.toLowerCase().includes(e) || t.snippet && t.snippet.toLowerCase().includes(e));
 	if (!t.length) {
-		_N.style.display = "none";
+		ON.style.display = "none";
 		return;
 	}
-	_N.innerHTML = t.map((e, t) => `<button class="wiki-item${t === xN ? " active" : ""}" data-idx="${t}"><span class="wiki-icon">${e.icon || "📄"}</span><span class="wiki-text"><strong>${e.title}</strong></span></button>`).join(""), _N.querySelectorAll(".wiki-item").forEach((e) => {
+	ON.innerHTML = t.map((e, t) => `<button class="wiki-item${t === MN ? " active" : ""}" data-idx="${t}"><span class="wiki-icon">${e.icon || "📄"}</span><span class="wiki-text"><strong>${e.title}</strong></span></button>`).join(""), ON.querySelectorAll(".wiki-item").forEach((e) => {
 		let t = parseInt(e.dataset.idx, 10);
 		isNaN(t) || (e.onclick = (e) => {
-			e.stopPropagation(), xN = t, AN();
+			e.stopPropagation(), MN = t, VN();
 		}, e.onmouseenter = () => {
-			xN = t, EN();
+			MN = t, LN();
 		});
-	}), _N.style.display = "block", TN(_N);
+	}), ON.style.display = "block", IN(ON);
 }
-function DN() {
-	_N && (_N.style.display = "none", _N.innerHTML = ""), vN = !1, yN = -1, bN = "", xN = 0, SN = [], CN = null, wN &&= (clearTimeout(wN), null);
+function RN() {
+	ON && (ON.style.display = "none", ON.innerHTML = ""), kN = !1, AN = -1, jN = "", MN = 0, NN = [], PN = null, FN &&= (clearTimeout(FN), null);
 }
-function ON(e, t) {
-	CN = e, yN = t, bN = "", xN = 0, SN = [], _N || (_N = document.createElement("div"), _N.className = "wiki-menu", _N.style.cssText = "position:fixed;z-index:100000;max-height:240px;overflow-y:auto;", document.body.appendChild(_N));
+function zN(e, t) {
+	PN = e, AN = t, jN = "", MN = 0, NN = [], ON || (ON = document.createElement("div"), ON.className = "wiki-menu", ON.style.cssText = "position:fixed;z-index:100000;max-height:240px;overflow-y:auto;", document.body.appendChild(ON));
 	let { view: n } = e, r = n.coordsAtPos(t);
-	_N.style.left = Math.max(0, r.left) + "px", _N.style.top = r.bottom + 4 + "px", vN = !0, kN("");
+	ON.style.left = Math.max(0, r.left) + "px", ON.style.top = r.bottom + 4 + "px", kN = !0, BN("");
 }
-function kN(e) {
-	wN && clearTimeout(wN), wN = setTimeout(async () => {
-		wN = null;
+function BN(e) {
+	FN && clearTimeout(FN), FN = setTimeout(async () => {
+		FN = null;
 		try {
 			let t = await fetch("/api/search?q=" + encodeURIComponent(e), { credentials: "same-origin" });
 			if (!t.ok) return;
 			let n = await t.json();
-			if (!vN) return;
-			SN = n.pages && Array.isArray(n.pages) ? n.pages : [], EN();
+			if (!kN) return;
+			NN = n.pages && Array.isArray(n.pages) ? n.pages : [], LN();
 		} catch {
-			vN && DN();
+			kN && RN();
 		}
 	}, 200);
 }
-function AN() {
-	if (!vN || !_N || !CN) return;
-	let e = bN.toLowerCase(), t = SN.filter((t) => t.title.toLowerCase().includes(e) || t.snippet && t.snippet.toLowerCase().includes(e))[xN];
+function VN() {
+	if (!kN || !ON || !PN) return;
+	let e = jN.toLowerCase(), t = NN.filter((t) => t.title.toLowerCase().includes(e) || t.snippet && t.snippet.toLowerCase().includes(e))[MN];
 	if (!t) {
-		DN();
+		RN();
 		return;
 	}
-	let n = CN, r = yN;
-	DN();
+	let n = PN, r = AN;
+	RN();
 	try {
 		let { view: e } = n;
 		e.state.doc.textBetween(r, e.state.selection.from);
@@ -24427,11 +24587,11 @@ function AN() {
 		e.dispatch(e.state.tr.replaceWith(r, e.state.selection.from, e.state.schema.text(i))), n.commands.focus();
 	} catch {}
 }
-function jN(e) {
+function HN(e) {
 	if (!e || !e.isFocused) return;
 	let { doc: t, selection: n } = e.state, { $from: r } = n;
 	if (r.parent.type.name === "codeBlock") {
-		vN && DN();
+		kN && RN();
 		return;
 	}
 	let i = r.pos, a = Math.max(0, i - 100), o = t.textBetween(a, i), s = o.lastIndexOf("[[");
@@ -24439,83 +24599,83 @@ function jN(e) {
 		let t = o.slice(s + 2);
 		if (t.indexOf("]]") === -1) {
 			let n = t, r = a + s;
-			vN || ON(e, r + 2), n !== bN && (bN = n, xN = 0, kN(n));
+			kN || zN(e, r + 2), n !== jN && (jN = n, MN = 0, BN(n));
 			return;
 		}
 	}
-	if (vN) if (yN > 0) {
-		let e = t.textBetween(Math.max(0, yN - 2), Math.min(t.content.size, yN + 50));
+	if (kN) if (AN > 0) {
+		let e = t.textBetween(Math.max(0, AN - 2), Math.min(t.content.size, AN + 50));
 		if (!e.startsWith("[[") || e.includes("]]")) {
-			DN();
+			RN();
 			return;
 		}
-		if (i < yN) {
-			DN();
+		if (i < AN) {
+			RN();
 			return;
 		}
-	} else DN();
+	} else RN();
 }
-function MN() {
+function UN() {
 	return {
-		wikiActive: vN,
-		wikiMenuEl: _N,
-		wikiQuery: bN,
-		wikiItems: SN,
-		wikiIdx: xN
+		wikiActive: kN,
+		wikiMenuEl: ON,
+		wikiQuery: jN,
+		wikiItems: NN,
+		wikiIdx: MN
 	};
 }
-function NN() {
-	if (!SN.length) return;
-	let e = bN.toLowerCase(), t = SN.filter((t) => t.title.toLowerCase().includes(e) || t.snippet && t.snippet.toLowerCase().includes(e));
-	t.length && (xN = (xN + 1) % t.length, EN());
+function WN() {
+	if (!NN.length) return;
+	let e = jN.toLowerCase(), t = NN.filter((t) => t.title.toLowerCase().includes(e) || t.snippet && t.snippet.toLowerCase().includes(e));
+	t.length && (MN = (MN + 1) % t.length, LN());
 }
-function PN() {
-	if (!SN.length) return;
-	let e = bN.toLowerCase(), t = SN.filter((t) => t.title.toLowerCase().includes(e) || t.snippet && t.snippet.toLowerCase().includes(e));
-	t.length && (xN = (xN - 1 + t.length) % t.length, EN());
+function GN() {
+	if (!NN.length) return;
+	let e = jN.toLowerCase(), t = NN.filter((t) => t.title.toLowerCase().includes(e) || t.snippet && t.snippet.toLowerCase().includes(e));
+	t.length && (MN = (MN - 1 + t.length) % t.length, LN());
 }
 //#endregion
 //#region src/Yanoch.Web/wwwroot/js/tiptap/tiptap-callout-menus.js
-var $ = null, FN = null, IN = null;
-function LN() {
-	$ && ($.style.display = "none", $.innerHTML = ""), FN = null, IN = null;
+var $ = null, KN = null, qN = null;
+function JN() {
+	$ && ($.style.display = "none", $.innerHTML = ""), KN = null, qN = null;
 }
-function RN(e, t) {
-	if (!JM(t)) return;
+function YN(e, t) {
+	if (!aN(t)) return;
 	let n = t.getAttribute("data-icon") || "";
 	$ || ($ = document.createElement("div"), $.className = "callout-menu", document.body.appendChild($));
 	let r = e.getBoundingClientRect();
-	$.style.cssText = "position:fixed;z-index:100000;display:block;left:" + Math.max(0, r.left) + "px;top:" + (r.bottom + 4) + "px;max-height:260px;overflow-y:auto;width:280px;", FN = "icon", IN = t, $.innerHTML = "<div class=\"callout-menu-grid\">" + RM.map((e) => "<button class=\"callout-menu-item" + (e === n ? " active" : "") + "\" data-value=\"" + e + "\">" + e + "</button>").join("") + "</div>", $.querySelectorAll(".callout-menu-item").forEach((e) => {
+	$.style.cssText = "position:fixed;z-index:100000;display:block;left:" + Math.max(0, r.left) + "px;top:" + (r.bottom + 4) + "px;max-height:260px;overflow-y:auto;width:280px;", KN = "icon", qN = t, $.innerHTML = "<div class=\"callout-menu-grid\">" + YM.map((e) => "<button class=\"callout-menu-item" + (e === n ? " active" : "") + "\" data-value=\"" + e + "\">" + e + "</button>").join("") + "</div>", $.querySelectorAll(".callout-menu-item").forEach((e) => {
 		e.onclick = () => {
-			let n = e.dataset.value, r = JM(t);
-			r && GM(r, t, "icon", n), LN();
+			let n = e.dataset.value, r = aN(t);
+			r && nN(r, t, "icon", n), JN();
 		};
 	});
 }
-function zN(e, t) {
-	if (!JM(t)) return;
+function XN(e, t) {
+	if (!aN(t)) return;
 	let n = t.getAttribute("data-type") || "info";
 	$ || ($ = document.createElement("div"), $.className = "callout-menu", document.body.appendChild($));
 	let r = e.getBoundingClientRect();
-	$.style.cssText = "position:fixed;z-index:100000;display:block;left:" + Math.max(0, r.left) + "px;top:" + (r.bottom + 4) + "px;", FN = "color", IN = t, $.innerHTML = "<div class=\"callout-menu-grid callout-menu-colors\">" + LM.map((e) => "<button class=\"callout-menu-color" + (e.id === n ? " active" : "") + "\" data-value=\"" + e.id + "\" title=\"" + e.label + "\"><span class=\"callout-swatch\" style=\"background:" + e.color + "\"></span><span class=\"callout-label\">" + e.label + "</span></button>").join("") + "</div>", $.querySelectorAll(".callout-menu-color").forEach((e) => {
+	$.style.cssText = "position:fixed;z-index:100000;display:block;left:" + Math.max(0, r.left) + "px;top:" + (r.bottom + 4) + "px;", KN = "color", qN = t, $.innerHTML = "<div class=\"callout-menu-grid callout-menu-colors\">" + JM.map((e) => "<button class=\"callout-menu-color" + (e.id === n ? " active" : "") + "\" data-value=\"" + e.id + "\" title=\"" + e.label + "\"><span class=\"callout-swatch\" style=\"background:" + e.color + "\"></span><span class=\"callout-label\">" + e.label + "</span></button>").join("") + "</div>", $.querySelectorAll(".callout-menu-color").forEach((e) => {
 		e.onclick = () => {
-			let n = e.dataset.value, r = JM(t);
-			r && GM(r, t, "type", n), LN();
+			let n = e.dataset.value, r = aN(t);
+			r && nN(r, t, "type", n), JN();
 		};
 	});
 }
-function BN() {
+function ZN() {
 	document.addEventListener("click", function(e) {
 		let t = e.target.closest("[data-callout-icon]");
 		if (t) {
 			e.preventDefault();
 			let n = t.closest("[data-callout]");
 			if (!n) return;
-			if (FN === "icon" && IN === n && $?.style.display !== "none") {
-				LN();
+			if (KN === "icon" && qN === n && $?.style.display !== "none") {
+				JN();
 				return;
 			}
-			LN(), RN(t, n);
+			JN(), YN(t, n);
 			return;
 		}
 		let n = e.target.closest("[data-callout-color]");
@@ -24523,42 +24683,42 @@ function BN() {
 			e.preventDefault();
 			let t = n.closest("[data-callout]");
 			if (!t) return;
-			if (FN === "color" && IN === t && $?.style.display !== "none") {
-				LN();
+			if (KN === "color" && qN === t && $?.style.display !== "none") {
+				JN();
 				return;
 			}
-			LN(), zN(n, t);
+			JN(), XN(n, t);
 			return;
 		}
-		FN && $ && !$.contains(e.target) && LN();
+		KN && $ && !$.contains(e.target) && JN();
 	});
 }
-function VN() {
-	return BN(), {
-		closeCalloutMenu: LN,
+function QN() {
+	return ZN(), {
+		closeCalloutMenu: JN,
 		getState: () => ({
-			calloutMenuTarget: FN,
+			calloutMenuTarget: KN,
 			calloutMenuEl: $,
-			calloutMenuCalloutEl: IN
+			calloutMenuCalloutEl: qN
 		})
 	};
 }
-function HN() {
+function $N() {
 	return {
-		calloutMenuTarget: FN,
+		calloutMenuTarget: KN,
 		calloutMenuEl: $,
-		calloutMenuCalloutEl: IN
+		calloutMenuCalloutEl: qN
 	};
 }
 //#endregion
 //#region src/Yanoch.Web/wwwroot/js/tiptap/tiptap-table-menu.js
-function UN(e) {
+function eP(e) {
 	e.tableMenuEl &&= (e.tableMenuEl.remove(), null);
 }
-function WN(e, t) {
+function tP(e, t) {
 	let { state: n, view: r } = e, { selection: i } = n;
 	if (!(n.schema.nodes.table && e.isActive("table"))) {
-		UN(t);
+		eP(t);
 		return;
 	}
 	let a = null;
@@ -24570,7 +24730,7 @@ function WN(e, t) {
 		e && (a = e.closest ? e.closest("td, th") : e.parentElement?.closest("td, th"));
 	}
 	if (!a) {
-		UN(t);
+		eP(t);
 		return;
 	}
 	if (!t.tableMenuEl) {
@@ -24588,80 +24748,80 @@ function WN(e, t) {
 }
 //#endregion
 //#region src/Yanoch.Web/wwwroot/js/tiptap/tiptap-save-manager.js
-var GN = null, KN = 500, qN = /* @__PURE__ */ new Map();
-function JN(e, t) {
-	e._dirty = !0, e._pendingMarkdown = t, GN ||= setTimeout(XN, KN);
+var nP = null, rP = 500, iP = /* @__PURE__ */ new Map();
+function aP(e, t) {
+	e._dirty = !0, e._pendingMarkdown = t, nP ||= setTimeout(sP, rP);
 }
-function YN(e) {
-	e._dirty = !1, e._pendingMarkdown = null, GN &&= (clearTimeout(GN), null);
+function oP(e) {
+	e._dirty = !1, e._pendingMarkdown = null, nP &&= (clearTimeout(nP), null);
 }
-async function XN() {
-	GN = null;
-	let e = [...qN.values()].filter((e) => e._dirty && e.dotNetRef && e.editor);
-	e.length && await Promise.all(e.map((e) => ZN(e)));
+async function sP() {
+	nP = null;
+	let e = [...iP.values()].filter((e) => e._dirty && e.dotNetRef && e.editor);
+	e.length && await Promise.all(e.map((e) => cP(e)));
 }
-async function ZN(e) {
+async function cP(e) {
 	if (!e._dirty || !e.dotNetRef || !e.editor) return;
 	let t = e._pendingMarkdown ?? e.editor.getMarkdown();
 	try {
-		await e.dotNetRef.invokeMethodAsync("OnMarkdownChanged", e.blockId, t), YN(e);
+		await e.dotNetRef.invokeMethodAsync("OnMarkdownChanged", e.blockId, t), oP(e);
 	} catch {}
 }
-function QN() {
+function lP() {
 	let e = async () => {
-		let e = [...qN.values()].filter((e) => e._dirty && e.dotNetRef && e.editor);
+		let e = [...iP.values()].filter((e) => e._dirty && e.dotNetRef && e.editor);
 		if (e.length) for (let t of e) {
 			let e = t._pendingMarkdown ?? t.editor.getMarkdown();
 			try {
 				let n = new Blob([JSON.stringify({ content: e })], { type: "application/json" });
-				await navigator.sendBeacon(`/api/pages/${t.blockId}/content`, n), YN(t);
+				await navigator.sendBeacon(`/api/pages/${t.blockId}/content`, n), oP(t);
 			} catch {}
 		}
 	};
 	window.addEventListener("beforeunload", e), window.addEventListener("pagehide", e);
 }
-QN();
-function $N(e) {
-	qN.set(e.blockId, e);
+lP();
+function uP(e) {
+	iP.set(e.blockId, e);
 }
-function eP(e) {
-	qN.delete(e);
+function dP(e) {
+	iP.delete(e);
 }
-function tP(e, t) {
-	JN(e, t);
+function fP(e, t) {
+	aP(e, t);
 }
-function nP() {
-	GN &&= (clearTimeout(GN), null);
+function pP() {
+	nP &&= (clearTimeout(nP), null);
 }
-function rP(e) {
+function mP(e) {
 	return {
-		markDirty: (t) => tP(e, t),
-		cleanup: () => eP(e.blockId)
+		markDirty: (t) => fP(e, t),
+		cleanup: () => dP(e.blockId)
 	};
 }
 //#endregion
 //#region src/Yanoch.Web/wwwroot/js/tiptap/tiptap-editor.js
-var iP = /* @__PURE__ */ new Map();
-VN();
-function aP(e, t, ...n) {
+var hP = /* @__PURE__ */ new Map();
+QN(), GM();
+function gP(e, t, ...n) {
 	if (e) try {
 		e.invokeMethodAsync(t, ...n).catch(() => {});
 	} catch {}
 }
-function oP() {
+function _P() {
 	return (e, t) => {
-		let { state: n } = e, { selection: r } = n, { $from: i } = r, { wikiActive: a, wikiMenuEl: o, wikiQuery: s, wikiItems: c, wikiIdx: l } = MN();
+		let { state: n } = e, { selection: r } = n, { $from: i } = r, { wikiActive: a, wikiMenuEl: o, wikiQuery: s, wikiItems: c, wikiIdx: l } = UN();
 		if (a && o && o.style.display !== "none") {
 			let e = s.toLowerCase(), n = c.filter((t) => t.title.toLowerCase().includes(e) || t.snippet && t.snippet.toLowerCase().includes(e));
 			switch (t.key) {
-				case "ArrowDown": return n.length ? (t.preventDefault(), NN(), !0) : !0;
-				case "ArrowUp": return n.length ? (t.preventDefault(), PN(), !0) : !0;
+				case "ArrowDown": return n.length ? (t.preventDefault(), WN(), !0) : !0;
+				case "ArrowUp": return n.length ? (t.preventDefault(), GN(), !0) : !0;
 				case "Enter":
-				case "Tab": return t.preventDefault(), AN(), !0;
-				case "Escape": return t.preventDefault(), DN(), !0;
+				case "Tab": return t.preventDefault(), VN(), !0;
+				case "Escape": return t.preventDefault(), RN(), !0;
 			}
 		}
-		let { slashActive: u, slashMenuEl: d, slashQuery: f, slashItems: p, slashIdx: m } = mN();
+		let { slashActive: u, slashMenuEl: d, slashQuery: f, slashItems: p, slashIdx: m } = TN();
 		if (u) {
 			let e = f.toLowerCase(), n = p.filter((t) => t.title.toLowerCase().includes(e) || t.desc.toLowerCase().includes(e));
 			if (!n.length && ![
@@ -24672,47 +24832,47 @@ function oP() {
 				"Escape"
 			].includes(t.key)) return !1;
 			switch (t.key) {
-				case "ArrowDown": return n.length ? (t.preventDefault(), hN(), !0) : !0;
-				case "ArrowUp": return n.length ? (t.preventDefault(), gN(), !0) : !0;
+				case "ArrowDown": return n.length ? (t.preventDefault(), EN(), !0) : !0;
+				case "ArrowUp": return n.length ? (t.preventDefault(), DN(), !0) : !0;
 				case "Enter":
-				case "Tab": return t.preventDefault(), pN(), !0;
-				case "Escape": return t.preventDefault(), uN(), !0;
+				case "Tab": return t.preventDefault(), wN(), !0;
+				case "Escape": return t.preventDefault(), xN(), !0;
 				default: return !1;
 			}
 		}
 		return !1;
 	};
 }
-function sP(e) {
+function vP(e) {
 	return ({ editor: t, transaction: n }) => {
 		if (!n?.getMeta("subpageInject")) {
 			if (e.firstUpdate) {
 				e.firstUpdate = !1;
 				return;
 			}
-			if (e.saveManager.markDirty(t.getMarkdown()), fN(t), jN(t), WN(t, e), e.blockId && t.state.doc.childCount > 0) {
-				let n = fP(t), r = n.join(",");
-				e._lastSubpageOrder !== "pending" && n.length > 0 && r !== e._lastSubpageOrder && (e._lastSubpageOrder = r, pP(e.blockId, n));
+			if (e.saveManager.markDirty(t.getMarkdown()), CN(t), HN(t), tP(t, e), KM(t, e), e.blockId && t.state.doc.childCount > 0) {
+				let n = CP(t), r = n.join(",");
+				e._lastSubpageOrder !== "pending" && n.length > 0 && r !== e._lastSubpageOrder && (e._lastSubpageOrder = r, wP(e.blockId, n));
 			}
 		}
 	};
 }
-function cP(e) {
+function yP(e) {
 	return ({ editor: t }) => {
-		mN().slashActive && fN(t), MN().wikiActive && jN(t), WN(t, e);
+		TN().slashActive && CN(t), UN().wikiActive && HN(t), tP(t, e), KM(t, e);
 	};
 }
-function lP(e) {
+function bP(e) {
 	return () => {
-		aP(e.dotNetRef, "OnFocus", e.blockId);
+		gP(e.dotNetRef, "OnFocus", e.blockId);
 	};
 }
-function uP(e) {
+function xP(e) {
 	return () => {
-		mN().slashActive && uN(), MN().wikiActive && DN(), UN(e), aP(e.dotNetRef, "OnBlur", e.blockId);
+		TN().slashActive && xN(), UN().wikiActive && RN(), eP(e), qM(e), gP(e.dotNetRef, "OnBlur", e.blockId);
 	};
 }
-async function dP(e, t) {
+async function SP(e, t) {
 	try {
 		let n = await fetch(`/api/pages/children/${t}`, { credentials: "same-origin" });
 		if (!n.ok) return;
@@ -24730,13 +24890,13 @@ async function dP(e, t) {
 		console.error("Failed to load subpages:", e);
 	}
 }
-function fP(e) {
+function CP(e) {
 	let t = [];
 	return e.state.doc.descendants((e) => {
 		e.type.name === "pageReference" && e.attrs.pageId && t.push(e.attrs.pageId);
 	}), t;
 }
-function pP(e, t) {
+function wP(e, t) {
 	window._reorderTimeout && clearTimeout(window._reorderTimeout), window._reorderTimeout = setTimeout(async () => {
 		window._reorderTimeout = null;
 		try {
@@ -24751,8 +24911,8 @@ function pP(e, t) {
 		}
 	}, 600);
 }
-function mP(e, t, n, r) {
-	hP(e);
+function TP(e, t, n, r) {
+	EP(e);
 	let i = document.getElementById(e);
 	if (!i) return null;
 	let a = {
@@ -24763,7 +24923,7 @@ function mP(e, t, n, r) {
 		listeners: [],
 		tableMenuEl: null
 	};
-	a.saveManager = rP(a), $N(a);
+	a.saveManager = mP(a), uP(a);
 	let o = new Xd({
 		element: i,
 		extensions: [
@@ -24806,9 +24966,10 @@ function mP(e, t, n, r) {
 			PM,
 			IM,
 			FM,
-			VM,
-			UM,
-			WM
+			QM,
+			eN,
+			tN,
+			BM
 		],
 		content: t || "",
 		contentType: "markdown",
@@ -24817,10 +24978,10 @@ function mP(e, t, n, r) {
 				class: "tiptap-editor",
 				"data-block-id": r
 			},
-			handleKeyDown: oP(),
+			handleKeyDown: _P(),
 			handlePaste(e, t) {
 				let n = t.clipboardData?.files;
-				if (n && n[0]?.type.startsWith("image/")) return t.preventDefault(), $M(n[0]).then((t) => {
+				if (n && n[0]?.type.startsWith("image/")) return t.preventDefault(), uN(n[0]).then((t) => {
 					t && e.dispatch(e.state.tr.replaceSelectionWith(e.state.schema.nodes.image.create(null, { src: t })));
 				}), !0;
 				let r = t.clipboardData?.getData("text/plain");
@@ -24845,7 +25006,7 @@ function mP(e, t, n, r) {
 						left: t.clientX,
 						top: t.clientY
 					});
-					return r && $M(n[0]).then((t) => {
+					return r && uN(n[0]).then((t) => {
 						t && e.dispatch(e.state.tr.insert(r.pos, e.state.schema.nodes.image.create(null, { src: t })));
 					}), !0;
 				}
@@ -24853,60 +25014,60 @@ function mP(e, t, n, r) {
 			}
 		},
 		onCreate: ({ editor: e }) => {
-			r && dP(e, r).then(() => {
-				a._lastSubpageOrder = fP(e).join(",");
+			r && SP(e, r).then(() => {
+				a._lastSubpageOrder = CP(e).join(",");
 			});
 		},
-		onUpdate: sP(a),
-		onSelectionUpdate: cP(a),
-		onFocus: lP(a),
-		onBlur: uP(a)
+		onUpdate: vP(a),
+		onSelectionUpdate: yP(a),
+		onFocus: bP(a),
+		onBlur: xP(a)
 	});
 	a.editor = o;
 	let s = document.getElementById("btn-upload-image");
 	if (s) {
-		let t = QM();
+		let t = lN();
 		t.onchange = async () => {
 			let n = t.files[0];
 			if (!n) return;
-			let r = iP.get(e)?.editor;
+			let r = hP.get(e)?.editor;
 			if (!r) return;
-			let i = await $M(n);
+			let i = await uN(n);
 			i && r.chain().focus().setImage({ src: i }).run(), t.value = "";
 		}, s.onclick = () => t.click();
 	}
 	let c = function(e) {
-		let { calloutMenuTarget: t, calloutMenuEl: n, calloutMenuCalloutEl: r } = HN();
+		let { calloutMenuTarget: t, calloutMenuEl: n, calloutMenuCalloutEl: r } = $N();
 		if (t && n && !n.contains(e.target) && !e.target.closest("[data-callout-icon]") && !e.target.closest("[data-callout-color]")) {
 			let t = e.target.closest("[data-callout]");
-			(!t || t !== r) && LN();
+			(!t || t !== r) && JN();
 		}
-		mN().slashActive && mN().slashMenuEl && !mN().slashMenuEl.contains(e.target) && !i.contains(e.target) && uN(), MN().wikiActive && MN().wikiMenuEl && !MN().wikiMenuEl.contains(e.target) && !i.contains(e.target) && DN();
+		TN().slashActive && TN().slashMenuEl && !TN().slashMenuEl.contains(e.target) && !i.contains(e.target) && xN(), UN().wikiActive && UN().wikiMenuEl && !UN().wikiMenuEl.contains(e.target) && !i.contains(e.target) && RN();
 	};
 	return document.addEventListener("mousedown", c), a.listeners.push({
 		type: "mousedown",
 		handler: c
-	}), iP.set(e, a), o;
+	}), hP.set(e, a), o;
 }
-function hP(e) {
-	let t = iP.get(e);
-	t && (t.saveManager.cleanup(), eP(t.blockId), UN(t), t.listeners.forEach((e) => document.removeEventListener(e.type, e.handler)), t.listeners = [], t.dotNetRef = null, t.editor &&= (t.editor.destroy(), null), iP.delete(e), [...iP.values()].some((e) => e._dirty) || nP());
+function EP(e) {
+	let t = hP.get(e);
+	t && (t.saveManager.cleanup(), dP(t.blockId), eP(t), t.listeners.forEach((e) => document.removeEventListener(e.type, e.handler)), t.listeners = [], t.dotNetRef = null, t.editor &&= (t.editor.destroy(), null), hP.delete(e), [...hP.values()].some((e) => e._dirty) || pP());
 }
-function gP(e) {
-	return iP.get(e)?.editor?.getMarkdown() ?? "";
+function DP(e) {
+	return hP.get(e)?.editor?.getMarkdown() ?? "";
 }
-function _P(e, t) {
-	iP.get(e)?.editor?.commands.setContent(t, !1, "markdown");
+function OP(e, t) {
+	hP.get(e)?.editor?.commands.setContent(t, !1, "markdown");
 }
-function vP(e, t) {
-	iP.get(e)?.editor?.setEditable(t);
+function kP(e, t) {
+	hP.get(e)?.editor?.setEditable(t);
 }
-function yP(e) {
-	iP.get(e)?.editor?.commands.focus();
+function AP(e) {
+	hP.get(e)?.editor?.commands.focus();
 }
-function bP(e) {
-	iP.get(e)?.editor?.commands.blur();
+function jP(e) {
+	hP.get(e)?.editor?.commands.blur();
 }
-window.initTipTap = mP, window.destroyTipTap = hP, window.getTipTapMarkdown = gP, window.setTipTapContent = _P, window.setTipTapEditable = vP, window.focusTipTap = yP, window.blurTipTap = bP;
+window.initTipTap = TP, window.destroyTipTap = EP, window.getTipTapMarkdown = DP, window.setTipTapContent = OP, window.setTipTapEditable = kP, window.focusTipTap = AP, window.blurTipTap = jP;
 //#endregion
-export { bP as blurTipTap, hP as destroyTipTap, yP as focusTipTap, gP as getTipTapMarkdown, mP as initTipTap, _P as setTipTapContent, vP as setTipTapEditable };
+export { jP as blurTipTap, EP as destroyTipTap, AP as focusTipTap, DP as getTipTapMarkdown, TP as initTipTap, OP as setTipTapContent, kP as setTipTapEditable };

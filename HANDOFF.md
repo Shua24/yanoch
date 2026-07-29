@@ -72,7 +72,7 @@ Blazor Server page (Editor.razor)
 | **Dark mode** | Inherits existing CSS variables | ✅ |
 | **Wiki link backlinks** | Extracted from markdown on save | ✅ |
 | **Placeholder** | `Start writing...` when empty | ✅ |
-| **Table status columns** | Inline status badge (Todo/In Progress/Done) with dropdown selector | 📋 Planned — see feature #7 below |
+| **Table status columns** | Inline status badge (Todo/In Progress/Done) with dropdown selector | ✅ Done — `:::status{Todo}` markdown, `/status` slash command |
 
 ---
 
@@ -99,7 +99,7 @@ Blazor Server page (Editor.razor)
 | `package.json` | **New** — npm deps (TipTap packages, Vite) |
 | `.gitignore` | Added `node_modules/` and `src/dist/` |
 | `src/Yanoch.Web/wwwroot/app.css` | Added `.editor-tiptap` and `.tiptap-editor` styles |
-| `src/Yanoch.Web/wwwroot/js/tiptap/tiptap-status-column.js` | **New** — Task status inline node + dropdown menu (see feature #7) |
+| `src/Yanoch.Web/wwwroot/js/tiptap/tiptap-status-column.js` | **New** — Status badge inline node + dropdown menu (feature #7) |
 
 ---
 
@@ -176,10 +176,10 @@ Custom `toggle` node with `:::toggle {collapsed:true}` markdown. Arrow click col
 | 4 | Wiki-link `[[` autocomplete | Nothing | Medium | ✅ Done — pure DOM popup, fetches /api/search |
 | 5 | Table block | Package install | Low | ✅ Done — `@tiptap/extension-table` + `/table` slash command (3×3 default, resizable) |
 | 6 | Toggle block | Callout patterns | Low/med | ✅ Done |
-| 7 | Task Status Columns in Tables | Table (5) | Medium | 📋 Planned — inline status badge node + dropdown menu, see feature #7 above |
+| 7 | Task Status Columns in Tables | Table (5) | Medium | ✅ Done — `:::status{Todo}` markdown, inline node + dropdown, `/status` slash command |
 | 8 | Migration (Block → Content) | Nothing | Medium | ⬜ Future (rollback safety) |
 
-Steps 1-6 are complete. Step 7 is planned.
+Steps 1-7 are complete. Step 8 is future.
 
 ---
 
@@ -243,4 +243,4 @@ Steps 1-6 are complete. Step 7 is planned.
 - [ ] Insert table via `/table` → 3×3 with header row renders correctly
 - [ ] Resize table columns (drag handles)
 - [ ] Table bubble menu: add/delete row/col, delete table
-- [ ] Table status column: insert status badge, click to change status (once implemented)
+- [x] Table status column: insert status badge, click to change status (once implemented)
