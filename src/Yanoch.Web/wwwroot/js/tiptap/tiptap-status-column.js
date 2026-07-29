@@ -15,7 +15,7 @@ export const statusById = Object.fromEntries(statusTypes.map(s => [s.id, s]))
 const statusMd = createBlockMarkdownSpec({
   nodeName: 'status',
   name: 'status',
-  content: 'inline*',
+  // No content for atom nodes - they're leaf nodes
   defaultAttributes: { status: 'todo' },
   allowedAttributes: ['status'],
 })
@@ -51,6 +51,7 @@ export const Status = Node.create({
         class: `status-badge status-${status}`,
         style: `background:${info.bg};color:${info.text};border-color:${info.color};`,
         contenteditable: 'false',
+        onclick: 'window.openStatusMenu(this)',
       },
       info.label,
     ]
@@ -232,3 +233,69 @@ export function closeStatusMenu(inst) {
   statusMenuEditor = null
   statusMenuPos = null
 }
+
+// ─── Global click handler for status badge ─────────────────────────
+// Called from onclick on the badge element
+function openStatusMenu(badgeEl) {
+  // Find the editor instance that contains this badge
+  let editor = null
+  let pos = null
+
+  // Search through all registered editors
+  if (window.tiptapInstances) {
+    for (const inst of window.tiptapInstances.values()) {
+      if (inst.editor && inst.editor.view && inst.editor.view.dom.contains(badgeEl)) {
+        editor = inst.editor
+        break
+      }
+    }
+  }
+
+  if (!editor) return
+
+  // Find the position of the status node
+  try {
+    pos = editor.view.posAtDOM(badgeEl, 0)
+  } catch (e) {
+    return
+  }
+
+  if (pos === null) return
+
+  const node = editor.state.doc.nodeAt(pos)
+  if (!node || node.type.name !== 'status') return
+
+  // Set up menu state
+  statusMenuTarget = badgeEl
+  statusMenuEditor = editor
+  statusMenuPos = pos
+
+  // Update active state in menu
+  const currentStatus = node.attrs.status
+  if (statusMenuEl) {
+    statusMenuEl.querySelectorAll('button').forEach(btn => {
+      btn.style.background = btn.dataset.status === currentStatus
+        ? 'var(--hover-bg, #f3f4f6)'
+        : 'transparent'
+      btn.style.fontWeight = btn.dataset.status === currentStatus ? '600' : '400'
+    })
+  }
+
+  // Position and show menu
+  setupStatusMenus() // Ensure menu exists
+  if (!statusMenuEl) return
+
+  const rect = badgeEl.getBoundingClientRect()
+  const menuRect = statusMenuEl.getBoundingClientRect()
+  const top = rect.bottom + 4
+  const left = rect.left + (rect.width / 2) - (menuRect.width / 2)
+
+  statusMenuEl.style.top = Math.max(8, top) + 'px'
+  statusMenuEl.style.left = Math.max(8, left) + 'px'
+  statusMenuEl.style.display = 'block'
+}
+
+// Expose on window for onclick handler
+window.openStatusMenu = openStatusMenu
+
+export { openStatusMenu }

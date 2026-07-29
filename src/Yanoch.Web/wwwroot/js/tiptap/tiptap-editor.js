@@ -29,6 +29,9 @@ import { registerInstance, unregisterInstance, setupSaveManager, forceFlushAll, 
 // Instance registry
 const instances = new Map()
 
+// Expose to window for status menu to find editors
+window.tiptapInstances = instances
+
 // Initialize global handlers
 const calloutMenus = initCalloutMenus()
 const statusMenus = setupStatusMenus()
