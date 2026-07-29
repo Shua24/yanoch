@@ -113,7 +113,41 @@ export const TodoList = Node.create({
 
       function render() {
         dom.setAttribute('data-rows', JSON.stringify(node.attrs.rows || []))
+
+        // ---- preserve focus / selection across innerHTML rebuild ----
+        // innerHTML replaces every DOM node inside <div>, which drops
+        // the active input and collapses the caret. Capture the
+        // current input's state before the rebuild, then restore it
+        // to the matching new element afterward so the user can keep
+        // typing uninterrupted.
+        const active = dom.ownerDocument.activeElement
+        let savedSel = null
+        if (active && dom.contains(active)) {
+          savedSel = {
+            tag: active.tagName,
+            cls: active.className,
+            value: active.value,
+            start: active.selectionStart,
+            end: active.selectionEnd,
+          }
+        }
+
         dom.innerHTML = buildTableHTML(node.attrs.rows || [])
+
+        if (savedSel && savedSel.tag === 'INPUT') {
+          const inputs = dom.querySelectorAll('tbody input')
+          for (const input of inputs) {
+            if (input.className === savedSel.cls) {
+              input.value = savedSel.value
+              input.focus()
+              try {
+                input.selectionStart = savedSel.start
+                input.selectionEnd = savedSel.end
+              } catch (_) { /* selection may be invalid for non-text inputs */ }
+              break
+            }
+          }
+        }
       }
 
       render()

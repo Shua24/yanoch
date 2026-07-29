@@ -19,6 +19,10 @@ builder.Services.AddScoped(sp => new HttpClient());
 builder.Services.AddScoped<Yanoch.Application.Interfaces.IPageService, Yanoch.Application.Services.PageService>();
 builder.Services.AddScoped<Yanoch.Application.Interfaces.ITagService, Yanoch.Application.Services.TagService>();
 
+// Scoped notifier — each Blazor circuit gets its own event pipeline so
+// page-data notifications only reach components in the same circuit.
+builder.Services.AddScoped<Yanoch.Web.Components.Services.IPageDataNotifier, Yanoch.Web.Components.Services.PageDataNotifier>();
+
 var app = builder.Build();
 
 using (var scope = app.Services.CreateScope())

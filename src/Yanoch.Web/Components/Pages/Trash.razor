@@ -4,6 +4,7 @@
 @inject NavigationManager Navigation
 @inject AuthenticationStateProvider AuthState
 @inject UserManager<IdentityUser> UserManager
+@inject IPageDataNotifier PageDataNotifier
 @implements IDisposable
 
 <div class="trash-page">
@@ -50,7 +51,7 @@
 
     protected override void OnInitialized()
     {
-        Editor.OnPageDataChanged += OnPageDataChanged;
+        PageDataNotifier.PageDataChanged += OnPageDataChanged;
     }
 
     protected override async Task OnInitializedAsync()
@@ -66,8 +67,11 @@
         await LoadTrash();
     }
 
-    private async void OnPageDataChanged()
+    private async void OnPageDataChanged(Guid? changedPageId)
     {
+        // Trash view always reloads on broad signals (null).
+        // A specific page ID is ignored here since trash
+        // operations may have changed the overall trash list.
         await LoadTrash();
     }
 
@@ -83,7 +87,7 @@
         if (restored != null)
         {
             await LoadTrash();
-            Editor.NotifyPageDataChanged();
+            PageDataNotifier.NotifyPageDataChanged(null);
         }
     }
 
@@ -91,11 +95,11 @@
     {
         await PageService.HardDeleteAsync(id, currentUserId);
         await LoadTrash();
-        Editor.NotifyPageDataChanged();
+        PageDataNotifier.NotifyPageDataChanged(null);
     }
 
     public void Dispose()
     {
-        Editor.OnPageDataChanged -= OnPageDataChanged;
+        PageDataNotifier.PageDataChanged -= OnPageDataChanged;
     }
 }

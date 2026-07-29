@@ -3,6 +3,7 @@
 @inject NavigationManager Navigation
 @inject AuthenticationStateProvider AuthState
 @inject UserManager<IdentityUser> UserManager
+@inject IPageDataNotifier PageDataNotifier
 
 <div class="page-tree">
     @if (_isUnauthenticated)
@@ -35,7 +36,7 @@
     protected override void OnInitialized()
     {
         Navigation.LocationChanged += OnLocationChanged;
-        Editor.OnPageDataChanged += OnPageDataChanged;
+        PageDataNotifier.PageDataChanged += OnPageDataChanged;
     }
 
     protected override async Task OnInitializedAsync()
@@ -88,7 +89,7 @@
         }
     }
 
-    private async void OnPageDataChanged()
+    private async void OnPageDataChanged(Guid? changedPageId)
     {
         try
         {
@@ -110,6 +111,6 @@
     public void Dispose()
     {
         Navigation.LocationChanged -= OnLocationChanged;
-        Editor.OnPageDataChanged -= OnPageDataChanged;
+        PageDataNotifier.PageDataChanged -= OnPageDataChanged;
     }
 }

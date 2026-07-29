@@ -5,6 +5,7 @@
 @inject NavigationManager Navigation
 @inject AuthenticationStateProvider AuthState
 @inject IJSRuntime JSRuntime
+@inject IPageDataNotifier PageDataNotifier
 
 <div class="editor-page">
     @if (loading)
@@ -77,8 +78,6 @@
 </div>
 
 @code {
-    public static event Action? OnPageDataChanged;
-    public static void NotifyPageDataChanged() => OnPageDataChanged?.Invoke();
     [Parameter] public Guid PageId { get; set; }
     private PageDto? page;
     private bool loading = true;
@@ -252,7 +251,7 @@
                     page = null; // prevent double-save in invariant
                     isNew = false;
                     // Notify the sidebar tree so it shows the new page immediately
-                    OnPageDataChanged?.Invoke();
+                    PageDataNotifier.NotifyPageDataChanged(newPage.Id);
                     Navigation.NavigateTo($"/page/{newPage.Id}", false);
                 }
             }
@@ -266,7 +265,7 @@
             await PageService.SetContentAsync(page.Id, markdown);
             page.Content = markdown;
             page.UpdatedAt = DateTime.UtcNow;
-            OnPageDataChanged?.Invoke();
+            PageDataNotifier.NotifyPageDataChanged(page.Id);
             _saveStatus = "";
             StateHasChanged();
         }
@@ -305,7 +304,7 @@
 
         if (newPage != null)
         {
-            OnPageDataChanged?.Invoke();
+            PageDataNotifier.NotifyPageDataChanged(parentGuid);
             // JS will insert a page-reference block into the editor
         }
         return newPage;
@@ -335,14 +334,14 @@
                 }, currentUserId);
                 if (newPage != null)
                 {
-                    OnPageDataChanged?.Invoke();
+                    PageDataNotifier.NotifyPageDataChanged(newPage.Id);
                     Navigation.NavigateTo($"/page/{newPage.Id}");
                 }
             }
             else
             {
                 await PageService.UpdateAsync(page.Id, new UpdatePageDto { Title = page.Title, Icon = page.Icon }, currentUserId);
-                OnPageDataChanged?.Invoke();
+                PageDataNotifier.NotifyPageDataChanged(page.Id);
             }
         }
         catch { }
@@ -354,7 +353,7 @@
         try
         {
             await PageService.DeleteAsync(page.Id, currentUserId);
-            OnPageDataChanged?.Invoke();
+            PageDataNotifier.NotifyPageDataChanged(page.Id);
             Navigation.NavigateTo("/");
         }
         catch (Exception ex)
