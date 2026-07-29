@@ -111,7 +111,7 @@
     {
         showMenu = false;
         await PageService.SoftDeleteAsync(Page.Id, currentUserId);
-        PageDataNotifier.NotifyPageDataChanged(Page.Id);
+        PageDataNotifier.NotifyPageDataChanged(null);
         if (Navigation.Uri.Contains($"/page/{Page.Id}") || Navigation.Uri.Contains($"/editor/{Page.Id}"))
         {
             Navigation.NavigateTo("/");
