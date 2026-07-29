@@ -5,11 +5,17 @@
 @inject UserManager<IdentityUser> UserManager
 
 <div class="page-tree">
-    @if (pages == null)
+    @if (_isUnauthenticated)
+    {
+        <div class="tree-empty">
+            <a href="/login">Sign in</a> to view pages
+        </div>
+    }
+    else if (pages == null)
     {
         <div class="tree-loading">Loading...</div>
     }
-    else if (!pages.Any())
+    else if (pages.Count == 0)
     {
         <div class="tree-empty">No pages yet</div>
     }
@@ -17,13 +23,14 @@
     {
         @foreach (var page in pages)
         {
-            <PageTreeNode Page="page" Depth="0" />
+            <PageTreeNode @key="page.Id" Page="page" Depth="0" />
         }
     }
 </div>
 
 @code {
     private List<PageDto>? pages;
+    private bool _isUnauthenticated;
 
     protected override void OnInitialized()
     {
@@ -38,28 +45,46 @@
 
     private async void OnLocationChanged(object? sender, Microsoft.AspNetCore.Components.Routing.LocationChangedEventArgs e)
     {
-        await LoadPages();
+        await InvokeAsync(async () =>
+        {
+            await LoadPages();
+            StateHasChanged();
+        });
     }
 
     private async Task LoadPages()
     {
         try
         {
+            // Resolve auth state first. If the user isn't authenticated, show the
+            // "sign in" prompt and clear any stale tree data.
             var state = await AuthState.GetAuthenticationStateAsync();
-            if (state.User.Identity?.IsAuthenticated == true)
+            if (state.User.Identity?.IsAuthenticated != true)
             {
-                var user = await UserManager.GetUserAsync(state.User);
-                if (user != null)
-                {
-                    var userId = Guid.Parse(user.Id);
-                    var result = await PageService.GetTreeAsync(userId);
-                    pages = result.ToList();
-                    StateHasChanged();
-                }
+                _isUnauthenticated = true;
+                pages = null;
+                return;
             }
+
+            _isUnauthenticated = false;
+
+            var user = await UserManager.GetUserAsync(state.User);
+            if (user == null)
+            {
+                _isUnauthenticated = true;
+                pages = null;
+                return;
+            }
+
+            var userId = Guid.Parse(user.Id);
+            var result = await PageService.GetTreeAsync(userId);
+            pages = result.ToList();
         }
-        catch
+        catch (Exception ex)
         {
+            // Log the error so it's visible in the server console (avoid silent
+            // failure). The tree keeps its previous value instead of wiping it.
+            Console.WriteLine($"[PageTree] LoadPages failed: {ex.Message}");
         }
     }
 
@@ -67,7 +92,14 @@
     {
         try
         {
-            await LoadPages();
+            // InvokeAsync guarantees StateHasChanged runs on the Blazor sync
+            // context, ensuring the render batch is enqueued correctly even
+            // when the event fires from a JSInvokable call (e.g. TipTap save).
+            await InvokeAsync(async () =>
+            {
+                await LoadPages();
+                StateHasChanged();
+            });
         }
         catch (Exception ex)
         {

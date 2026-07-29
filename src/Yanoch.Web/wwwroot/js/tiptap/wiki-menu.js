@@ -8,6 +8,12 @@ let wikiItems = []
 let wikiEditor = null
 let wikiSearchTimeout = null
 
+// Escape HTML special chars in untrusted user data before innerHTML assignment
+function escapeHtml(str) {
+  const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }
+  return String(str).replace(/[&<>"']/g, ch => map[ch])
+}
+
 function scrollActiveIntoView(el) {
   const active = el?.querySelector('.active')
   if (active) active.scrollIntoView({ block: 'nearest' })
@@ -23,8 +29,8 @@ function renderWiki() {
   if (!filtered.length) { wikiMenuEl.style.display = 'none'; return }
   wikiMenuEl.innerHTML = filtered.map((it, i) =>
     `<button class="wiki-item${i === wikiIdx ? ' active' : ''}" data-idx="${i}">` +
-    `<span class="wiki-icon">${it.icon || '📄'}</span>` +
-    `<span class="wiki-text"><strong>${it.title}</strong></span></button>`
+    `<span class="wiki-icon">${escapeHtml(it.icon || '📄')}</span>` +
+    `<span class="wiki-text"><strong>${escapeHtml(it.title)}</strong></span></button>`
   ).join('')
   wikiMenuEl.querySelectorAll('.wiki-item').forEach(btn => {
     const idx = parseInt(btn.dataset.idx, 10)
@@ -96,11 +102,13 @@ function runWikiItem() {
   closeWiki()
   try {
     const { view } = ed
-    const currentText = view.state.doc.textBetween(from, view.state.selection.from)
-    const replaceText = '[[' + item.title + ']]'
+    const { schema } = view.state
+    const href = `/page/${item.id}`
+    const linkMark = schema.marks.link.create({ href })
+    const text = schema.text(item.title, [linkMark])
     view.dispatch(view.state.tr.replaceWith(
       from, view.state.selection.from,
-      view.state.schema.text(replaceText)
+      text
     ))
     ed.commands.focus()
   } catch { /* ignore */ }
