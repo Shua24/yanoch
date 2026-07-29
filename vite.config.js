@@ -8,7 +8,7 @@ export default defineConfig({
     outDir: 'wwwroot',
     emptyOutDir: false,
     lib: {
-      entry: path.resolve(__dirname, 'src/Yanoch.Web/wwwroot/js/tiptap-editor.src.js'),
+      entry: path.resolve(__dirname, 'src/Yanoch.Web/wwwroot/js/tiptap/editor.js'),
       formats: ['es'],
       fileName: 'tiptap-editor'
     },

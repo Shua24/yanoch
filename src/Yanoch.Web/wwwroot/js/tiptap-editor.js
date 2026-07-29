@@ -23830,7 +23830,146 @@ N.create({
 });
 //#endregion
 //#region node_modules/@tiptap/extension-table-row/dist/index.js
-var FM = yM, IM = _M, LM = vM, RM = [
+var FM = yM, IM = _M, LM = vM, RM = /* @__PURE__ */ new Map();
+//#endregion
+//#region src/Yanoch.Web/wwwroot/js/tiptap/utils.js
+function zM(e, t, n, r, i) {
+	let { state: a, view: o } = e, s = o.posAtDOM(t, 0);
+	if (s == null) return;
+	let c = a.doc.resolve(s), l = c.depth;
+	for (; l >= 0 && c.node(l).type.name !== n;) l--;
+	if (l < 0) return;
+	let u = c.node(l);
+	o.dispatch(a.tr.setNodeMarkup(c.before(l), null, {
+		...u.attrs,
+		[r]: i
+	}).scrollIntoView());
+}
+function BM(e, t, n, r) {
+	zM(e, t, "callout", n, r);
+}
+function VM(e) {
+	return Array.from(RM.values()).find((t) => t.editor?.view?.dom?.contains(e))?.editor || null;
+}
+function HM(e, t, ...n) {
+	if (e) try {
+		e.invokeMethodAsync(t, ...n).catch(() => {});
+	} catch {}
+}
+//#endregion
+//#region src/Yanoch.Web/wwwroot/js/tiptap/image.js
+var UM = null;
+function WM() {
+	return UM || (UM = document.createElement("input"), UM.type = "file", UM.accept = "image/*", UM.style.cssText = "display:none", document.body.appendChild(UM), UM);
+}
+async function GM(e) {
+	let t = new FormData();
+	t.append("file", e);
+	try {
+		let e = await fetch("/api/upload", {
+			method: "POST",
+			body: t
+		});
+		if (!e.ok) throw Error("Upload failed");
+		return (await e.json()).url;
+	} catch (e) {
+		return console.error("Upload error:", e), null;
+	}
+}
+function KM(e) {
+	let t = WM();
+	t.onchange = async () => {
+		let n = t.files?.[0];
+		if (!n) return;
+		let r = await GM(n);
+		r && e.chain().focus().setImage({ src: r }).run(), t.value = "";
+	}, t.click();
+}
+//#endregion
+//#region src/Yanoch.Web/wwwroot/js/tiptap/subpages.js
+async function qM(e, t) {
+	try {
+		let n = await fetch(`/api/pages/children/${t}`, { credentials: "same-origin" });
+		if (!n.ok) return;
+		let r = await n.json();
+		if (!r || !r.length) return;
+		let { schema: i } = e.state, a = r.filter((e) => e && e.id).map((e) => i.nodes.pageReference.create({
+			pageId: e.id,
+			title: e.title || "Untitled",
+			icon: e.icon || "📄"
+		}));
+		if (!a.length) return;
+		let o = e.state.doc.content.size, s = e.state.tr.replaceWith(o, o, a);
+		s.setMeta("subpageInject", !0), e.view.dispatch(s);
+	} catch (e) {
+		console.error("Failed to load subpages:", e);
+	}
+}
+var JM = null;
+function YM(e, t) {
+	JM && clearTimeout(JM), JM = setTimeout(async () => {
+		JM = null;
+		try {
+			await fetch(`/api/pages/${e}/reorder-subpages`, {
+				method: "PUT",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ pageIds: t }),
+				credentials: "same-origin"
+			});
+		} catch (e) {
+			console.error("Reorder failed:", e);
+		}
+	}, 600);
+}
+function XM(e) {
+	let t = [];
+	return e.state.doc.descendants((e) => {
+		e.type.name === "pageReference" && e.attrs.pageId && t.push(e.attrs.pageId);
+	}), t;
+}
+//#endregion
+//#region src/Yanoch.Web/wwwroot/js/tiptap/save-system.js
+var ZM = null, QM = 500;
+function $M(e, t) {
+	e._dirty = !0, e._pendingMarkdown = t, ZM ||= setTimeout(tN, QM);
+}
+function eN(e) {
+	e._dirty = !1, e._pendingMarkdown = null, ZM &&= (clearTimeout(ZM), null);
+}
+async function tN() {
+	ZM = null;
+	let e = [...RM.values()].filter((e) => e._dirty && e.dotNetRef && e.editor);
+	e.length && await Promise.all(e.map((e) => nN(e)));
+}
+async function nN(e) {
+	if (!e._dirty || !e.dotNetRef || !e.editor) return;
+	let t = e._pendingMarkdown ?? e.editor.getMarkdown();
+	try {
+		await e.dotNetRef.invokeMethodAsync("OnMarkdownChanged", e.blockId, t), eN(e);
+	} catch {}
+}
+function rN(e, t) {
+	$M(e, t);
+}
+function iN() {
+	[...RM.values()].some((e) => e._dirty) || (ZM &&= (clearTimeout(ZM), null));
+}
+function aN() {
+	let e = async () => {
+		let e = [...RM.values()].filter((e) => e._dirty && e.dotNetRef && e.editor);
+		if (e.length) for (let t of e) {
+			let e = t._pendingMarkdown ?? t.editor.getMarkdown();
+			try {
+				let n = new Blob([JSON.stringify({ content: e })], { type: "application/json" });
+				await navigator.sendBeacon(`/api/pages/${t.blockId}/content`, n), eN(t);
+			} catch {}
+		}
+	};
+	window.addEventListener("beforeunload", e), window.addEventListener("pagehide", e);
+}
+//#endregion
+//#region src/Yanoch.Web/wwwroot/js/tiptap/callout-config.js
+var oN = [
 	{
 		id: "info",
 		icon: "💡",
@@ -23909,310 +24048,46 @@ var FM = yM, IM = _M, LM = vM, RM = [
 		label: "Red",
 		color: "#e5484d"
 	}
-], zM = Object.fromEntries(RM.map((e) => [e.id, e])), BM = /* @__PURE__ */ "💡.ℹ️.❓.🔥.⭐.🎯.📌.📎.✏️.📖.❤️.💚.💙.💜.🧡.🖤.🤍.💛.💗.🤎.✅.❌.⚠️.🚀.📝.🔒.🔓.👀.💪.🧠.🎨.🎵.📷.🔧.⚙️.🔗.📊.📁.🏠.🌍.☀️.🌙.☁️.🌈.💧.🌱.🌸.🍀.🎉.🔴".split("."), VM = md({
-	nodeName: "callout",
-	name: "callout",
-	content: "block",
-	defaultAttributes: { type: "info" },
-	allowedAttributes: ["type", "icon"]
-});
-function HM(e, t, n, r) {
-	UM(e, t, "callout", n, r);
+], sN = Object.fromEntries(oN.map((e) => [e.id, e])), cN = /* @__PURE__ */ "💡.ℹ️.❓.🔥.⭐.🎯.📌.📎.✏️.📖.❤️.💚.💙.💜.🧡.🖤.🤍.💛.💗.🤎.✅.❌.⚠️.🚀.📝.🔒.🔓.👀.💪.🧠.🎨.🎵.📷.🔧.⚙️.🔗.📊.📁.🏠.🌍.☀️.🌙.☁️.🌈.💧.🌱.🌸.🍀.🎉.🔴".split("."), Q = null, lN = null, uN = null;
+function dN() {
+	Q && (Q.style.display = "none", Q.innerHTML = ""), lN = null, uN = null;
 }
-function UM(e, t, n, r, i) {
-	let { state: a, view: o } = e, s = o.posAtDOM(t, 0);
-	if (s == null) return;
-	let c = a.doc.resolve(s), l = c.depth;
-	for (; l >= 0 && c.node(l).type.name !== n;) l--;
-	if (l < 0) return;
-	let u = c.node(l);
-	o.dispatch(a.tr.setNodeMarkup(c.before(l), null, {
-		...u.attrs,
-		[r]: i
-	}).scrollIntoView());
-}
-function WM(e) {
-	let t = e.target.closest("[data-toggle-arrow]");
-	if (!t) return;
-	let n = t.closest("[data-toggle]");
-	if (!n) return;
-	let r = oN(n);
-	r && UM(r, n, "toggle", "collapsed", n.getAttribute("data-collapsed") !== "true");
-}
-var GM = P.create({
-	name: "callout",
-	content: "block+",
-	group: "block",
-	defining: !0,
-	addAttributes() {
-		return {
-			type: { default: "info" },
-			icon: { default: "" }
-		};
-	},
-	parseHTML() {
-		return [{
-			tag: "div[data-callout]",
-			getAttrs: (e) => ({
-				type: (e.getAttribute("data-type") || "info").toLowerCase(),
-				icon: e.getAttribute("data-icon") || ""
-			})
-		}];
-	},
-	renderHTML({ HTMLAttributes: e }) {
-		let t = e.type || "info", n = (zM[t] || zM.info).icon, r = e.icon || n;
-		return [
-			"div",
-			{
-				"data-callout": "",
-				"data-type": t,
-				"data-icon": r,
-				class: "callout callout--" + t
-			},
-			[
-				"div",
-				{
-					class: "callout-side",
-					contenteditable: "false"
-				},
-				[
-					"button",
-					{
-						class: "callout-icon-btn",
-						"data-callout-icon": "",
-						type: "button"
-					},
-					r
-				],
-				[
-					"button",
-					{
-						class: "callout-color-btn",
-						"data-callout-color": "",
-						type: "button"
-					},
-					[
-						"span",
-						{ class: "callout-color-dot" },
-						""
-					]
-				]
-			],
-			[
-				"div",
-				{ class: "callout-content" },
-				0
-			]
-		];
-	},
-	addCommands() {
-		return { setCallout: (e = {}) => ({ commands: t }) => t.wrapIn(this.name, e) };
-	},
-	...VM
-}), KM = md({
-	nodeName: "toggle",
-	name: "toggle",
-	content: "block",
-	defaultAttributes: { collapsed: !1 },
-	allowedAttributes: ["collapsed"]
-}), qM = P.create({
-	name: "toggle",
-	content: "block+",
-	group: "block",
-	defining: !0,
-	addAttributes() {
-		return { collapsed: { default: !1 } };
-	},
-	parseHTML() {
-		return [{
-			tag: "div[data-toggle]",
-			getAttrs: (e) => ({ collapsed: e.getAttribute("data-collapsed") === "true" })
-		}];
-	},
-	renderHTML({ HTMLAttributes: e }) {
-		let t = !!e.collapsed;
-		return [
-			"div",
-			{
-				"data-toggle": "",
-				"data-collapsed": t ? "true" : "false",
-				class: "toggle" + (t ? " collapsed" : "")
-			},
-			[
-				"span",
-				{
-					class: "toggle-arrow",
-					"data-toggle-arrow": "",
-					contenteditable: "false"
-				},
-				"▶"
-			],
-			[
-				"div",
-				{ class: "toggle-inner" },
-				0
-			]
-		];
-	},
-	addCommands() {
-		return { setToggle: (e = {}) => ({ commands: t, state: n }) => {
-			let { $from: r } = n.selection;
-			for (let n = r.depth; n > 0; n--) if (r.node(n).type.spec.defining) return t.insertContent({
-				type: "toggle",
-				attrs: e,
-				content: [{ type: "paragraph" }]
-			});
-			return t.wrapIn(this.name, e);
-		} };
-	},
-	...KM
-});
-function JM() {
-	document.addEventListener("click", function(e) {
-		e.target.closest("[data-toggle-arrow]") && WM(e);
-	});
-}
-var YM = P.create({
-	name: "pageReference",
-	group: "block",
-	atom: !0,
-	selectable: !0,
-	draggable: !1,
-	addAttributes() {
-		return {
-			pageId: { default: "" },
-			title: { default: "Untitled" },
-			icon: { default: "📄" }
-		};
-	},
-	parseHTML() {
-		return [{ tag: "div[data-page-ref]" }];
-	},
-	renderHTML({ HTMLAttributes: e }) {
-		let { pageId: t, title: n, icon: r } = e;
-		return [
-			"div",
-			{
-				"data-page-ref": t,
-				class: "page-ref-block"
-			},
-			[
-				"span",
-				{ class: "page-ref-icon" },
-				r || "📄"
-			],
-			[
-				"span",
-				{ class: "page-ref-title" },
-				n || "Untitled"
-			],
-			[
-				"span",
-				{
-					class: "page-ref-open",
-					title: "Open page"
-				},
-				"↗"
-			]
-		];
-	},
-	renderMarkdown(e, t) {}
-});
-async function XM(e, t) {
-	try {
-		let n = await fetch(`/api/pages/children/${t}`, { credentials: "same-origin" });
-		if (!n.ok) return;
-		let r = await n.json();
-		if (!r || !r.length) return;
-		let { schema: i } = e.state, a = r.filter((e) => e && e.id).map((e) => i.nodes.pageReference.create({
-			pageId: e.id,
-			title: e.title || "Untitled",
-			icon: e.icon || "📄"
-		}));
-		if (!a.length) return;
-		let o = e.state.doc.content.size, s = e.state.tr.replaceWith(o, o, a);
-		s.setMeta("subpageInject", !0), e.view.dispatch(s);
-	} catch (e) {
-		console.error("Failed to load subpages:", e);
-	}
-}
-var ZM = null;
-function QM(e, t) {
-	ZM && clearTimeout(ZM), ZM = setTimeout(async () => {
-		ZM = null;
-		try {
-			await fetch(`/api/pages/${e}/reorder-subpages`, {
-				method: "PUT",
-				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({ pageIds: t }),
-				credentials: "same-origin"
-			});
-		} catch (e) {
-			console.error("Reorder failed:", e);
-		}
-	}, 600);
-}
-function $M(e) {
-	let t = [];
-	return e.state.doc.descendants((e) => {
-		e.type.name === "pageReference" && e.attrs.pageId && t.push(e.attrs.pageId);
-	}), t;
-}
-function eN() {
-	document.addEventListener("click", function(e) {
-		let t = e.target.closest(".page-ref-open");
-		if (!t) return;
-		e.preventDefault(), e.stopPropagation();
-		let n = t.closest("[data-page-ref]");
-		if (n) {
-			let e = n.getAttribute("data-page-ref");
-			e && (window.location.href = `/page/${e}`);
-		}
-	});
-}
-var Q = null, tN = null, nN = null;
-function rN() {
-	Q && (Q.style.display = "none", Q.innerHTML = ""), tN = null, nN = null;
-}
-function iN(e, t) {
-	if (!oN(t)) return;
+function fN(e, t) {
+	if (!VM(t)) return;
 	let n = t.getAttribute("data-icon") || "";
 	Q || (Q = document.createElement("div"), Q.className = "callout-menu", document.body.appendChild(Q));
 	let r = e.getBoundingClientRect();
-	Q.style.cssText = "position:fixed;z-index:100000;display:block;left:" + Math.max(0, r.left) + "px;top:" + (r.bottom + 4) + "px;max-height:260px;overflow-y:auto;width:280px;", tN = "icon", nN = t, Q.innerHTML = "<div class=\"callout-menu-grid\">" + BM.map((e) => "<button class=\"callout-menu-item" + (e === n ? " active" : "") + "\" data-value=\"" + e + "\">" + e + "</button>").join("") + "</div>", Q.querySelectorAll(".callout-menu-item").forEach((e) => {
+	Q.style.cssText = "position:fixed;z-index:100000;display:block;left:" + Math.max(0, r.left) + "px;top:" + (r.bottom + 4) + "px;max-height:260px;overflow-y:auto;width:280px;", lN = "icon", uN = t, Q.innerHTML = "<div class=\"callout-menu-grid\">" + cN.map((e) => "<button class=\"callout-menu-item" + (e === n ? " active" : "") + "\" data-value=\"" + e + "\">" + e + "</button>").join("") + "</div>", Q.querySelectorAll(".callout-menu-item").forEach((e) => {
 		e.onclick = () => {
-			let n = e.dataset.value, r = oN(t);
-			r && HM(r, t, "icon", n), rN();
+			let n = e.dataset.value, r = VM(t);
+			r && BM(r, t, "icon", n), dN();
 		};
 	});
 }
-function aN(e, t) {
-	if (!oN(t)) return;
+function pN(e, t) {
+	if (!VM(t)) return;
 	let n = t.getAttribute("data-type") || "info";
 	Q || (Q = document.createElement("div"), Q.className = "callout-menu", document.body.appendChild(Q));
 	let r = e.getBoundingClientRect();
-	Q.style.cssText = "position:fixed;z-index:100000;display:block;left:" + Math.max(0, r.left) + "px;top:" + (r.bottom + 4) + "px;", tN = "color", nN = t, Q.innerHTML = "<div class=\"callout-menu-grid callout-menu-colors\">" + RM.map((e) => "<button class=\"callout-menu-color" + (e.id === n ? " active" : "") + "\" data-value=\"" + e.id + "\" title=\"" + e.label + "\"><span class=\"callout-swatch\" style=\"background:" + e.color + "\"></span><span class=\"callout-label\">" + e.label + "</span></button>").join("") + "</div>", Q.querySelectorAll(".callout-menu-color").forEach((e) => {
+	Q.style.cssText = "position:fixed;z-index:100000;display:block;left:" + Math.max(0, r.left) + "px;top:" + (r.bottom + 4) + "px;", lN = "color", uN = t, Q.innerHTML = "<div class=\"callout-menu-grid callout-menu-colors\">" + oN.map((e) => "<button class=\"callout-menu-color" + (e.id === n ? " active" : "") + "\" data-value=\"" + e.id + "\" title=\"" + e.label + "\"><span class=\"callout-swatch\" style=\"background:" + e.color + "\"></span><span class=\"callout-label\">" + e.label + "</span></button>").join("") + "</div>", Q.querySelectorAll(".callout-menu-color").forEach((e) => {
 		e.onclick = () => {
-			let n = e.dataset.value, r = oN(t);
-			r && HM(r, t, "type", n), rN();
+			let n = e.dataset.value, r = VM(t);
+			r && BM(r, t, "type", n), dN();
 		};
 	});
 }
-function oN(e) {
-	return Array.from(BN.values()).find((t) => t.editor?.view?.dom?.contains(e))?.editor || null;
-}
-function sN() {
+function mN() {
 	document.addEventListener("click", function(e) {
 		let t = e.target.closest("[data-callout-icon]");
 		if (t) {
 			e.preventDefault();
 			let n = t.closest("[data-callout]");
 			if (!n) return;
-			if (tN === "icon" && nN === n && Q?.style.display !== "none") {
-				rN();
+			if (lN === "icon" && uN === n && Q?.style.display !== "none") {
+				dN();
 				return;
 			}
-			rN(), iN(t, n);
+			dN(), fN(t, n);
 			return;
 		}
 		let n = e.target.closest("[data-callout-color]");
@@ -24220,17 +24095,19 @@ function sN() {
 			e.preventDefault();
 			let t = n.closest("[data-callout]");
 			if (!t) return;
-			if (tN === "color" && nN === t && Q?.style.display !== "none") {
-				rN();
+			if (lN === "color" && uN === t && Q?.style.display !== "none") {
+				dN();
 				return;
 			}
-			rN(), aN(n, t);
+			dN(), pN(n, t);
 			return;
 		}
-		tN && Q && !Q.contains(e.target) && rN();
+		lN && Q && !Q.contains(e.target) && dN();
 	});
 }
-var cN = [
+//#endregion
+//#region src/Yanoch.Web/wwwroot/js/tiptap/slash-menu.js
+var hN = [
 	{
 		title: "Text",
 		desc: "Plain paragraph",
@@ -24307,7 +24184,7 @@ var cN = [
 		icon: "🖼️",
 		md: "",
 		run: (e) => {
-			YN(e);
+			KM(e);
 		}
 	},
 	{
@@ -24333,13 +24210,13 @@ var cN = [
 		desc: "Insert collapsible section",
 		icon: "▶",
 		md: "",
-		run: (e, t) => {
-			let { $from: n } = e.state.selection, r = !1;
-			for (let e = n.depth; e > 0; e--) if (n.node(e).type.spec.defining) {
-				r = !0;
+		run: (e) => {
+			let { $from: t } = e.state.selection, n = !1;
+			for (let e = t.depth; e > 0; e--) if (t.node(e).type.spec.defining) {
+				n = !0;
 				break;
 			}
-			r ? e.chain().insertContent({
+			n ? e.chain().insertContent({
 				type: "toggle",
 				attrs: {},
 				content: [{ type: "paragraph" }]
@@ -24352,7 +24229,7 @@ var cN = [
 		icon: "📄",
 		md: "",
 		run: async (e) => {
-			let t = Array.from(BN.values()).find((t) => t.editor === e);
+			let t = Array.from(RM.values()).find((t) => t.editor === e);
 			if (t && t.dotNetRef) try {
 				let n = await t.dotNetRef.invokeMethodAsync("CreateSubpage", t.blockId);
 				n && n.id && e.chain().focus().insertContent({
@@ -24368,26 +24245,8 @@ var cN = [
 			}
 		}
 	}
-], lN = null;
-function uN() {
-	return lN || (lN = document.createElement("input"), lN.type = "file", lN.accept = "image/*", lN.style.cssText = "display:none", document.body.appendChild(lN), lN);
-}
-async function dN(e) {
-	let t = new FormData();
-	t.append("file", e);
-	try {
-		let e = await fetch("/api/upload", {
-			method: "POST",
-			body: t
-		});
-		if (!e.ok) throw Error("Upload failed");
-		return (await e.json()).url;
-	} catch (e) {
-		return console.error("Upload error:", e), null;
-	}
-}
-var fN = null, pN = !1, mN = 0, hN = -1, gN = "", _N = null;
-function vN(e, t) {
+], gN = null, _N = !1, vN = 0, yN = -1, bN = "", xN = null;
+function SN(e, t) {
 	let n = e.resolve(t);
 	if (!n) return "";
 	try {
@@ -24396,118 +24255,143 @@ function vN(e, t) {
 		return "";
 	}
 }
-function yN(e) {
+function CN(e) {
 	let t = e?.querySelector(".active");
 	t && t.scrollIntoView({ block: "nearest" });
 }
-function bN() {
-	if (!fN) return;
-	let e = gN.toLowerCase(), t = cN.filter((t) => t.title.toLowerCase().includes(e) || t.desc.toLowerCase().includes(e));
-	fN.innerHTML = t.map((e, t) => `<button class="slash-item${t === mN ? " active" : ""}" data-idx="${t}"><span class="slash-icon">${e.icon}</span><span class="slash-text"><strong>${e.title}</strong><span class="slash-desc">${e.desc}</span></span>` + (e.md ? `<span class="slash-md">${e.md}</span>` : "") + "</button>").join(""), fN.querySelectorAll(".slash-item").forEach((e) => {
+function wN() {
+	if (!gN) return;
+	let e = bN.toLowerCase(), t = hN.filter((t) => t.title.toLowerCase().includes(e) || t.desc.toLowerCase().includes(e));
+	gN.innerHTML = t.map((e, t) => `<button class="slash-item${t === vN ? " active" : ""}" data-idx="${t}"><span class="slash-icon">${e.icon}</span><span class="slash-text"><strong>${e.title}</strong><span class="slash-desc">${e.desc}</span></span>` + (e.md ? `<span class="slash-md">${e.md}</span>` : "") + "</button>").join(""), gN.querySelectorAll(".slash-item").forEach((e) => {
 		let t = parseInt(e.dataset.idx, 10);
 		isNaN(t) || (e.onclick = (e) => {
-			e.stopPropagation(), mN = t, wN();
+			e.stopPropagation(), vN = t, ON();
 		}, e.onmouseenter = () => {
-			mN = t, bN();
+			vN = t, wN();
 		});
-	}), yN(fN);
+	}), CN(gN);
 }
-function xN() {
-	fN && (fN.style.display = "none", fN.innerHTML = ""), pN = !1, hN = -1, gN = "", _N = null;
+function TN() {
+	gN && (gN.style.display = "none", gN.innerHTML = ""), _N = !1, yN = -1, bN = "", xN = null;
 }
-function SN(e) {
-	_N = e;
+function EN(e) {
+	xN = e;
 	let { view: t, state: n } = e, { from: r } = n.selection;
-	hN = n.doc.resolve(r).start(), fN || (fN = document.createElement("div"), fN.className = "slash-menu", fN.style.cssText = "position:fixed;z-index:100000;", document.body.appendChild(fN));
+	yN = n.doc.resolve(r).start(), gN || (gN = document.createElement("div"), gN.className = "slash-menu", gN.style.cssText = "position:fixed;z-index:100000;", document.body.appendChild(gN));
 	let i = t.coordsAtPos(r);
-	fN.style.left = Math.max(0, i.left) + "px", fN.style.top = i.bottom + 4 + "px", fN.style.display = "block", mN = 0, gN = "", pN = !0, bN();
+	gN.style.left = Math.max(0, i.left) + "px", gN.style.top = i.bottom + 4 + "px", gN.style.display = "block", vN = 0, bN = "", _N = !0, wN();
 }
-function CN(e) {
+function DN(e) {
 	if (!e) return;
 	let { doc: t, selection: n } = e.state, { $from: r } = n;
 	if (r.parent.type.name === "codeBlock") {
-		pN && xN();
+		_N && TN();
 		return;
 	}
 	if (!e.isFocused) return;
-	let i = r.pos, a = vN(t, i);
-	if (a === "/" && !pN) {
-		SN(e);
+	let i = r.pos, a = SN(t, i);
+	if (a === "/" && !_N) {
+		EN(e);
 		return;
 	}
-	if (pN) if (a.startsWith("/")) {
+	if (_N) if (a.startsWith("/")) {
 		let e = a.slice(1);
-		e !== gN && (gN = e, mN = 0, bN());
-	} else xN();
+		e !== bN && (bN = e, vN = 0, wN());
+	} else TN();
 }
-function wN() {
-	if (!pN || !fN) return;
-	let e = cN.filter((e) => e.title.toLowerCase().includes(gN) || e.desc.toLowerCase().includes(gN))[mN];
+function ON() {
+	if (!_N || !gN) return;
+	let e = hN.filter((e) => e.title.toLowerCase().includes(bN) || e.desc.toLowerCase().includes(bN))[vN];
 	if (!e) {
-		xN();
+		TN();
 		return;
 	}
-	let t = _N;
+	let t = xN;
 	if (!t) {
-		xN();
+		TN();
 		return;
 	}
-	let { view: n } = t, r = n.state.selection.from, i = hN;
-	xN();
+	let { view: n } = t, r = n.state.selection.from, i = yN;
+	TN();
 	try {
 		n.dispatch(n.state.tr.delete(i, r)), e.run(t), t.commands.focus();
 	} catch (e) {
 		console.error("runSlashItem error:", e);
 	}
 }
-var $ = null, TN = !1, EN = -1, DN = "", ON = 0, kN = [], AN = null, jN = null;
-function MN() {
+function kN(e) {
+	if (!_N) return !1;
+	let t = hN.filter((e) => e.title.toLowerCase().includes(bN) || e.desc.toLowerCase().includes(bN));
+	if (!t.length && ![
+		"ArrowDown",
+		"ArrowUp",
+		"Enter",
+		"Tab",
+		"Escape"
+	].includes(e.key)) return !1;
+	switch (e.key) {
+		case "ArrowDown": return t.length ? (e.preventDefault(), vN = (vN + 1) % t.length, wN(), !0) : !0;
+		case "ArrowUp": return t.length ? (e.preventDefault(), vN = (vN - 1 + t.length) % t.length, wN(), !0) : !0;
+		case "Enter":
+		case "Tab": return e.preventDefault(), ON(), !0;
+		case "Escape": return e.preventDefault(), TN(), !0;
+		default: return !1;
+	}
+}
+//#endregion
+//#region src/Yanoch.Web/wwwroot/js/tiptap/wiki-menu.js
+var $ = null, AN = !1, jN = -1, MN = "", NN = 0, PN = [], FN = null, IN = null;
+function LN(e) {
+	let t = e?.querySelector(".active");
+	t && t.scrollIntoView({ block: "nearest" });
+}
+function RN() {
 	if (!$) return;
-	let e = DN.toLowerCase(), t = kN.filter((t) => t.title.toLowerCase().includes(e) || t.snippet && t.snippet.toLowerCase().includes(e));
+	let e = MN.toLowerCase(), t = PN.filter((t) => t.title.toLowerCase().includes(e) || t.snippet && t.snippet.toLowerCase().includes(e));
 	if (!t.length) {
 		$.style.display = "none";
 		return;
 	}
-	$.innerHTML = t.map((e, t) => `<button class="wiki-item${t === ON ? " active" : ""}" data-idx="${t}"><span class="wiki-icon">${e.icon || "📄"}</span><span class="wiki-text"><strong>${e.title}</strong></span></button>`).join(""), $.querySelectorAll(".wiki-item").forEach((e) => {
+	$.innerHTML = t.map((e, t) => `<button class="wiki-item${t === NN ? " active" : ""}" data-idx="${t}"><span class="wiki-icon">${e.icon || "📄"}</span><span class="wiki-text"><strong>${e.title}</strong></span></button>`).join(""), $.querySelectorAll(".wiki-item").forEach((e) => {
 		let t = parseInt(e.dataset.idx, 10);
 		isNaN(t) || (e.onclick = (e) => {
-			e.stopPropagation(), ON = t, IN();
+			e.stopPropagation(), NN = t, HN();
 		}, e.onmouseenter = () => {
-			ON = t, MN();
+			NN = t, RN();
 		});
-	}), $.style.display = "block", yN($);
+	}), $.style.display = "block", LN($);
 }
-function NN() {
-	$ && ($.style.display = "none", $.innerHTML = ""), TN = !1, EN = -1, DN = "", ON = 0, kN = [], AN = null, jN &&= (clearTimeout(jN), null);
+function zN() {
+	$ && ($.style.display = "none", $.innerHTML = ""), AN = !1, jN = -1, MN = "", NN = 0, PN = [], FN = null, IN &&= (clearTimeout(IN), null);
 }
-function PN(e, t) {
-	AN = e, EN = t, DN = "", ON = 0, kN = [], $ || ($ = document.createElement("div"), $.className = "wiki-menu", $.style.cssText = "position:fixed;z-index:100000;max-height:240px;overflow-y:auto;", document.body.appendChild($));
+function BN(e, t) {
+	FN = e, jN = t, MN = "", NN = 0, PN = [], $ || ($ = document.createElement("div"), $.className = "wiki-menu", $.style.cssText = "position:fixed;z-index:100000;max-height:240px;overflow-y:auto;", document.body.appendChild($));
 	let { view: n } = e, r = n.coordsAtPos(t);
-	$.style.left = Math.max(0, r.left) + "px", $.style.top = r.bottom + 4 + "px", TN = !0, FN("");
+	$.style.left = Math.max(0, r.left) + "px", $.style.top = r.bottom + 4 + "px", AN = !0, VN("");
 }
-function FN(e) {
-	jN && clearTimeout(jN), jN = setTimeout(async () => {
-		jN = null;
+function VN(e) {
+	IN && clearTimeout(IN), IN = setTimeout(async () => {
+		IN = null;
 		try {
 			let t = await fetch("/api/search?q=" + encodeURIComponent(e), { credentials: "same-origin" });
 			if (!t.ok) return;
 			let n = await t.json();
-			if (!TN) return;
-			kN = n.pages && Array.isArray(n.pages) ? n.pages : [], MN();
+			if (!AN) return;
+			PN = n.pages && Array.isArray(n.pages) ? n.pages : [], RN();
 		} catch {
-			TN && NN();
+			AN && zN();
 		}
 	}, 200);
 }
-function IN() {
-	if (!TN || !$ || !AN) return;
-	let e = DN.toLowerCase(), t = kN.filter((t) => t.title.toLowerCase().includes(e) || t.snippet && t.snippet.toLowerCase().includes(e))[ON];
+function HN() {
+	if (!AN || !$ || !FN) return;
+	let e = MN.toLowerCase(), t = PN.filter((t) => t.title.toLowerCase().includes(e) || t.snippet && t.snippet.toLowerCase().includes(e))[NN];
 	if (!t) {
-		NN();
+		zN();
 		return;
 	}
-	let n = AN, r = EN;
-	NN();
+	let n = FN, r = jN;
+	zN();
 	try {
 		let { view: e } = n;
 		e.state.doc.textBetween(r, e.state.selection.from);
@@ -24515,11 +24399,11 @@ function IN() {
 		e.dispatch(e.state.tr.replaceWith(r, e.state.selection.from, e.state.schema.text(i))), n.commands.focus();
 	} catch {}
 }
-function LN(e) {
+function UN(e) {
 	if (!e || !e.isFocused) return;
 	let { doc: t, selection: n } = e.state, { $from: r } = n;
 	if (r.parent.type.name === "codeBlock") {
-		TN && NN();
+		AN && zN();
 		return;
 	}
 	let i = r.pos, a = Math.max(0, i - 100), o = t.textBetween(a, i), s = o.lastIndexOf("[[");
@@ -24527,35 +24411,48 @@ function LN(e) {
 		let t = o.slice(s + 2);
 		if (t.indexOf("]]") === -1) {
 			let n = t, r = a + s;
-			TN || PN(e, r + 2), n !== DN && (DN = n, ON = 0, FN(n));
+			AN || BN(e, r + 2), n !== MN && (MN = n, NN = 0, VN(n));
 			return;
 		}
 	}
-	if (TN) if (EN > 0) {
-		let e = t.textBetween(Math.max(0, EN - 2), Math.min(t.content.size, EN + 50));
+	if (AN) if (jN > 0) {
+		let e = t.textBetween(Math.max(0, jN - 2), Math.min(t.content.size, jN + 50));
 		if (!e.startsWith("[[") || e.includes("]]")) {
-			NN();
+			zN();
 			return;
 		}
-		if (i < EN) {
-			NN();
+		if (i < jN) {
+			zN();
 			return;
 		}
-	} else NN();
+	} else zN();
 }
-function RN(e) {
-	let t = BN.get(e);
+function WN(e) {
+	if (!AN || !$ || $.style.display === "none") return !1;
+	let t = MN.toLowerCase(), n = PN.filter((e) => e.title.toLowerCase().includes(t) || e.snippet && e.snippet.toLowerCase().includes(t));
+	switch (e.key) {
+		case "ArrowDown": return n.length ? (e.preventDefault(), NN = (NN + 1) % n.length, RN(), !0) : !0;
+		case "ArrowUp": return n.length ? (e.preventDefault(), NN = (NN - 1 + n.length) % n.length, RN(), !0) : !0;
+		case "Enter":
+		case "Tab": return e.preventDefault(), HN(), !0;
+		case "Escape": return e.preventDefault(), zN(), !0;
+	}
+	return !1;
+}
+//#endregion
+//#region src/Yanoch.Web/wwwroot/js/tiptap/table-menu.js
+function GN(e) {
+	let t = RM.get(e);
 	t && t.tableMenuEl && (t.tableMenuEl.remove(), t.tableMenuEl = null);
 }
-function zN(e, t) {
-	let n = BN.get(t);
+function KN(e, t) {
+	let n = RM.get(t);
 	if (!n) return;
 	let { state: r, view: i } = e, { selection: a } = r;
 	if (!(r.schema.nodes.table && e.isActive("table"))) {
-		RN(t);
+		GN(t);
 		return;
 	}
-	a.$from.pos;
 	let o = null;
 	try {
 		o = i.nodeDOM(a.$from.before(a.$from.depth));
@@ -24565,7 +24462,7 @@ function zN(e, t) {
 		e && (o = e.closest ? e.closest("td, th") : e.parentElement?.closest("td, th"));
 	}
 	if (!o) {
-		RN(t);
+		GN(t);
 		return;
 	}
 	if (!n.tableMenuEl) {
@@ -24581,91 +24478,222 @@ function zN(e, t) {
 	let s = o.getBoundingClientRect(), c = n.tableMenuEl.getBoundingClientRect(), l = s.top - c.height - 8, u = s.left + s.width / 2 - c.width / 2;
 	n.tableMenuEl.style.top = Math.max(8, l) + "px", n.tableMenuEl.style.left = Math.max(8, u) + "px";
 }
-var BN = /* @__PURE__ */ new Map(), VN = null, HN = 500;
-function UN(e, t) {
-	e._dirty = !0, e._pendingMarkdown = t, VN ||= setTimeout(GN, HN);
+//#endregion
+//#region src/Yanoch.Web/wwwroot/js/tiptap/callout-node.js
+var qN = md({
+	nodeName: "callout",
+	name: "callout",
+	content: "block",
+	defaultAttributes: { type: "info" },
+	allowedAttributes: ["type", "icon"]
+}), JN = P.create({
+	name: "callout",
+	content: "block+",
+	group: "block",
+	defining: !0,
+	addAttributes() {
+		return {
+			type: { default: "info" },
+			icon: { default: "" }
+		};
+	},
+	parseHTML() {
+		return [{
+			tag: "div[data-callout]",
+			getAttrs: (e) => ({
+				type: (e.getAttribute("data-type") || "info").toLowerCase(),
+				icon: e.getAttribute("data-icon") || ""
+			})
+		}];
+	},
+	renderHTML({ HTMLAttributes: e }) {
+		let t = e.type || "info", n = (sN[t] || sN.info).icon, r = e.icon || n;
+		return [
+			"div",
+			{
+				"data-callout": "",
+				"data-type": t,
+				"data-icon": r,
+				class: "callout callout--" + t
+			},
+			[
+				"div",
+				{
+					class: "callout-side",
+					contenteditable: "false"
+				},
+				[
+					"button",
+					{
+						class: "callout-icon-btn",
+						"data-callout-icon": "",
+						type: "button"
+					},
+					r
+				],
+				[
+					"button",
+					{
+						class: "callout-color-btn",
+						"data-callout-color": "",
+						type: "button"
+					},
+					[
+						"span",
+						{ class: "callout-color-dot" },
+						""
+					]
+				]
+			],
+			[
+				"div",
+				{ class: "callout-content" },
+				0
+			]
+		];
+	},
+	addCommands() {
+		return { setCallout: (e = {}) => ({ commands: t }) => t.wrapIn(this.name, e) };
+	},
+	...qN
+}), YN = md({
+	nodeName: "toggle",
+	name: "toggle",
+	content: "block",
+	defaultAttributes: { collapsed: !1 },
+	allowedAttributes: ["collapsed"]
+}), XN = P.create({
+	name: "toggle",
+	content: "block+",
+	group: "block",
+	defining: !0,
+	addAttributes() {
+		return { collapsed: { default: !1 } };
+	},
+	parseHTML() {
+		return [{
+			tag: "div[data-toggle]",
+			getAttrs: (e) => ({ collapsed: e.getAttribute("data-collapsed") === "true" })
+		}];
+	},
+	renderHTML({ HTMLAttributes: e }) {
+		let t = !!e.collapsed;
+		return [
+			"div",
+			{
+				"data-toggle": "",
+				"data-collapsed": t ? "true" : "false",
+				class: "toggle" + (t ? " collapsed" : "")
+			},
+			[
+				"span",
+				{
+					class: "toggle-arrow",
+					"data-toggle-arrow": "",
+					contenteditable: "false"
+				},
+				"▶"
+			],
+			[
+				"div",
+				{ class: "toggle-inner" },
+				0
+			]
+		];
+	},
+	addCommands() {
+		return { setToggle: (e = {}) => ({ commands: t, state: n }) => {
+			let { $from: r } = n.selection;
+			for (let n = r.depth; n > 0; n--) if (r.node(n).type.spec.defining) return t.insertContent({
+				type: "toggle",
+				attrs: e,
+				content: [{ type: "paragraph" }]
+			});
+			return t.wrapIn(this.name, e);
+		} };
+	},
+	...YN
+});
+function ZN(e) {
+	let t = e.target.closest("[data-toggle-arrow]");
+	if (!t) return;
+	let n = t.closest("[data-toggle]");
+	if (!n) return;
+	let r = VM(n);
+	r && zM(r, n, "toggle", "collapsed", n.getAttribute("data-collapsed") !== "true");
 }
-function WN(e) {
-	e._dirty = !1, e._pendingMarkdown = null, VN &&= (clearTimeout(VN), null);
+function QN() {
+	document.addEventListener("click", function(e) {
+		e.target.closest("[data-toggle-arrow]") && ZN(e);
+	});
 }
-async function GN() {
-	VN = null;
-	let e = [...BN.values()].filter((e) => e._dirty && e.dotNetRef && e.editor);
-	e.length && await Promise.all(e.map((e) => KN(e)));
-}
-async function KN(e) {
-	if (!e._dirty || !e.dotNetRef || !e.editor) return;
-	let t = e._pendingMarkdown ?? e.editor.getMarkdown();
-	try {
-		await e.dotNetRef.invokeMethodAsync("OnMarkdownChanged", e.blockId, t), WN(e);
-	} catch {}
-}
-function qN(e, t) {
-	UN(e, t);
-}
-function JN() {
-	let e = async () => {
-		let e = [...BN.values()].filter((e) => e._dirty && e.dotNetRef && e.editor);
-		if (e.length) for (let t of e) {
-			let e = t._pendingMarkdown ?? t.editor.getMarkdown();
-			try {
-				let n = new Blob([JSON.stringify({ content: e })], { type: "application/json" });
-				await navigator.sendBeacon(`/api/pages/${t.blockId}/content`, n), WN(t);
-			} catch {}
+//#endregion
+//#region src/Yanoch.Web/wwwroot/js/tiptap/page-ref-node.js
+var $N = P.create({
+	name: "pageReference",
+	group: "block",
+	atom: !0,
+	selectable: !0,
+	draggable: !1,
+	addAttributes() {
+		return {
+			pageId: { default: "" },
+			title: { default: "Untitled" },
+			icon: { default: "📄" }
+		};
+	},
+	parseHTML() {
+		return [{ tag: "div[data-page-ref]" }];
+	},
+	renderHTML({ HTMLAttributes: e }) {
+		let { pageId: t, title: n, icon: r } = e;
+		return [
+			"div",
+			{
+				"data-page-ref": t,
+				class: "page-ref-block"
+			},
+			[
+				"span",
+				{ class: "page-ref-icon" },
+				r || "📄"
+			],
+			[
+				"span",
+				{ class: "page-ref-title" },
+				n || "Untitled"
+			],
+			[
+				"span",
+				{
+					class: "page-ref-open",
+					title: "Open page"
+				},
+				"↗"
+			]
+		];
+	},
+	renderMarkdown() {}
+});
+function eP() {
+	document.addEventListener("click", function(e) {
+		let t = e.target.closest(".page-ref-open");
+		if (!t) return;
+		e.preventDefault(), e.stopPropagation();
+		let n = t.closest("[data-page-ref]");
+		if (n) {
+			let e = n.getAttribute("data-page-ref");
+			e && (window.location.href = `/page/${e}`);
 		}
-	};
-	window.addEventListener("beforeunload", e), window.addEventListener("pagehide", e);
+	});
 }
-JN();
-function YN(e) {
-	let t = uN();
-	t.onchange = async () => {
-		let n = t.files?.[0];
-		if (!n) return;
-		let r = await dN(n);
-		r && e.chain().focus().setImage({ src: r }).run(), t.value = "";
-	}, t.click();
+//#endregion
+//#region src/Yanoch.Web/wwwroot/js/tiptap/editor.js
+function tP() {
+	return (e, t) => !!(WN(t) || kN(t));
 }
-function XN() {
-	return (e, t) => {
-		if (TN && $ && $.style.display !== "none") {
-			let e = DN.toLowerCase(), n = kN.filter((t) => t.title.toLowerCase().includes(e) || t.snippet && t.snippet.toLowerCase().includes(e));
-			switch (t.key) {
-				case "ArrowDown": return n.length ? (t.preventDefault(), ON = (ON + 1) % n.length, MN(), !0) : !0;
-				case "ArrowUp": return n.length ? (t.preventDefault(), ON = (ON - 1 + n.length) % n.length, MN(), !0) : !0;
-				case "Enter":
-				case "Tab": return t.preventDefault(), IN(), !0;
-				case "Escape": return t.preventDefault(), NN(), !0;
-			}
-		}
-		if (pN) {
-			let e = cN.filter((e) => e.title.toLowerCase().includes(gN) || e.desc.toLowerCase().includes(gN));
-			if (!e.length && ![
-				"ArrowDown",
-				"ArrowUp",
-				"Enter",
-				"Tab",
-				"Escape"
-			].includes(t.key)) return !1;
-			switch (t.key) {
-				case "ArrowDown": return e.length ? (t.preventDefault(), mN = (mN + 1) % e.length, bN(), !0) : !0;
-				case "ArrowUp": return e.length ? (t.preventDefault(), mN = (mN - 1 + e.length) % e.length, bN(), !0) : !0;
-				case "Enter":
-				case "Tab": return t.preventDefault(), wN(), !0;
-				case "Escape": return t.preventDefault(), xN(), !0;
-				default: return !1;
-			}
-		}
-		return !1;
-	};
-}
-function ZN(e, t, ...n) {
-	if (e) try {
-		e.invokeMethodAsync(t, ...n).catch(() => {});
-	} catch {}
-}
-function QN(e, t, n, r) {
-	$N(e);
+function nP(e, t, n, r) {
+	rP(e);
 	let i = document.getElementById(e);
 	if (!i) return null;
 	let a = {
@@ -24717,9 +24745,9 @@ function QN(e, t, n, r) {
 			FM,
 			LM,
 			IM,
-			GM,
-			qM,
-			YM
+			JN,
+			XN,
+			$N
 		],
 		content: t || "",
 		contentType: "markdown",
@@ -24728,19 +24756,19 @@ function QN(e, t, n, r) {
 				class: "tiptap-editor",
 				"data-block-id": r
 			},
-			handleKeyDown: XN(),
+			handleKeyDown: tP(),
 			handlePaste(e, t) {
 				let n = t.clipboardData?.files;
-				if (n && n[0]?.type.startsWith("image/")) return t.preventDefault(), dN(n[0]).then((t) => {
+				if (n && n[0]?.type.startsWith("image/")) return t.preventDefault(), GM(n[0]).then((t) => {
 					t && e.dispatch(e.state.tr.replaceSelectionWith(e.state.schema.nodes.image.create(null, { src: t })));
 				}), !0;
-				var r = t.clipboardData?.getData("text/plain");
+				let r = t.clipboardData?.getData("text/plain");
 				if (r && /^https?:\/\/.*\.(png|jpg|jpeg|gif|webp|svg)(\?.*)?$/i.test(r.trim())) return t.preventDefault(), e.dispatch(e.state.tr.replaceSelectionWith(e.state.schema.nodes.image.create(null, { src: r.trim() }))), !0;
 				if (r && /^\|[^\n]+\n\|[\s:-]+\|/.test(r.trim())) {
 					t.preventDefault();
 					try {
-						var i = V.parse(r.trim());
-						e.pasteHTML(i, { event: t });
+						let n = V.parse(r.trim());
+						e.pasteHTML(n, { event: t });
 					} catch (e) {
 						console.warn("table paste failed", e);
 					}
@@ -24756,7 +24784,7 @@ function QN(e, t, n, r) {
 						left: t.clientX,
 						top: t.clientY
 					});
-					return r && dN(n[0]).then((t) => {
+					return r && GM(n[0]).then((t) => {
 						t && e.dispatch(e.state.tr.insert(r.pos, e.state.schema.nodes.image.create(null, { src: t })));
 					}), !0;
 				}
@@ -24764,8 +24792,8 @@ function QN(e, t, n, r) {
 			}
 		},
 		onCreate: ({ editor: e }) => {
-			r && XM(e, r).then(() => {
-				a._lastSubpageOrder = $M(e).join(",");
+			r && qM(e, r).then(() => {
+				a._lastSubpageOrder = XM(e).join(",");
 			});
 		},
 		onUpdate: ({ editor: t, transaction: n }) => {
@@ -24774,64 +24802,64 @@ function QN(e, t, n, r) {
 					a.firstUpdate = !1;
 					return;
 				}
-				if (qN(a, t.getMarkdown()), CN(t), LN(t), zN(t, e), a.blockId && t.state.doc.childCount > 0) {
-					let e = $M(t), n = e.join(",");
-					a._lastSubpageOrder !== "pending" && e.length > 0 && n !== a._lastSubpageOrder && (a._lastSubpageOrder = n, QM(a.blockId, e));
+				if (rN(a, t.getMarkdown()), DN(t), UN(t), KN(t, e), a.blockId && t.state.doc.childCount > 0) {
+					let e = XM(t), n = e.join(",");
+					a._lastSubpageOrder !== "pending" && e.length > 0 && n !== a._lastSubpageOrder && (a._lastSubpageOrder = n, YM(a.blockId, e));
 				}
 			}
 		},
 		onSelectionUpdate: ({ editor: t }) => {
-			pN && CN(t), TN && LN(t), zN(t, e);
+			_N && DN(t), AN && UN(t), KN(t, e);
 		},
-		onFocus: () => ZN(a.dotNetRef, "OnFocus", a.blockId),
+		onFocus: () => HM(a.dotNetRef, "OnFocus", a.blockId),
 		onBlur: () => {
-			pN && xN(), TN && NN(), RN(e), ZN(a.dotNetRef, "OnBlur", a.blockId);
+			TN(), zN(), GN(e), HM(a.dotNetRef, "OnBlur", a.blockId);
 		}
 	});
 	a.editor = o, a.tableMenuEl = null;
 	let s = document.getElementById("btn-upload-image");
 	if (s) {
-		let t = uN();
+		let t = WM();
 		t.onchange = async () => {
 			let n = t.files?.[0];
 			if (!n) return;
-			let r = BN.get(e)?.editor;
+			let r = RM.get(e)?.editor;
 			if (!r) return;
-			let i = await dN(n);
+			let i = await GM(n);
 			i && r.chain().focus().setImage({ src: i }).run(), t.value = "";
 		}, s.onclick = () => t.click();
 	}
 	let c = function(e) {
-		if (tN && Q && !Q.contains(e.target) && !e.target.closest("[data-callout-icon]") && !e.target.closest("[data-callout-color]")) {
+		if (lN !== void 0 && Q && !Q.contains(e.target) && !e.target.closest("[data-callout-icon]") && !e.target.closest("[data-callout-color]")) {
 			let t = e.target.closest("[data-callout]");
-			(!t || t !== nN) && rN();
+			(!t || t !== uN) && dN();
 		}
-		pN && fN && !fN.contains(e.target) && !i.contains(e.target) && xN(), TN && $ && !$.contains(e.target) && !i.contains(e.target) && NN();
+		_N && gN && !gN.contains(e.target) && !i.contains(e.target) && TN(), AN && $ && !$.contains(e.target) && !i.contains(e.target) && zN();
 	};
 	return document.addEventListener("mousedown", c), a.listeners.push({
 		type: "mousedown",
 		handler: c
-	}), BN.set(e, a), o;
-}
-function $N(e) {
-	let t = BN.get(e);
-	t && (t._dirty = !1, t._pendingMarkdown = null, RN(e), t.listeners.forEach((e) => document.removeEventListener(e.type, e.handler)), t.listeners = [], t.dotNetRef = null, t.editor &&= (t.editor.destroy(), null), BN.delete(e), [...BN.values()].some((e) => e._dirty) || (VN &&= (clearTimeout(VN), null)));
-}
-function eP(e) {
-	return BN.get(e)?.editor?.getMarkdown() ?? "";
-}
-function tP(e, t) {
-	BN.get(e)?.editor?.commands.setContent(t, !1, "markdown");
-}
-function nP(e, t) {
-	BN.get(e)?.editor?.setEditable(t);
+	}), RM.set(e, a), o;
 }
 function rP(e) {
-	BN.get(e)?.editor?.commands.focus();
+	let t = RM.get(e);
+	t && (t._dirty = !1, t._pendingMarkdown = null, GN(e), t.listeners.forEach((e) => document.removeEventListener(e.type, e.handler)), t.listeners = [], t.dotNetRef = null, t.editor &&= (t.editor.destroy(), null), RM.delete(e), iN());
 }
 function iP(e) {
-	BN.get(e)?.editor?.commands.blur();
+	return RM.get(e)?.editor?.getMarkdown() ?? "";
 }
-window.initTipTap = QN, window.destroyTipTap = $N, window.getTipTapMarkdown = eP, window.setTipTapContent = tP, window.setTipTapEditable = nP, window.focusTipTap = rP, window.blurTipTap = iP, sN(), JM(), eN();
+function aP(e, t) {
+	RM.get(e)?.editor?.commands.setContent(t, !1, "markdown");
+}
+function oP(e, t) {
+	RM.get(e)?.editor?.setEditable(t);
+}
+function sP(e) {
+	RM.get(e)?.editor?.commands.focus();
+}
+function cP(e) {
+	RM.get(e)?.editor?.commands.blur();
+}
+window.initTipTap = nP, window.destroyTipTap = rP, window.getTipTapMarkdown = iP, window.setTipTapContent = aP, window.setTipTapEditable = oP, window.focusTipTap = sP, window.blurTipTap = cP, mN(), QN(), eP(), aN();
 //#endregion
-export { iP as blurEditor, QN as createEditor, $N as destroyEditor, rP as focusEditor, eP as getMarkdown, tP as setContent, nP as setEditable };
+export { cP as blurEditor, nP as createEditor, rP as destroyEditor, sP as focusEditor, iP as getMarkdown, aP as setContent, oP as setEditable };
