@@ -24432,11 +24432,11 @@ function UN() {
 		BN();
 		return;
 	}
-	let n = FN, r = jN;
+	let n = FN;
 	BN();
 	try {
-		let { view: e } = n, { schema: i } = e.state, a = `/page/${t.id}`, o = i.marks.link.create({ href: a }), s = i.text(t.title, [o]);
-		e.dispatch(e.state.tr.replaceWith(r, e.state.selection.from, s)), n.commands.focus();
+		let { view: e } = n, { schema: r } = e.state, i = `/page/${t.id}`, a = r.marks.link.create({ href: i }), o = r.text(t.title, [a]);
+		e.dispatch(e.state.tr.replaceWith(Math.max(0, jN - 2), e.state.selection.from, o)), n.commands.focus();
 	} catch {}
 }
 function WN(e) {
@@ -24810,7 +24810,24 @@ var lP = cP((e) => {
 			let t = document.createElement("div");
 			t.setAttribute("data-todo-list", ""), t.className = "todo-list", t.contentEditable = "false";
 			function n() {
-				t.setAttribute("data-rows", JSON.stringify(e.attrs.rows || [])), t.innerHTML = iP(e.attrs.rows || []);
+				t.setAttribute("data-rows", JSON.stringify(e.attrs.rows || []));
+				let n = t.ownerDocument.activeElement, r = null;
+				if (n && t.contains(n) && (r = {
+					tag: n.tagName,
+					cls: n.className,
+					value: n.value,
+					start: n.selectionStart,
+					end: n.selectionEnd
+				}), t.innerHTML = iP(e.attrs.rows || []), r && r.tag === "INPUT") {
+					let e = t.querySelectorAll("tbody input");
+					for (let t of e) if (t.className === r.cls) {
+						t.value = r.value, t.focus();
+						try {
+							t.selectionStart = r.start, t.selectionEnd = r.end;
+						} catch {}
+						break;
+					}
+				}
 			}
 			return n(), {
 				dom: t,

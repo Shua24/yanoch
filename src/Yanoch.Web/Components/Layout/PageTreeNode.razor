@@ -3,6 +3,7 @@
 @inject NavigationManager Navigation
 @inject AuthenticationStateProvider AuthState
 @inject UserManager<IdentityUser> UserManager
+@inject IPageDataNotifier PageDataNotifier
 
 <div class="tree-node" style="padding-left: @(Depth * 16)px">
     <div class="tree-node-row">
@@ -71,7 +72,7 @@
             if (user != null) currentUserId = Guid.Parse(user.Id);
         }
 
-        Editor.OnPageDataChanged += OnPageDataChanged;
+        PageDataNotifier.PageDataChanged += OnPageDataChanged;
     }
 
     private void ToggleMenu()
@@ -110,25 +111,29 @@
     {
         showMenu = false;
         await PageService.SoftDeleteAsync(Page.Id, currentUserId);
-        Editor.NotifyPageDataChanged();
+        PageDataNotifier.NotifyPageDataChanged(Page.Id);
         if (Navigation.Uri.Contains($"/page/{Page.Id}") || Navigation.Uri.Contains($"/editor/{Page.Id}"))
         {
             Navigation.NavigateTo("/");
         }
     }
 
-    private async void OnPageDataChanged()
+    private async void OnPageDataChanged(Guid? changedPageId)
     {
         try
         {
-            // Refresh the children list if this node is expanded so subpage
-            // changes (create / delete / rename) appear immediately without
-            // needing the user to collapse and re-expand.
+            // Only reload if the change affects this node or one of its
+            // descendants. A null signal means "broad change — reload if
+            // expanded" for backward-compatibility.
+            if (changedPageId.HasValue &&
+                changedPageId.Value != Page.Id &&
+                !_isDescendantOf(changedPageId.Value))
+                return;
+
             if (!_expanded) return;
 
             await InvokeAsync(async () =>
             {
-                // Re-fetch only if we've previously loaded children
                 if (_children != null)
                 {
                     await LoadChildrenAsync();
@@ -142,8 +147,28 @@
         }
     }
 
+    /// <summary>
+    /// Checks whether <paramref name="candidateId"/> is a direct child
+    /// of this node or a descendant deeper in the tree.
+    /// </summary>
+    private bool _isDescendantOf(Guid candidateId)
+    {
+        if (_children == null) return false;
+        foreach (var child in _children)
+        {
+            if (child.Id == candidateId) return true;
+            // Recurse is not possible here since we don't hold child
+            // tree references. The child PageTreeNode components own
+            // their own filtering, so a child's OnPageDataChanged will
+            // handle its own descendants. We only need to check direct
+            // children here — if the changed page is a grandchild, the
+            // direct child's handler will pick it up.
+        }
+        return false;
+    }
+
     public void Dispose()
     {
-        Editor.OnPageDataChanged -= OnPageDataChanged;
+        PageDataNotifier.PageDataChanged -= OnPageDataChanged;
     }
 }

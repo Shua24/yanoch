@@ -98,7 +98,6 @@ function runWikiItem() {
   const item = filtered[wikiIdx]
   if (!item) { closeWiki(); return }
   const ed = wikiEditor
-  const from = wikiFrom
   closeWiki()
   try {
     const { view } = ed
@@ -107,7 +106,7 @@ function runWikiItem() {
     const linkMark = schema.marks.link.create({ href })
     const text = schema.text(item.title, [linkMark])
     view.dispatch(view.state.tr.replaceWith(
-      from, view.state.selection.from,
+      Math.max(0, wikiFrom - 2), view.state.selection.from,
       text
     ))
     ed.commands.focus()
