@@ -188,8 +188,8 @@ Steps 1-6 are complete. Step 7 is planned.
 1. **Migration pending**: Existing `Block` data not yet migrated to `Page.Content`. Old `Block` table still exists in initial migration; legacy `BlockEditor.razor` removed.
 2. **Old pages** show legacy block renderer; new pages use TipTap. Migration service not yet written.
 3. **Toggle block** — was previously marked as "not yet implemented"; now ✅ Done (2026-07-26).
-5. **Vite build required** after any change to `tiptap-editor.src.js` — not automatic with `dotnet run`.
-6. **SQLite vulnerability warning** — `SQLitePCLRaw.lib.e_sqlite3` 2.1.11 CVE; update package when available.
+4. **Vite build required** after any change to `tiptap-editor.src.js` — not automatic with `dotnet run`.
+5. **SQLite vulnerability warning** — `SQLitePCLRaw.lib.e_sqlite3` 2.1.11 CVE; update package when available.
 
 ---
 
