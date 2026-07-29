@@ -994,6 +994,8 @@ body {
 }
 .tiptap-editor a { color: var(--accent); text-decoration: none; }
 .tiptap-editor a:hover { text-decoration: underline; }
+.tiptap-editor a.wiki-link { color: var(--accent); text-decoration: none; border-bottom: 1px dashed var(--accent); padding-bottom: 1px; }
+.tiptap-editor a.wiki-link:hover { border-bottom-style: solid; }
 .tiptap-editor ul[data-type="taskList"] { list-style: none; padding-left: 0; }
 .tiptap-editor ul[data-type="taskList"] li { display: flex; align-items: flex-start; gap: 8px; }
 .tiptap-editor ul[data-type="taskList"] li label { flex: 0 0 20px; }

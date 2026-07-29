@@ -579,10 +579,10 @@ D:/Sourcecodes/Yanoch/src/Yanoch.Web/obj/Debug/net10.0/compressed/y22vdmsggk-{0}
 /home/apollon/Sources/Yanoch/src/Yanoch.Web/obj/Debug/net10.0/compressed/qtboxgmpk5-{0}-vrynsul1ey-vrynsul1ey.gz
 /home/apollon/Sources/Yanoch/src/Yanoch.Web/obj/Debug/net10.0/compressed/gbm92qlw61-{0}-m861aww0xc-m861aww0xc.gz
 /home/apollon/Sources/Yanoch/src/Yanoch.Web/obj/Debug/net10.0/compressed/7fc7o2l7on-{0}-0etalmjd0x-0etalmjd0x.gz
-/home/apollon/Sources/Yanoch/src/Yanoch.Web/obj/Debug/net10.0/compressed/2kk2w51jfd-{0}-2vaghrp972-2vaghrp972.gz
-/home/apollon/Sources/Yanoch/src/Yanoch.Web/obj/Debug/net10.0/compressed/y22vdmsggk-{0}-kd5808lx0j-kd5808lx0j.gz
 /home/apollon/Sources/Yanoch/src/Yanoch.Web/obj/Debug/net10.0/compressed/93jbd3irlk-{0}-7u8v5axur1-7u8v5axur1.gz
 /home/apollon/Sources/Yanoch/src/Yanoch.Web/obj/Debug/net10.0/compressed/ssqce4bo6j-{0}-fp6rkgx97o-fp6rkgx97o.gz
 /home/apollon/Sources/Yanoch/src/Yanoch.Web/obj/Debug/net10.0/compressed/p2aow1n25a-{0}-v40psd8osw-v40psd8osw.gz
-/home/apollon/Sources/Yanoch/src/Yanoch.Web/obj/Debug/net10.0/compressed/dezmg131w3-{0}-5fdpa67kkz-5fdpa67kkz.gz
 /home/apollon/Sources/Yanoch/src/Yanoch.Web/obj/Debug/net10.0/compressed/aqxh4bna0w-{0}-qj993woxkq-qj993woxkq.gz
+/home/apollon/Sources/Yanoch/src/Yanoch.Web/obj/Debug/net10.0/compressed/y22vdmsggk-{0}-ol7x4y16i4-ol7x4y16i4.gz
+/home/apollon/Sources/Yanoch/src/Yanoch.Web/obj/Debug/net10.0/compressed/2kk2w51jfd-{0}-cu2pmq0pyn-cu2pmq0pyn.gz
+/home/apollon/Sources/Yanoch/src/Yanoch.Web/obj/Debug/net10.0/compressed/dezmg131w3-{0}-ps0amau2uv-ps0amau2uv.gz

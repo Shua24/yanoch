@@ -24421,10 +24421,8 @@ function HN() {
 	let n = FN, r = jN;
 	zN();
 	try {
-		let { view: e } = n;
-		e.state.doc.textBetween(r, e.state.selection.from);
-		let i = "[[" + t.title + "]]";
-		e.dispatch(e.state.tr.replaceWith(r, e.state.selection.from, e.state.schema.text(i))), n.commands.focus();
+		let { view: e } = n, { schema: i } = e.state, a = `/page/${t.id}`, o = i.marks.link.create({ href: a }), s = i.text(t.title, [o]);
+		e.dispatch(e.state.tr.replaceWith(r, e.state.selection.from, s)), n.commands.focus();
 	} catch {}
 }
 function UN(e) {

@@ -134,8 +134,10 @@ public class PageService : IPageService
             var userId = page.UserId;
 
             await _backlinks.DeleteBySourcePageAsync(sourcePageId);
-            var matches = Regex.Matches(content, @"\[\[([^\]]+)\]\]");
-            foreach (Match m in matches)
+
+            // Extract backlinks from [[Title]] wiki-link syntax (legacy)
+            var wikiMatches = Regex.Matches(content, @"\[\[([^\]]+)\]\]");
+            foreach (Match m in wikiMatches)
             {
                 var title = m.Groups[1].Value;
                 var target = await FindPageByTitle(title, userId);
@@ -145,6 +147,21 @@ public class PageService : IPageService
                     {
                         SourcePageId = sourcePageId,
                         TargetPageId = target.Id,
+                        Context = content.Length > 200 ? content[..200] : content
+                    });
+                }
+            }
+
+            // Extract backlinks from [Title](/page/{guid}) markdown links (TipTap autocomplete)
+            var linkMatches = Regex.Matches(content, @"\[([^\]]+)\]\(/page/([a-fA-F0-9\-]+)\)");
+            foreach (Match m in linkMatches)
+            {
+                if (Guid.TryParse(m.Groups[2].Value, out var targetId) && targetId != Guid.Empty)
+                {
+                    await _backlinks.CreateAsync(new Backlink
+                    {
+                        SourcePageId = sourcePageId,
+                        TargetPageId = targetId,
                         Context = content.Length > 200 ? content[..200] : content
                     });
                 }
