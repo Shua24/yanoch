@@ -47,8 +47,10 @@ bld/
 [Ll]og/
 [Ll]ogs/
 
-# Build results on 'Bin' directories
+# Build results on 'Bin' and 'Obj' directories, and .db files
 **/[Bb]in/*
+**/[Oo]bj/*
+**/*.db
 # Uncomment if you have tasks that rely on *.refresh files to move binaries
 # (https://github.com/github/gitignore/pull/3736)
 #!**/[Bb]in/*.refresh
@@ -437,7 +439,7 @@ FodyWeavers.xsd
 
 # === Project-specific ===
 uploads/
-yanoch.db
+**/yanoch.db
 yanoch.db-shm
 yanoch.db-wal
 # The SQLite DB is regenerated from migrations, keep it out of version control
