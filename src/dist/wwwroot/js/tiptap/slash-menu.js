@@ -42,6 +42,18 @@ const slashItems = [
       }
     }
   } },
+  { title: 'To Do List',   desc: 'Interactive checklist table',   icon: '✓',  md: '',                              run: (e) => {
+    e.chain().focus().insertContent({
+      type: 'todoList',
+      attrs: {
+        rows: [
+          { checked: false, task: '', deadline: '' },
+          { checked: false, task: '', deadline: '' },
+          { checked: false, task: '', deadline: '' },
+        ]
+      }
+    }).run()
+  } },
 ]
 
 // ─── Slash menu (module-level singleton) ───────────────────────

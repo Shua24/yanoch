@@ -15,11 +15,7 @@
             <button class="btn-new-page" @onclick="CreateNewPage">+ New Page</button>
         </div>
         <div class="sidebar-nav">
-            <AuthorizeView>
-                <Authorized>
-                    <PageTree />
-                </Authorized>
-            </AuthorizeView>
+            <PageTree />
         </div>
         <div class="sidebar-footer">
             <AuthorizeView>

@@ -27,6 +27,7 @@ import { closeTableBubbleMenu, updateTableBubbleMenu } from './table-menu.js'
 import { Callout } from './callout-node.js'
 import { Toggle, setupToggleClicks } from './toggle-node.js'
 import { PageReference, setupPageReferenceClicks } from './page-ref-node.js'
+import { TodoList, setupTodoList } from './todo-list-node.js'
 
 // ─── Key handler ───────────────────────────────────────────────
 // Coordinates keyboard interactions between wiki and slash menus
@@ -85,6 +86,7 @@ export function createEditor(elementId, content, dotNetRef, blockId) {
       Callout,
       Toggle,
       PageReference,
+      TodoList,
     ],
     content: content || '',
     contentType: 'markdown',
@@ -244,4 +246,5 @@ window.blurTipTap = blurEditor
 setupCalloutMenus()
 setupToggleClicks()
 setupPageReferenceClicks()
+setupTodoList()
 setupFlushOnUnload()

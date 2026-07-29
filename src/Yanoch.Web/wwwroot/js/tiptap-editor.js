@@ -24244,6 +24244,34 @@ var hN = [
 				console.error("CreateSubpage error:", e);
 			}
 		}
+	},
+	{
+		title: "To Do List",
+		desc: "Interactive checklist table",
+		icon: "✓",
+		md: "",
+		run: (e) => {
+			e.chain().focus().insertContent({
+				type: "todoList",
+				attrs: { rows: [
+					{
+						checked: !1,
+						task: "",
+						deadline: ""
+					},
+					{
+						checked: !1,
+						task: "",
+						deadline: ""
+					},
+					{
+						checked: !1,
+						task: "",
+						deadline: ""
+					}
+				] }
+			}).run();
+		}
 	}
 ], gN = null, _N = !1, vN = 0, yN = -1, bN = "", xN = null;
 function SN(e, t) {
@@ -24688,12 +24716,138 @@ function eP() {
 	});
 }
 //#endregion
+//#region src/Yanoch.Web/wwwroot/js/tiptap/todo-list-node.js
+var tP = md({
+	nodeName: "todoList",
+	name: "todoList",
+	content: "",
+	defaultAttributes: { rows: [] },
+	allowedAttributes: ["rows"]
+});
+function nP(e) {
+	return typeof e == "string" ? e.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;") : "";
+}
+function rP(e) {
+	return `
+    <table class="todo-table">
+      <thead><tr><th>Task</th><th>Deadline</th><th>Checklist</th></tr></thead>
+      <tbody>${e.map((e) => `
+    <tr>
+      <td><input class="todo-task" type="text" value="${nP(e.task)}" placeholder="What needs doing?"></td>
+      <td><input class="todo-deadline" type="text" value="${nP(e.deadline)}" placeholder="Due date"></td>
+      <td class="todo-check-col"><input type="checkbox"${e.checked ? " checked" : ""}></td>
+    </tr>
+  `).join("")}</tbody>
+    </table>
+    <button class="todo-add-btn">+ Add item</button>
+  `;
+}
+function iP(e) {
+	return Array.from(RM.values()).find((t) => t.editor?.view?.dom?.contains(e))?.editor || null;
+}
+function aP(e) {
+	let t = [];
+	return e.querySelectorAll("tbody tr").forEach((e) => {
+		t.push({
+			checked: e.querySelector("input[type=\"checkbox\"]")?.checked || !1,
+			task: e.querySelector(".todo-task")?.value || "",
+			deadline: e.querySelector(".todo-deadline")?.value || ""
+		});
+	}), t;
+}
+function oP(e, t) {
+	let n = iP(e);
+	if (!n) return;
+	let { state: r, view: i } = n, a = i.posAtDOM(e, 0);
+	if (a == null) return;
+	let o = r.doc.resolve(a), s = o.depth;
+	for (; s >= 0 && o.node(s).type.name !== "todoList";) s--;
+	s < 0 || i.dispatch(r.tr.setNodeMarkup(o.before(s), null, { rows: t }));
+}
+function sP(e, t) {
+	let n;
+	return (...r) => {
+		clearTimeout(n), n = setTimeout(() => e(...r), t);
+	};
+}
+var cP = sP((e) => {
+	oP(e, aP(e));
+}, 300), lP = P.create({
+	name: "todoList",
+	group: "block",
+	atom: !0,
+	draggable: !0,
+	addAttributes() {
+		return { rows: { default: [] } };
+	},
+	parseHTML() {
+		return [{
+			tag: "div[data-todo-list]",
+			getAttrs: (e) => ({ rows: JSON.parse(e.getAttribute("data-rows") || "[]") })
+		}];
+	},
+	renderHTML({ HTMLAttributes: e }) {
+		return ["div", {
+			"data-todo-list": "",
+			"data-rows": JSON.stringify(e.rows || []),
+			class: "todo-list"
+		}];
+	},
+	addNodeView() {
+		return ({ node: e }) => {
+			let t = document.createElement("div");
+			t.setAttribute("data-todo-list", ""), t.className = "todo-list", t.contentEditable = "false";
+			function n() {
+				t.setAttribute("data-rows", JSON.stringify(e.attrs.rows || [])), t.innerHTML = rP(e.attrs.rows || []);
+			}
+			return n(), {
+				dom: t,
+				update(t) {
+					return t.type.name === "todoList" ? (e = t, n(), !0) : !1;
+				},
+				ignoreMutation() {
+					return !0;
+				},
+				stopEvent(e) {
+					let t = e.target;
+					return t.closest(".todo-add-btn") != null || t.closest("input") != null || t.closest("td") != null;
+				}
+			};
+		};
+	},
+	...tP
+});
+function uP() {
+	document.addEventListener("click", (e) => {
+		let t = e.target.closest("[data-todo-list]");
+		if (t) {
+			if (e.target.closest(".todo-add-btn")) {
+				e.preventDefault();
+				let n = aP(t);
+				n.push({
+					checked: !1,
+					task: "",
+					deadline: ""
+				}), oP(t, n);
+				return;
+			}
+			if (e.target.matches("input[type=\"checkbox\"]")) {
+				oP(t, aP(t));
+				return;
+			}
+		}
+	}), document.addEventListener("input", (e) => {
+		let t = e.target.closest("[data-todo-list]");
+		t && e.target.matches(".todo-task, .todo-deadline") && cP(t);
+	});
+}
+//#endregion
 //#region src/Yanoch.Web/wwwroot/js/tiptap/editor.js
-function tP() {
+function dP() {
 	return (e, t) => !!(WN(t) || kN(t));
 }
-function nP(e, t, n, r) {
-	rP(e);
+function fP(e, t, n, r) {
+	pP(e);
 	let i = document.getElementById(e);
 	if (!i) return null;
 	let a = {
@@ -24747,7 +24901,8 @@ function nP(e, t, n, r) {
 			IM,
 			JN,
 			XN,
-			$N
+			$N,
+			lP
 		],
 		content: t || "",
 		contentType: "markdown",
@@ -24756,7 +24911,7 @@ function nP(e, t, n, r) {
 				class: "tiptap-editor",
 				"data-block-id": r
 			},
-			handleKeyDown: tP(),
+			handleKeyDown: dP(),
 			handlePaste(e, t) {
 				let n = t.clipboardData?.files;
 				if (n && n[0]?.type.startsWith("image/")) return t.preventDefault(), GM(n[0]).then((t) => {
@@ -24841,25 +24996,25 @@ function nP(e, t, n, r) {
 		handler: c
 	}), RM.set(e, a), o;
 }
-function rP(e) {
+function pP(e) {
 	let t = RM.get(e);
 	t && (t._dirty = !1, t._pendingMarkdown = null, GN(e), t.listeners.forEach((e) => document.removeEventListener(e.type, e.handler)), t.listeners = [], t.dotNetRef = null, t.editor &&= (t.editor.destroy(), null), RM.delete(e), iN());
 }
-function iP(e) {
+function mP(e) {
 	return RM.get(e)?.editor?.getMarkdown() ?? "";
 }
-function aP(e, t) {
+function hP(e, t) {
 	RM.get(e)?.editor?.commands.setContent(t, !1, "markdown");
 }
-function oP(e, t) {
+function gP(e, t) {
 	RM.get(e)?.editor?.setEditable(t);
 }
-function sP(e) {
+function _P(e) {
 	RM.get(e)?.editor?.commands.focus();
 }
-function cP(e) {
+function vP(e) {
 	RM.get(e)?.editor?.commands.blur();
 }
-window.initTipTap = nP, window.destroyTipTap = rP, window.getTipTapMarkdown = iP, window.setTipTapContent = aP, window.setTipTapEditable = oP, window.focusTipTap = sP, window.blurTipTap = cP, mN(), QN(), eP(), aN();
+window.initTipTap = fP, window.destroyTipTap = pP, window.getTipTapMarkdown = mP, window.setTipTapContent = hP, window.setTipTapEditable = gP, window.focusTipTap = _P, window.blurTipTap = vP, mN(), QN(), eP(), uP(), aN();
 //#endregion
-export { cP as blurEditor, nP as createEditor, rP as destroyEditor, sP as focusEditor, iP as getMarkdown, aP as setContent, oP as setEditable };
+export { vP as blurEditor, fP as createEditor, pP as destroyEditor, _P as focusEditor, mP as getMarkdown, hP as setContent, gP as setEditable };

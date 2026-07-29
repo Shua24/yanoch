@@ -1,4 +1,5 @@
-﻿@inject IPageService PageService
+﻿@implements IDisposable
+@inject IPageService PageService
 @inject NavigationManager Navigation
 @inject AuthenticationStateProvider AuthState
 @inject UserManager<IdentityUser> UserManager
@@ -42,7 +43,7 @@
             {
                 @foreach (var child in _children)
                 {
-                    <PageTreeNode Page="child" Depth="@(Depth + 1)" />
+                    <PageTreeNode @key="child.Id" Page="child" Depth="@(Depth + 1)" />
                 }
             }
         </div>
@@ -69,6 +70,8 @@
             var user = await UserManager.GetUserAsync(state.User);
             if (user != null) currentUserId = Guid.Parse(user.Id);
         }
+
+        Editor.OnPageDataChanged += OnPageDataChanged;
     }
 
     private void ToggleMenu()
@@ -112,5 +115,35 @@
         {
             Navigation.NavigateTo("/");
         }
+    }
+
+    private async void OnPageDataChanged()
+    {
+        try
+        {
+            // Refresh the children list if this node is expanded so subpage
+            // changes (create / delete / rename) appear immediately without
+            // needing the user to collapse and re-expand.
+            if (!_expanded) return;
+
+            await InvokeAsync(async () =>
+            {
+                // Re-fetch only if we've previously loaded children
+                if (_children != null)
+                {
+                    await LoadChildrenAsync();
+                    StateHasChanged();
+                }
+            });
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[PageTreeNode] OnPageDataChanged refresh failed: {ex.Message}");
+        }
+    }
+
+    public void Dispose()
+    {
+        Editor.OnPageDataChanged -= OnPageDataChanged;
     }
 }
