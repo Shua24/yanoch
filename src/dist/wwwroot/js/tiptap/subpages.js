@@ -29,23 +29,28 @@ export async function loadAndInjectSubpages(editor, pageId) {
 }
 
 // ─── Save subpage order to backend ─────────────────────────────
-let _reorderTimeout = null
+// Per-pageId debounce timers so concurrent editors don't clobber each other.
+const _reorderTimers = new Map()
 
 export function scheduleSubpageReorder(pageId, orderedIds) {
-  if (_reorderTimeout) clearTimeout(_reorderTimeout)
-  _reorderTimeout = setTimeout(async () => {
-    _reorderTimeout = null
+  if (_reorderTimers.has(pageId)) clearTimeout(_reorderTimers.get(pageId))
+  _reorderTimers.set(pageId, setTimeout(async () => {
+    _reorderTimers.delete(pageId)
     try {
-      await fetch(`/api/pages/${pageId}/reorder-subpages`, {
+      const r = await fetch(`/api/pages/${pageId}/reorder-subpages`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ pageIds: orderedIds }),
         credentials: 'same-origin',
       })
+      if (!r.ok) {
+        const text = await r.text().catch(() => '(no body)')
+        console.warn(`Reorder rejected (${r.status}) for page ${pageId}:`, text)
+      }
     } catch (e) {
-      console.error('Reorder failed:', e)
+      console.error('Reorder network error for page', pageId, ':', e)
     }
-  }, 600)
+  }, 600))
 }
 
 // ─── Extract pageReference node order from editor ──────────────

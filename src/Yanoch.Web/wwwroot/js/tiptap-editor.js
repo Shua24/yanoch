@@ -23905,21 +23905,25 @@ async function qM(e, t) {
 		console.error("Failed to load subpages:", e);
 	}
 }
-var JM = null;
+var JM = /* @__PURE__ */ new Map();
 function YM(e, t) {
-	JM && clearTimeout(JM), JM = setTimeout(async () => {
-		JM = null;
+	JM.has(e) && clearTimeout(JM.get(e)), JM.set(e, setTimeout(async () => {
+		JM.delete(e);
 		try {
-			await fetch(`/api/pages/${e}/reorder-subpages`, {
+			let n = await fetch(`/api/pages/${e}/reorder-subpages`, {
 				method: "PUT",
 				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify({ pageIds: t }),
 				credentials: "same-origin"
 			});
-		} catch (e) {
-			console.error("Reorder failed:", e);
+			if (!n.ok) {
+				let t = await n.text().catch(() => "(no body)");
+				console.warn(`Reorder rejected (${n.status}) for page ${e}:`, t);
+			}
+		} catch (t) {
+			console.error("Reorder network error for page", e, ":", t);
 		}
-	}, 600);
+	}, 600));
 }
 function XM(e) {
 	let t = [];
