@@ -188,6 +188,36 @@ Steps 1-6 are complete.
 
 ---
 
+## Known Issues & Debugging (Moved from CODE.md)
+
+### Subtle Bugs Fixed (2026-07-29)
+
+| Bug | Root Cause | Fix |
+|-----|------------|-----|
+| `flushTimer is not defined` | `destroyEditor()` referenced `flushTimer` but variable was module-scoped in `tiptap-save-manager.js` as `_flushTimer` | Import `clearFlushTimer()` from save-manager and call it instead |
+| `checkSlash is not defined` | `handleUpdate()` and `handleSelectionUpdate()` called `checkSlash(ed)` but it wasn't imported from `tiptap-slash-menu.js` | Add `checkSlash` to import list from `./tiptap-slash-menu.js` |
+| `checkWiki is not defined` | Same pattern as `checkSlash` — called but not imported | Add `checkWiki` to import list from `./tiptap-wiki-autocomplete.js` |
+
+### Patterns to Avoid
+
+1. **Module-scoped variables** → Always import/export; never assume global scope across modules
+2. **Stale Vite builds** → Run `npx vite build` after ANY JS source change; committed `tiptap-editor.js` may be stale
+3. **Silent JS interop failures** → `invokeCb` wrapper in `tiptap-editor.js` swallows errors when circuit dies; check browser console for `blazor.server.js` reconnection logs
+
+### Debugging Playbook
+
+| Symptom | Check | Fix |
+|---------|-------|-----|
+| Circuit lost | Browser console for `blazor.server.js` reconnection logs | Wait for auto-reconnect or refresh |
+| JS interop fails silently | Browser console (F12) → errors from `invokeMethodAsync` | Wrap calls in try/catch; `invokeCb` already handles circuit-gone |
+| Editor not destroying | `OnBeforeUnmountAsync` calls `destroyTipTap(elementId)` | Verify `Editor.razor:DestroyEditor()` runs |
+| `initTipTap is not a function` | Stale Vite build | Run `npx vite build` |
+| Editor not loading | Network tab: `/js/tiptap-editor.js` loads (not 404) | Check `vite.config.js` output path |
+| Migration pending | App auto-migrates on startup (`Program.cs:24-36`) | Delete `yanoch.db` → restart to reset |
+| Images not loading | `wwwroot/uploads/` permissions + static file middleware | Ensure `app.UseStaticFiles()` in `Program.cs` |
+
+---
+
 ## Regression Checklist
 
 - [ ] Register → login → home page shows recent pages
