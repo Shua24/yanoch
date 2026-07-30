@@ -29268,23 +29268,59 @@ function aF(e) {
 	};
 }
 dP.registerLanguage("javascript", bP), dP.registerLanguage("typescript", AP), dP.registerLanguage("python", jP), dP.registerLanguage("java", LP), dP.registerLanguage("csharp", RP), dP.registerLanguage("cpp", zP), dP.registerLanguage("css", JP), dP.registerLanguage("html", YP), dP.registerLanguage("json", XP), dP.registerLanguage("bash", ZP), dP.registerLanguage("sql", QP), dP.registerLanguage("yaml", $P), dP.registerLanguage("markdown", eF), dP.registerLanguage("diff", tF), dP.registerLanguage("go", nF), dP.registerLanguage("rust", rF), dP.registerLanguage("ruby", iF), dP.registerLanguage("php", aF);
-var oF = /* @__PURE__ */ new WeakSet(), sF = L.create({
+var oF = L.create({
 	name: "codeBlockHighlight",
-	onCreate() {
-		requestAnimationFrame(() => {
-			let { view: e } = this.editor;
-			e.dom.querySelectorAll("pre code").forEach((e) => {
-				oF.has(e) || (oF.add(e), dP.highlightElement(e));
-			});
-		});
-	},
-	onUpdate() {
-		let { view: e } = this.editor;
-		e.dom.querySelectorAll("pre code").forEach((e) => {
-			oF.has(e) || (oF.add(e), dP.highlightElement(e));
-		});
+	addProseMirrorPlugins() {
+		let e = new M("codeBlockHighlight");
+		return [new j({
+			key: e,
+			state: {
+				init(e, { doc: t }) {
+					return sF(t);
+				},
+				apply(e, t) {
+					return e.docChanged ? sF(e.doc) : t;
+				}
+			},
+			props: { decorations(t) {
+				return e.getState(t);
+			} }
+		})];
 	}
-}), cF = yd({
+});
+function sF(e) {
+	let t = [];
+	return e.descendants((e, n) => {
+		if (e.type.name !== "codeBlock") return;
+		let r = e.textContent;
+		if (!r) return;
+		let i = e.attrs.language, a;
+		try {
+			a = i && dP.getLanguage(i) ? dP.highlight(r, { language: i }) : dP.highlightAuto(r);
+		} catch {
+			return;
+		}
+		let o = document.createElement("div");
+		o.innerHTML = a.value;
+		let s = [];
+		function c(e, t) {
+			for (let n of e.childNodes) n.nodeType === Node.TEXT_NODE ? n.textContent && s.push({
+				len: n.textContent.length,
+				cls: t
+			}) : n.nodeType === Node.ELEMENT_NODE && c(n, t ? t + " " + n.className : n.className);
+		}
+		c(o, "");
+		let l = 0;
+		for (let { len: e, cls: r } of s) {
+			if (e <= 0) continue;
+			let i = n + 1 + l, a = i + e;
+			r && t.push(ms.inline(i, a, { class: r })), l += e;
+		}
+	}), N.create(e, t);
+}
+//#endregion
+//#region src/Yanoch.Web/wwwroot/js/tiptap/todo-list-node.js
+var cF = yd({
 	nodeName: "todoList",
 	name: "todoList",
 	content: "",
@@ -29466,7 +29502,7 @@ function yF(e, t, n, r) {
 					3
 				] }
 			}),
-			sF,
+			oF,
 			vg,
 			rh.configure({
 				openOnClick: !0,
