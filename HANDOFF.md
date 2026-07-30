@@ -115,6 +115,137 @@ The `todo-list-node.js` under `src/dist/wwwroot/js/tiptap/` is a tracked mirror 
 | `src/dist/wwwroot/app.css` | Mirror the CSS changes (deployed bundle) |
 | `src/dist/wwwroot/js/tiptap/todo-list-node.js` | Mirror the JS changes (deployed bundle) |
 
+---
+
+## To Do: Syntax-Highlighted Code Blocks with Language Labels
+
+### Goal
+
+Fenced markdown code blocks with a language label (e.g. `` ```python ``, `` ```csharp ``) should render with syntax highlighting inside the TipTap editor. The feature already has a partially implemented `code-block.js` that registers highlight.js languages and creates a `codeBlockHighlight` extension — it just needs to be wired in, have its dependency added, and get CSS styles.
+
+### Background
+
+The TipTap `StarterKit` already includes a `codeBlock` node that understands fenced markdown syntax (triple-backtick + optional language label) and stores the language in `node.attrs.language`. The `code-block.js` file under `src/Yanoch.Web/wwwroot/js/tiptap/` registers roughly 20 languages with highlight.js and defines a `CodeBlockHighlight` ProseMirror plugin that applies highlighting to `<pre><code>` elements on every doc/selection/viewport update. What is missing is:
+
+1. `highlight.js` is **not listed in `package.json`** — the import in `code-block.js` will fail at build time
+2. `CodeBlockHighlight` is **not imported or added to the extensions array** in `editor.js`
+3. **No highlight.js CSS** is loaded — highlighting classes (`.hljs`, `.language-python`, `.token.keyword`, etc.) have no styles
+4. `src/dist/` mirrors are not yet updated to include the feature
+
+### Design
+
+- **Language labels** use standard fenced-code-block markdown: triple-backtick + language name (e.g. `` ```python ``) — renders with a `language-python` class on the `<code>` element, set automatically by StarterKit's `codeBlock` node via `languageClassPrefix: 'language-'`
+- **Highlighting** is applied by the `CodeBlockHighlight` ViewPlugin, which runs `hljs.highlightElement()` on every visible `<pre><code>` block once, then caches it in a `WeakSet` so the same node is never re-highlighted
+- **Lazy approach** (already implemented in `code-block.js`): highlighting triggers only when new nodes enter the viewport, not on every keystroke
+- **Round-trip**: the saved markdown preserves the language label (e.g. `` ```csharp ``), so highlight state is not serialized — it's purely a view-layer concern
+
+### Implementation — What to change
+
+#### 1. `package.json`
+
+Add `highlight.js` as a dependency (the project already imports it in `code-block.js` but it's not declared):
+
+```bash
+npm install highlight.js
+```
+
+This registers it so Vite can resolve the `highlight.js` imports in `code-block.js`.
+
+#### 2. `src/Yanoch.Web/wwwroot/js/tiptap-editor.js` (editor entry point)
+
+Import and add `CodeBlockHighlight` to the extensions array:
+
+```js
+import { CodeBlockHighlight } from './tiptap/code-block.js'
+```
+
+Place `CodeBlockHighlight` in the `extensions: [...]` array in `createEditor()`, anywhere after the `StarterKit` block:
+
+```js
+StarterKit.configure({
+  codeBlock: true,
+  heading: { levels: [1, 2, 3] },
+}),
+CodeBlockHighlight,
+```
+
+> **Note:** `StarterKit` with `codeBlock: true` already registers the `codeBlock` node with `language` attribute support. `CodeBlockHighlight` is the companion plugin that adds the actual highlighting to the DOM. Both are needed.
+
+#### 3. `src/Yanoch.Web/wwwroot/js/tiptap/code-block.js`
+
+This file is already complete and correct — no changes needed. It:
+- Registers 20 languages with highlight.js (`javascript`, `typescript`, `python`, `java`, `csharp`, `cpp`, `css`, `html`, `json`, `bash`, `sql`, `yaml`, `markdown`, `diff`, `go`, `rust`, `ruby`, `php`)
+- Exports `CodeBlockHighlight` extension with a `ViewPlugin` that highlights visible blocks once and caches them in a `WeakSet`
+- Falls back to auto-detection for languages not explicitly registered
+
+If more languages are needed later, add imports and `hljs.registerLanguage()` calls following the existing pattern.
+
+#### 4. `src/Yanoch.Web/wwwroot/app.css`
+
+Add highlight.js base styles and a dark-mode override. The highlight.js library adds a `.hljs` class to the `<code>` element (and language-specific classes like `.language-python` to the `<code>` as well). Only `.hljs` is needed for a functional baseline:
+
+```css
+/* ─── Code Block Highlighting ─────────────── */
+.tiptap-editor .hljs {
+    display: block;
+    padding: 16px;
+    overflow-x: auto;
+    border-radius: var(--radius);
+    font-size: 13px;
+    line-height: 1.5;
+    background: var(--code-bg);
+}
+```
+
+**Dark mode:** highlight.js auto-detects dark backgrounds and adjusts token colours. If token contrast is insufficient in dark mode, import a highlight.js theme CSS (e.g. `highlight.js/styles/atom-one-dark.css`) and serve it alongside the library, or add an explicit dark override:
+
+```css
+.dark .tiptap-editor .hljs {
+    background: var(--code-bg);
+}
+```
+
+For full accuracy across themes the cleanest route is to import a highlight.js theme CSS in the editor bundle and configure it in `code-block.js` with `hljs.configure({ theme: 'atom-one-dark' })`. That is a follow-up consideration — the minimal CSS above gets the feature working and leaves room to refine theming later.
+
+#### 5. `src/dist/wwwroot/app.css` (mirror file)
+
+Copy the same CSS addition. Keep this file in sync — it is the deployed bundle's CSS.
+
+#### 6. `src/dist/wwwroot/js/tiptap-editor.js` (mirror at `src/dist/`)
+
+This is the built output from Vite. After editing the source files above, run `npx vite build` to regenerate it. The `code-block.js` imports and `CodeBlockHighlight` registration will be bundled into the output. Both the source and dist bundles must have the feature.
+
+### Files to touch (for this feature)
+
+| File | Reason |
+|------|--------|
+| `package.json` | Add `highlight.js` dependency (and run `npm install`) |
+| `src/Yanoch.Web/wwwroot/js/tiptap/editor.js` | Import `CodeBlockHighlight` and add it to the extensions array |
+| `src/Yanoch.Web/wwwroot/js/tiptap/code-block.js` | No changes needed — already complete |
+| `src/Yanoch.Web/wwwroot/app.css` | Add `.hljs` highlighting styles + dark-mode override |
+| `src/dist/wwwroot/app.css` | Mirror the CSS changes |
+| `src/dist/wwwroot/js/tiptap-editor.js` | Rebuild via `npx vite build` (mirrors the bundled source) |
+
+### Verification
+
+1. Run `npm install` to pick up the new highlight.js dependency
+2. Run `npx vite build` to rebuild the TipTap bundle (this also updates `src/dist/`)
+3. Open a page with a fenced code block using a language label (`` ```python ``)
+4. The code block should render with coloured tokens inside the editor (highlight.js applies `.hljs` + token classes)
+5. Switch to dark mode → code block background should remain readable
+6. Edit the code block → highlighting should apply to newly typed content
+7. Save the page → reload → language label and highlighting are preserved (language stored in node attrs, highlighting reapplied on load)
+8. Try an unregistered language (e.g. `` ```elixir ``) → highlight.js auto-detects the language and still highlights with a reasonable token set
+
+## Notes
+
+- No server-side changes needed; this is entirely client-side
+- The `src/dist/` directory is tracked in git (it is the built/deployed output) and must be rebuilt after any source edits
+- The `codeBlock` node is already part of StarterKit — the language label in fenced markdown (`` ```python ``) is parsed to `node.attrs.language` automatically; no extra work needed there
+- highlight.js auto-detection is the fallback for languages not explicitly registered; auto-registration of common languages is built into the library
+- If adding new languages later, follow the same pattern in `code-block.js`: `import x from 'highlight.js/lib/languages/x'` + `hljs.registerLanguage('x', x)`
+- The existing `stopEvent` pattern and `.todo-` prefixed styles are unrelated to this feature — no interference expected
+
 ## How it fits in the existing todo-list node
 
 The current node data shape is unchanged — `rows: [{ checked, task, deadline }]`. The filter bar is purely a view-layer addition; it reads `checked` from each row's checkbox to decide visibility but never mutates the data array. Markdown export via `createBlockMarkdownSpec` continues to serialize all rows as-is, so saved content is unaffected.
