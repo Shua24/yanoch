@@ -125,7 +125,7 @@ Fenced markdown code blocks with a language label (e.g. `` ```python ``, `` ```c
 
 ### Background
 
-The TipTap `StarterKit` already includes a `codeBlock` node that understands fenced markdown syntax (triple-backtick + optional language label) and stores the language in `node.attrs.language`. The `code-block.js` file under `src/Yanoch.Web/wwwroot/js/tiptap/` registers roughly 20 languages with highlight.js and defines a `CodeBlockHighlight` ProseMirror plugin that applies highlighting to `<pre><code>` elements on every doc/selection/viewport update. What is missing is:
+The TipTap `StarterKit` already includes a `codeBlock` node that understands fenced markdown syntax (triple-backtick + optional language label) and stores the language in `node.attrs.language`. The `code-block.js` file under `src/Yanoch.Web/wwwroot/js/tiptap/` registers roughly 20 languages with highlight.js and defines a `CodeBlockHighlight` ProseMirror decoration plugin that applies syntax highlighting as inline decorations on every document change. What is missing is:
 
 1. `highlight.js` is **not listed in `package.json`** — the import in `code-block.js` will fail at build time
 2. `CodeBlockHighlight` is **not imported or added to the extensions array** in `editor.js`
@@ -135,8 +135,8 @@ The TipTap `StarterKit` already includes a `codeBlock` node that understands fen
 ### Design
 
 - **Language labels** use standard fenced-code-block markdown: triple-backtick + language name (e.g. `` ```python ``) — renders with a `language-python` class on the `<code>` element, set automatically by StarterKit's `codeBlock` node via `languageClassPrefix: 'language-'`
-- **Highlighting** is applied by the `CodeBlockHighlight` extension's `onCreate`/`onUpdate` hooks, which run `hljs.highlightElement()` on every `<pre><code>` block once, then cache it in a `WeakSet` so the same node is never re-highlighted
-- **Lazy approach** (already implemented in `code-block.js`): highlighting triggers only when new nodes enter the viewport, not on every keystroke
+- **Highlighting** is applied by the `CodeBlockHighlight` extension as a ProseMirror decoration plugin. The plugin builds a `DecorationSet` on document changes, running `hljs.highlight()` to tokenize code blocks and applying inline decorations with syntax-specific class names to text ranges
+- **Performance**: highlighting rebuilds only when the document changes (not on selection-only updates), and decorations are efficiently managed by ProseMirror's decoration system
 - **Round-trip**: the saved markdown preserves the language label (e.g. `` ```csharp ``), so highlight state is not serialized — it's purely a view-layer concern
 
 ### Implementation — What to change
@@ -151,12 +151,12 @@ npm install highlight.js
 
 This registers it so Vite can resolve the `highlight.js` imports in `code-block.js`.
 
-#### 2. `src/Yanoch.Web/wwwroot/js/tiptap-editor.js` (editor entry point)
+#### 2. `src/Yanoch.Web/wwwroot/js/tiptap/editor.js` (editor entry point)
 
 Import and add `CodeBlockHighlight` to the extensions array:
 
 ```js
-import { CodeBlockHighlight } from './tiptap/code-block.js'
+import { CodeBlockHighlight } from './code-block.js'
 ```
 
 Place `CodeBlockHighlight` in the `extensions: [...]` array in `createEditor()`, anywhere after the `StarterKit` block:
@@ -175,7 +175,7 @@ CodeBlockHighlight,
 
 This file is already complete and correct — no changes needed. It:
 - Registers 20 languages with highlight.js (`javascript`, `typescript`, `python`, `java`, `csharp`, `cpp`, `css`, `html`, `json`, `bash`, `sql`, `yaml`, `markdown`, `diff`, `go`, `rust`, `ruby`, `php`)
-- Exports `CodeBlockHighlight` extension with `onCreate`/`onUpdate` hooks that highlight blocks once and cache them in a `WeakSet`
+- Exports `CodeBlockHighlight` extension as a ProseMirror decoration plugin that applies inline decorations with syntax class names
 - Falls back to auto-detection for languages not explicitly registered
 
 If more languages are needed later, add imports and `hljs.registerLanguage()` calls following the existing pattern.
@@ -211,20 +211,20 @@ For full accuracy across themes the cleanest route is to import a highlight.js t
 
 Copy the same CSS addition. Keep this file in sync — it is the deployed bundle's CSS.
 
-#### 6. `src/dist/wwwroot/js/tiptap-editor.js` (mirror at `src/dist/`)
+#### 6. `src/dist/wwwroot/js/tiptap-editor.js` (generated build artifact)
 
-This is the built output from Vite. After editing the source files above, run `npx vite build` to regenerate it. The `code-block.js` imports and `CodeBlockHighlight` registration will be bundled into the output. Both the source and dist bundles must have the feature.
+This is the built output from Vite. After editing the source files above, run `npx vite build` to regenerate it. The `code-block.js` imports and `CodeBlockHighlight` registration from `editor.js` will be bundled into the output. Both the source and dist bundles must have the feature.
 
 ### Files to touch (for this feature)
 
 | File | Reason |
 |------|--------|
 | `package.json` | Add `highlight.js` dependency (and run `npm install`) |
-| `src/Yanoch.Web/wwwroot/js/tiptap/editor.js` | Import `CodeBlockHighlight` and add it to the extensions array |
+| `src/Yanoch.Web/wwwroot/js/tiptap/editor.js` | Import `CodeBlockHighlight` from `code-block.js` and add it to the extensions array |
 | `src/Yanoch.Web/wwwroot/js/tiptap/code-block.js` | No changes needed — already complete |
 | `src/Yanoch.Web/wwwroot/app.css` | Add `.hljs` highlighting styles + dark-mode override |
 | `src/dist/wwwroot/app.css` | Mirror the CSS changes |
-| `src/dist/wwwroot/js/tiptap-editor.js` | Rebuild via `npx vite build` (mirrors the bundled source) |
+| `src/dist/wwwroot/js/tiptap-editor.js` | Generated build artifact — rebuild via `npx vite build` after editing `editor.js` |
 
 ### Verification
 

@@ -116,6 +116,28 @@ export const TodoList = Node.create({
       dom.className = 'todo-list'
       dom.contentEditable = 'false'
 
+      let activeFilter = 'all'
+
+      function applyFilter() {
+        // Update active button styling
+        dom.querySelectorAll('.todo-filter-btn').forEach(btn => {
+          if (btn.dataset.filter === activeFilter) {
+            btn.classList.add('active')
+          } else {
+            btn.classList.remove('active')
+          }
+        })
+
+        // Update row visibility
+        dom.querySelectorAll('tbody tr').forEach(tr => {
+          const checked = tr.querySelector('input[type="checkbox"]')?.checked
+          tr.style.display =
+            activeFilter === 'all' ? '' :
+            activeFilter === 'done' ? (checked ? '' : 'none') :
+            (!checked ? '' : 'none')
+        })
+      }
+
       function render() {
         dom.setAttribute('data-rows', JSON.stringify(node.attrs.rows || []))
 
@@ -142,18 +164,13 @@ export const TodoList = Node.create({
         // Wire up filter bar click handlers
         dom.querySelectorAll('.todo-filter-btn').forEach(btn => {
           btn.addEventListener('click', () => {
-            dom.querySelectorAll('.todo-filter-btn').forEach(b => b.classList.remove('active'))
-            btn.classList.add('active')
-            const filter = btn.dataset.filter
-            dom.querySelectorAll('tbody tr').forEach(tr => {
-              const checked = tr.querySelector('input[type="checkbox"]')?.checked
-              tr.style.display =
-                filter === 'all' ? '' :
-                filter === 'done' ? (checked ? '' : 'none') :
-                (!checked ? '' : 'none')
-            })
+            activeFilter = btn.dataset.filter
+            applyFilter()
           })
         })
+
+        // Apply the current filter state
+        applyFilter()
 
         if (savedSel && savedSel.tag === 'INPUT') {
           const inputs = dom.querySelectorAll('tbody input')
@@ -211,9 +228,10 @@ export function setupTodoList() {
       return
     }
 
-    // Checkbox toggle — update immediately
+    // Checkbox toggle — update immediately and reapply filter
     if (e.target.matches('input[type="checkbox"]')) {
       updateNodeData(el, serializeRows(el))
+      // The node update will trigger a rerender which will call applyFilter()
       return
     }
   })

@@ -29405,39 +29405,43 @@ var hF = mF((e) => {
 		return ({ node: e }) => {
 			let t = document.createElement("div");
 			t.setAttribute("data-todo-list", ""), t.className = "todo-list", t.contentEditable = "false";
-			function n() {
+			let n = "all";
+			function r() {
+				t.querySelectorAll(".todo-filter-btn").forEach((e) => {
+					e.dataset.filter === n ? e.classList.add("active") : e.classList.remove("active");
+				}), t.querySelectorAll("tbody tr").forEach((e) => {
+					let t = e.querySelector("input[type=\"checkbox\"]")?.checked;
+					e.style.display = n === "all" ? "" : n === "done" ? t ? "" : "none" : t ? "none" : "";
+				});
+			}
+			function i() {
 				t.setAttribute("data-rows", JSON.stringify(e.attrs.rows || []));
-				let n = t.ownerDocument.activeElement, r = null;
-				if (n && t.contains(n) && (r = {
-					tag: n.tagName,
-					cls: n.className,
-					value: n.value,
-					start: n.selectionStart,
-					end: n.selectionEnd
+				let i = t.ownerDocument.activeElement, a = null;
+				if (i && t.contains(i) && (a = {
+					tag: i.tagName,
+					cls: i.className,
+					value: i.value,
+					start: i.selectionStart,
+					end: i.selectionEnd
 				}), t.innerHTML = uF(e.attrs.rows || []), t.querySelectorAll(".todo-filter-btn").forEach((e) => {
 					e.addEventListener("click", () => {
-						t.querySelectorAll(".todo-filter-btn").forEach((e) => e.classList.remove("active")), e.classList.add("active");
-						let n = e.dataset.filter;
-						t.querySelectorAll("tbody tr").forEach((e) => {
-							let t = e.querySelector("input[type=\"checkbox\"]")?.checked;
-							e.style.display = n === "all" ? "" : n === "done" ? t ? "" : "none" : t ? "none" : "";
-						});
+						n = e.dataset.filter, r();
 					});
-				}), r && r.tag === "INPUT") {
+				}), r(), a && a.tag === "INPUT") {
 					let e = t.querySelectorAll("tbody input");
-					for (let t of e) if (t.className === r.cls) {
-						t.value = r.value, t.focus();
+					for (let t of e) if (t.className === a.cls) {
+						t.value = a.value, t.focus();
 						try {
-							t.selectionStart = r.start, t.selectionEnd = r.end;
+							t.selectionStart = a.start, t.selectionEnd = a.end;
 						} catch {}
 						break;
 					}
 				}
 			}
-			return n(), {
+			return i(), {
 				dom: t,
 				update(t) {
-					return t.type.name === "todoList" ? (e = t, n(), !0) : !1;
+					return t.type.name === "todoList" ? (e = t, i(), !0) : !1;
 				},
 				ignoreMutation() {
 					return !0;
