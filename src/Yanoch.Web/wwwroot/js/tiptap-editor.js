@@ -29351,12 +29351,13 @@ function uF(e) {
       <button class="todo-filter-btn" data-filter="open">Not done</button>
     </div>
     <table class="todo-table">
-      <thead><tr><th>Task</th><th>Deadline</th><th>Checklist</th></tr></thead>
+      <thead><tr><th>Task</th><th>Deadline</th><th>Checklist</th><th></th></tr></thead>
       <tbody>${e.map((e) => `
     <tr>
       <td><input class="todo-task" type="text" value="${lF(e.task)}" placeholder="What needs doing?"></td>
       <td><input class="todo-deadline" type="text" value="${lF(e.deadline)}" placeholder="Due date"></td>
       <td class="todo-check-col"><input type="checkbox"${e.checked ? " checked" : ""}></td>
+      <td class="todo-actions-col"><button class="todo-remove-btn" title="Remove item">✕</button></td>
     </tr>
   `).join("")}</tbody>
     </table>
@@ -29382,7 +29383,22 @@ function pF(e, t) {
 		clearTimeout(n), n = setTimeout(() => e(...r), t);
 	};
 }
-var mF = R.create({
+function mF(e, t) {
+	let n = document.createElement("div");
+	n.className = "confirm-dialog", n.innerHTML = `
+    <div class="confirm-dialog-box">
+      <div class="confirm-dialog-text">${lF(e)}</div>
+      <div class="confirm-dialog-actions">
+        <button class="btn-cancel" data-action="cancel">Cancel</button>
+        <button class="btn-confirm-delete" data-action="confirm">Delete</button>
+      </div>
+    </div>`, n.querySelector("[data-action=\"cancel\"]").addEventListener("click", () => n.remove()), n.querySelector("[data-action=\"confirm\"]").addEventListener("click", () => {
+		n.remove(), t();
+	}), n.addEventListener("click", (e) => {
+		e.target === n && n.remove();
+	}), document.body.appendChild(n);
+}
+var hF = R.create({
 	name: "todoList",
 	group: "block",
 	atom: !0,
@@ -29460,14 +29476,14 @@ var mF = R.create({
 				},
 				stopEvent(e) {
 					let t = e.target;
-					return t.closest(".todo-add-btn") != null || t.closest(".todo-filter-btn") != null || t.closest("input") != null || t.closest("td") != null;
+					return t.closest(".todo-add-btn") != null || t.closest(".todo-remove-btn") != null || t.closest(".todo-filter-btn") != null || t.closest("input") != null || t.closest("td") != null;
 				}
 			};
 		};
 	},
 	...cF
 });
-function hF() {
+function gF() {
 	document.addEventListener("click", (e) => {
 		let t = e.target.closest("[data-todo-list]");
 		if (t) {
@@ -29479,6 +29495,16 @@ function hF() {
 					task: "",
 					deadline: ""
 				}), t._todoUpdate(n);
+				return;
+			}
+			if (e.target.closest(".todo-remove-btn")) {
+				e.preventDefault();
+				let n = e.target.closest("tr"), r = Array.from(t.querySelectorAll("tbody tr")).indexOf(n);
+				if (r === -1) return;
+				mF("Remove this item?", () => {
+					let e = fF(t);
+					e.splice(r, 1), t._todoUpdate(e);
+				});
 				return;
 			}
 			if (e.target.matches("input[type=\"checkbox\"]")) {
@@ -29493,11 +29519,11 @@ function hF() {
 }
 //#endregion
 //#region src/Yanoch.Web/wwwroot/js/tiptap/editor.js
-function gF() {
+function _F() {
 	return (e, t) => !!(eP(t) || LN(t));
 }
-function _F(e, t, n, r) {
-	vF(e);
+function vF(e, t, n, r) {
+	yF(e);
 	let i = document.getElementById(e);
 	if (!i) return null;
 	let a = {
@@ -29553,7 +29579,7 @@ function _F(e, t, n, r) {
 			iP,
 			oP,
 			lP,
-			mF
+			hF
 		],
 		content: t || "",
 		contentType: "markdown",
@@ -29562,7 +29588,7 @@ function _F(e, t, n, r) {
 				class: "tiptap-editor",
 				"data-block-id": r
 			},
-			handleKeyDown: gF(),
+			handleKeyDown: _F(),
 			handlePaste(e, t) {
 				let n = t.clipboardData?.files;
 				if (n && n[0]?.type.startsWith("image/")) return t.preventDefault(), $M(n[0]).then((t) => {
@@ -29647,25 +29673,25 @@ function _F(e, t, n, r) {
 		handler: c
 	}), KM.set(e, a), o;
 }
-function vF(e) {
+function yF(e) {
 	let t = KM.get(e);
 	t && (t._dirty = !1, t._pendingMarkdown = null, tP(e), t.listeners.forEach((e) => document.removeEventListener(e.type, e.handler)), t.listeners = [], t.dotNetRef = null, t.editor &&= (t.editor.destroy(), null), KM.delete(e), fN());
 }
-function yF(e) {
+function bF(e) {
 	return KM.get(e)?.editor?.getMarkdown() ?? "";
 }
-function bF(e, t) {
+function xF(e, t) {
 	KM.get(e)?.editor?.commands.setContent(t, !1, "markdown");
 }
-function xF(e, t) {
+function SF(e, t) {
 	KM.get(e)?.editor?.setEditable(t);
 }
-function SF(e) {
+function CF(e) {
 	KM.get(e)?.editor?.commands.focus();
 }
-function CF(e) {
+function wF(e) {
 	KM.get(e)?.editor?.commands.blur();
 }
-window.initTipTap = _F, window.destroyTipTap = vF, window.getTipTapMarkdown = yF, window.setTipTapContent = bF, window.setTipTapEditable = xF, window.focusTipTap = SF, window.blurTipTap = CF, SN(), cP(), uP(), hF(), pN();
+window.initTipTap = vF, window.destroyTipTap = yF, window.getTipTapMarkdown = bF, window.setTipTapContent = xF, window.setTipTapEditable = SF, window.focusTipTap = CF, window.blurTipTap = wF, SN(), cP(), uP(), gF(), pN();
 //#endregion
-export { CF as blurEditor, _F as createEditor, vF as destroyEditor, SF as focusEditor, yF as getMarkdown, bF as setContent, xF as setEditable };
+export { wF as blurEditor, vF as createEditor, yF as destroyEditor, CF as focusEditor, bF as getMarkdown, xF as setContent, SF as setEditable };

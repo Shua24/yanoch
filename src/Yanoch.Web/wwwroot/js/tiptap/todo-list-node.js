@@ -39,6 +39,7 @@ function buildTableHTML(rows) {
       <td><input class="todo-task" type="text" value="${escapeHtml(r.task)}" placeholder="What needs doing?"></td>
       <td><input class="todo-deadline" type="text" value="${escapeHtml(r.deadline)}" placeholder="Due date"></td>
       <td class="todo-check-col"><input type="checkbox"${r.checked ? ' checked' : ''}></td>
+      <td class="todo-actions-col"><button class="todo-remove-btn" title="Remove item">✕</button></td>
     </tr>
   `).join('')
   return `
@@ -48,7 +49,7 @@ function buildTableHTML(rows) {
       <button class="todo-filter-btn" data-filter="open">Not done</button>
     </div>
     <table class="todo-table">
-      <thead><tr><th>Task</th><th>Deadline</th><th>Checklist</th></tr></thead>
+      <thead><tr><th>Task</th><th>Deadline</th><th>Checklist</th><th></th></tr></thead>
       <tbody>${tbody}</tbody>
     </table>
     <button class="todo-add-btn">+ Add item</button>
@@ -77,6 +78,31 @@ function debounce(fn, ms) {
     clearTimeout(timer)
     timer = setTimeout(() => fn(...args), ms)
   }
+}
+
+// ─── Confirm dialog ────────────────────────────────────────────
+function showConfirmDialog(message, onConfirm) {
+  const overlay = document.createElement('div')
+  overlay.className = 'confirm-dialog'
+  overlay.innerHTML = `
+    <div class="confirm-dialog-box">
+      <div class="confirm-dialog-text">${escapeHtml(message)}</div>
+      <div class="confirm-dialog-actions">
+        <button class="btn-cancel" data-action="cancel">Cancel</button>
+        <button class="btn-confirm-delete" data-action="confirm">Delete</button>
+      </div>
+    </div>`
+
+  overlay.querySelector('[data-action="cancel"]').addEventListener('click', () => overlay.remove())
+  overlay.querySelector('[data-action="confirm"]').addEventListener('click', () => {
+    overlay.remove()
+    onConfirm()
+  })
+  overlay.addEventListener('click', (e) => {
+    if (e.target === overlay) overlay.remove()
+  })
+
+  document.body.appendChild(overlay)
 }
 
 // ─── TodoList node ─────────────────────────────────────────────
@@ -200,6 +226,7 @@ export const TodoList = Node.create({
         stopEvent(event) {
           const t = event.target
           return t.closest('.todo-add-btn') != null ||
+                 t.closest('.todo-remove-btn') != null ||
                  t.closest('.todo-filter-btn') != null ||
                  t.closest('input') != null ||
                  t.closest('td') != null
@@ -223,6 +250,20 @@ export function setupTodoList() {
       const rows = serializeRows(el)
       rows.push({ checked: false, task: '', deadline: '' })
       el._todoUpdate(rows)
+      return
+    }
+
+    // Remove button
+    if (e.target.closest('.todo-remove-btn')) {
+      e.preventDefault()
+      const tr = e.target.closest('tr')
+      const idx = Array.from(el.querySelectorAll('tbody tr')).indexOf(tr)
+      if (idx === -1) return
+      showConfirmDialog('Remove this item?', () => {
+        const rows = serializeRows(el)
+        rows.splice(idx, 1)
+        el._todoUpdate(rows)
+      })
       return
     }
 
