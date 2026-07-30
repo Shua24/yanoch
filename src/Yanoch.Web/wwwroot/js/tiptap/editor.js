@@ -27,6 +27,7 @@ import { closeTableBubbleMenu, updateTableBubbleMenu } from './table-menu.js'
 import { Callout } from './callout-node.js'
 import { Toggle, setupToggleClicks } from './toggle-node.js'
 import { PageReference, setupPageReferenceClicks } from './page-ref-node.js'
+import { CodeBlockHighlight } from './code-block.js'
 import { TodoList, setupTodoList } from './todo-list-node.js'
 
 // ─── Key handler ───────────────────────────────────────────────
@@ -57,6 +58,7 @@ export function createEditor(elementId, content, dotNetRef, blockId) {
         codeBlock: true,
         heading: { levels: [1, 2, 3] },
       }),
+      CodeBlockHighlight,
       Underline,
       Link.configure({ openOnClick: true, autolink: false, HTMLAttributes: { class: 'wiki-link' } }),
       Image.configure({ inline: false, allowBase64: true, HTMLAttributes: { class: 'editor-image' } }),

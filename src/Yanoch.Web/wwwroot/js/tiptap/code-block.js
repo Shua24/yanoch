@@ -49,35 +49,25 @@ const highlighted = new WeakSet()
 export const CodeBlockHighlight = Extension.create({
   name: 'codeBlockHighlight',
 
-  addProseMirrorPlugins() {
-    // Dynamically import prosemirror-view's ViewPlugin via the
-    // ProseMirror module that TipTap bundles; ViewPlugin is
-    // available as a named export of the prosemirror-view package.
-    const { ViewPlugin } = require('prosemirror-view')
+  onCreate() {
+    requestAnimationFrame(() => {
+      const { view } = this.editor
+      view.dom.querySelectorAll('pre code').forEach((block) => {
+        if (!highlighted.has(block)) {
+          highlighted.add(block)
+          hljs.highlightElement(block)
+        }
+      })
+    })
+  },
 
-    return [
-      ViewPlugin.fromClass(
-        class {
-          update(update) {
-            if (update.docChanged || update.selectionSet || update.viewportChanged) {
-              this.highlightVisibleCodeBlocks()
-            }
-          }
-
-          highlightVisibleCodeBlocks() {
-            const blocks = this.editor.dom.querySelectorAll('pre code')
-            blocks.forEach((block) => {
-              if (!highlighted.has(block)) {
-                highlighted.add(block)
-                hljs.highlightElement(block)
-              }
-            })
-          }
-        },
-        {
-          eventHandlers: {},
-        },
-      ),
-    ]
+  onUpdate() {
+    const { view } = this.editor
+    view.dom.querySelectorAll('pre code').forEach((block) => {
+      if (!highlighted.has(block)) {
+        highlighted.add(block)
+        hljs.highlightElement(block)
+      }
+    })
   },
 })

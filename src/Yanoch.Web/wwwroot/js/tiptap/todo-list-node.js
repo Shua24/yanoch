@@ -27,6 +27,11 @@ function buildTableHTML(rows) {
     </tr>
   `).join('')
   return `
+    <div class="todo-filter">
+      <button class="todo-filter-btn active" data-filter="all">All</button>
+      <button class="todo-filter-btn" data-filter="done">Done</button>
+      <button class="todo-filter-btn" data-filter="open">Not done</button>
+    </div>
     <table class="todo-table">
       <thead><tr><th>Task</th><th>Deadline</th><th>Checklist</th></tr></thead>
       <tbody>${tbody}</tbody>
@@ -134,6 +139,22 @@ export const TodoList = Node.create({
 
         dom.innerHTML = buildTableHTML(node.attrs.rows || [])
 
+        // Wire up filter bar click handlers
+        dom.querySelectorAll('.todo-filter-btn').forEach(btn => {
+          btn.addEventListener('click', () => {
+            dom.querySelectorAll('.todo-filter-btn').forEach(b => b.classList.remove('active'))
+            btn.classList.add('active')
+            const filter = btn.dataset.filter
+            dom.querySelectorAll('tbody tr').forEach(tr => {
+              const checked = tr.querySelector('input[type="checkbox"]')?.checked
+              tr.style.display =
+                filter === 'all' ? '' :
+                filter === 'done' ? (checked ? '' : 'none') :
+                (!checked ? '' : 'none')
+            })
+          })
+        })
+
         if (savedSel && savedSel.tag === 'INPUT') {
           const inputs = dom.querySelectorAll('tbody input')
           for (const input of inputs) {
@@ -164,6 +185,7 @@ export const TodoList = Node.create({
         stopEvent(event) {
           const t = event.target
           return t.closest('.todo-add-btn') != null ||
+                 t.closest('.todo-filter-btn') != null ||
                  t.closest('input') != null ||
                  t.closest('td') != null
         },

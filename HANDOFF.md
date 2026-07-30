@@ -135,7 +135,7 @@ The TipTap `StarterKit` already includes a `codeBlock` node that understands fen
 ### Design
 
 - **Language labels** use standard fenced-code-block markdown: triple-backtick + language name (e.g. `` ```python ``) — renders with a `language-python` class on the `<code>` element, set automatically by StarterKit's `codeBlock` node via `languageClassPrefix: 'language-'`
-- **Highlighting** is applied by the `CodeBlockHighlight` ViewPlugin, which runs `hljs.highlightElement()` on every visible `<pre><code>` block once, then caches it in a `WeakSet` so the same node is never re-highlighted
+- **Highlighting** is applied by the `CodeBlockHighlight` extension's `onCreate`/`onUpdate` hooks, which run `hljs.highlightElement()` on every `<pre><code>` block once, then cache it in a `WeakSet` so the same node is never re-highlighted
 - **Lazy approach** (already implemented in `code-block.js`): highlighting triggers only when new nodes enter the viewport, not on every keystroke
 - **Round-trip**: the saved markdown preserves the language label (e.g. `` ```csharp ``), so highlight state is not serialized — it's purely a view-layer concern
 
@@ -175,7 +175,7 @@ CodeBlockHighlight,
 
 This file is already complete and correct — no changes needed. It:
 - Registers 20 languages with highlight.js (`javascript`, `typescript`, `python`, `java`, `csharp`, `cpp`, `css`, `html`, `json`, `bash`, `sql`, `yaml`, `markdown`, `diff`, `go`, `rust`, `ruby`, `php`)
-- Exports `CodeBlockHighlight` extension with a `ViewPlugin` that highlights visible blocks once and caches them in a `WeakSet`
+- Exports `CodeBlockHighlight` extension with `onCreate`/`onUpdate` hooks that highlight blocks once and cache them in a `WeakSet`
 - Falls back to auto-detection for languages not explicitly registered
 
 If more languages are needed later, add imports and `hljs.registerLanguage()` calls following the existing pattern.

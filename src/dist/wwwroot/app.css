@@ -1359,6 +1359,32 @@ body {
     background: rgba(35, 131, 226, 0.06);
 }
 
+/* ─── To Do Filter Bar ─────────────────────────── */
+.todo-filter {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 8px;
+}
+.todo-filter-btn {
+    padding: 3px 10px;
+    border: 1px solid var(--border, #e0e0e0);
+    border-radius: 999px;
+    background: transparent;
+    color: var(--text-secondary, #888);
+    font-size: 12px;
+    cursor: pointer;
+    font-family: inherit;
+    transition: all 0.12s;
+}
+.todo-filter-btn.active {
+    background: var(--accent, #2383e2);
+    color: #fff;
+    border-color: var(--accent, #2383e2);
+}
+.todo-filter-btn:hover:not(.active) {
+    background: var(--hover-bg, rgba(0,0,0,0.03));
+}
+
 /* Gap cursor */
 .ProseMirror-gapcursor {
     display: none;
@@ -1554,7 +1580,29 @@ body {
 .dark .todo-table input[type="text"] { color: var(--text-primary); }
 .dark .todo-add-btn { border-color: rgba(255,255,255,0.15); }
 .dark .todo-add-btn:hover { border-color: var(--accent); }
+.dark .todo-filter-btn {
+    border-color: rgba(255,255,255,0.15);
+    color: var(--text-tertiary);
+}
+.dark .todo-filter-btn.active {
+    background: var(--accent, #2383e2);
+    border-color: var(--accent, #2383e2);
+}
 .dark .toggle:hover { background: var(--hover-bg); }
+
+/* ─── Code Block Highlighting ─────────────── */
+.tiptap-editor .hljs {
+    display: block;
+    padding: 16px;
+    overflow-x: auto;
+    border-radius: var(--radius);
+    font-size: 13px;
+    line-height: 1.5;
+    background: var(--code-bg);
+}
+.dark .tiptap-editor .hljs {
+    background: var(--code-bg);
+}
 
 /* THEME TOGGLE — floating button in the corner of the page */
 .theme-toggle {
