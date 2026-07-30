@@ -10,6 +10,20 @@ const todoListMd = createBlockMarkdownSpec({
   content: '',
   defaultAttributes: { rows: [] },
   allowedAttributes: ['rows'],
+  parseAttributes(str) {
+    if (!str) return {}
+    const match = str.match(/rows=['"]([^'"]+)['"]/)
+    if (!match) return {}
+    try {
+      return { rows: JSON.parse(decodeURIComponent(match[1])) }
+    } catch {
+      return {}
+    }
+  },
+  serializeAttributes(attrs) {
+    if (!attrs || !Array.isArray(attrs.rows) || attrs.rows.length === 0) return ''
+    return `rows='${encodeURIComponent(JSON.stringify(attrs.rows))}'`
+  },
 })
 
 // ─── Helpers ───────────────────────────────────────────────────
@@ -19,6 +33,7 @@ function escapeHtml(str) {
 }
 
 function buildTableHTML(rows) {
+  if (!Array.isArray(rows)) rows = []
   const tbody = rows.map(r => `
     <tr>
       <td><input class="todo-task" type="text" value="${escapeHtml(r.task)}" placeholder="What needs doing?"></td>
@@ -56,19 +71,6 @@ function serializeRows(el) {
   return rows
 }
 
-function updateNodeData(el, rows) {
-  const editor = findEditorForElement(el)
-  if (!editor) return
-  const { state, view } = editor
-  const pos = view.posAtDOM(el, 0)
-  if (pos == null) return
-  const $pos = state.doc.resolve(pos)
-  let depth = $pos.depth
-  while (depth >= 0 && $pos.node(depth).type.name !== 'todoList') depth--
-  if (depth < 0) return
-  view.dispatch(state.tr.setNodeMarkup($pos.before(depth), null, { rows }))
-}
-
 function debounce(fn, ms) {
   let timer
   return (...args) => {
@@ -76,10 +78,6 @@ function debounce(fn, ms) {
     timer = setTimeout(() => fn(...args), ms)
   }
 }
-
-const debouncedUpdate = debounce((el) => {
-  updateNodeData(el, serializeRows(el))
-}, 300)
 
 // ─── TodoList node ─────────────────────────────────────────────
 export const TodoList = Node.create({
@@ -110,13 +108,26 @@ export const TodoList = Node.create({
   },
 
   addNodeView() {
-    return ({ node }) => {
+    return ({ node, getPos }) => {
       const dom = document.createElement('div')
       dom.setAttribute('data-todo-list', '')
       dom.className = 'todo-list'
       dom.contentEditable = 'false'
 
       let activeFilter = 'all'
+
+      dom._todoUpdate = (rows) => {
+        const editor = findEditorForElement(dom)
+        if (!editor) return
+        const { state, view } = editor
+        const pos = getPos()
+        if (pos == null) return
+        view.dispatch(state.tr.setNodeMarkup(pos, null, { rows }))
+      }
+
+      dom._todoUpdateDebounced = debounce(() => {
+        dom._todoUpdate(serializeRows(dom))
+      }, 300)
 
       function applyFilter() {
         dom.querySelectorAll('.todo-filter-btn').forEach(b => b.classList.remove('active'))
@@ -132,14 +143,9 @@ export const TodoList = Node.create({
       }
 
       function render() {
-        dom.setAttribute('data-rows', JSON.stringify(node.attrs.rows || []))
+        const rows = Array.isArray(node.attrs.rows) ? node.attrs.rows : []
+        dom.setAttribute('data-rows', JSON.stringify(rows))
 
-        // ---- preserve focus / selection across innerHTML rebuild ----
-        // innerHTML replaces every DOM node inside <div>, which drops
-        // the active input and collapses the caret. Capture the
-        // current input's state before the rebuild, then restore it
-        // to the matching new element afterward so the user can keep
-        // typing uninterrupted.
         const active = dom.ownerDocument.activeElement
         let savedSel = null
         if (active && dom.contains(active)) {
@@ -152,7 +158,7 @@ export const TodoList = Node.create({
           }
         }
 
-        dom.innerHTML = buildTableHTML(node.attrs.rows || [])
+        dom.innerHTML = buildTableHTML(rows)
 
         // Wire up filter bar click handlers
         dom.querySelectorAll('.todo-filter-btn').forEach(btn => {
@@ -216,13 +222,13 @@ export function setupTodoList() {
       e.preventDefault()
       const rows = serializeRows(el)
       rows.push({ checked: false, task: '', deadline: '' })
-      updateNodeData(el, rows)
+      el._todoUpdate(rows)
       return
     }
 
     // Checkbox toggle — update immediately
     if (e.target.matches('input[type="checkbox"]')) {
-      updateNodeData(el, serializeRows(el))
+      el._todoUpdate(serializeRows(el))
       return
     }
   })
@@ -231,7 +237,7 @@ export function setupTodoList() {
     const el = e.target.closest('[data-todo-list]')
     if (!el) return
     if (e.target.matches('.todo-task, .todo-deadline')) {
-      debouncedUpdate(el)
+      el._todoUpdateDebounced()
     }
   })
 }
