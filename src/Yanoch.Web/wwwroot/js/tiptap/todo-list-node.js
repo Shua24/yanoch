@@ -116,6 +116,21 @@ export const TodoList = Node.create({
       dom.className = 'todo-list'
       dom.contentEditable = 'false'
 
+      let activeFilter = 'all'
+
+      function applyFilter() {
+        dom.querySelectorAll('.todo-filter-btn').forEach(b => b.classList.remove('active'))
+        const activeBtn = dom.querySelector(`.todo-filter-btn[data-filter="${activeFilter}"]`)
+        if (activeBtn) activeBtn.classList.add('active')
+        dom.querySelectorAll('tbody tr').forEach(tr => {
+          const checked = tr.querySelector('input[type="checkbox"]')?.checked
+          tr.style.display =
+            activeFilter === 'all' ? '' :
+            activeFilter === 'done' ? (checked ? '' : 'none') :
+            (!checked ? '' : 'none')
+        })
+      }
+
       function render() {
         dom.setAttribute('data-rows', JSON.stringify(node.attrs.rows || []))
 
@@ -142,16 +157,8 @@ export const TodoList = Node.create({
         // Wire up filter bar click handlers
         dom.querySelectorAll('.todo-filter-btn').forEach(btn => {
           btn.addEventListener('click', () => {
-            dom.querySelectorAll('.todo-filter-btn').forEach(b => b.classList.remove('active'))
-            btn.classList.add('active')
-            const filter = btn.dataset.filter
-            dom.querySelectorAll('tbody tr').forEach(tr => {
-              const checked = tr.querySelector('input[type="checkbox"]')?.checked
-              tr.style.display =
-                filter === 'all' ? '' :
-                filter === 'done' ? (checked ? '' : 'none') :
-                (!checked ? '' : 'none')
-            })
+            activeFilter = btn.dataset.filter
+            applyFilter()
           })
         })
 
@@ -169,6 +176,8 @@ export const TodoList = Node.create({
             }
           }
         }
+
+        applyFilter()
       }
 
       render()
