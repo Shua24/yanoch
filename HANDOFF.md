@@ -1,207 +1,267 @@
-# Yanoch — Handoff Document (Updated 2026-07-26)
+# Yanoch — Handoff Document
 
 ## Current State
 
-Editor engine swapped from `<div contenteditable>` + block CRUD → **TipTap** (ProseMirror) via JS interop. **Blazor Server stays** as the host. Content model changed from per-block DB rows to **markdown string** in `Page.Content`.
+Editor engine is **TipTap** (ProseMirror) via JS interop hosted in Blazor Server. Content model is a single markdown string in `Page.Content`. The to-do list feature exists as a custom `todoList` TipTap node that renders an interactive 3-column table (Task, Deadline, Checklist checkbox). Each row is `{ checked, task, deadline }`. All rows are rendered together — there is **no filtering UI** to separate completed from pending items.
 
 ---
 
-## The Three Requirements
+## To Do: To-Do List Table Filtering — Done vs Not Done
 
-| # | Requirement | Implementation |
-|---|-------------|---------------|
-| 1 | **Markdown as source of truth** | `Page.Content` — single `TEXT` column replaces `Block` table per-block rows |
-| 2 | **TipTap as editor engine** | `tiptap-editor.js` (Vite bundle from `tiptap-editor.src.js`) mounts on `<div id="tiptap-editor">` |
-| 3 | **Keep Blazor Server + .NET stack** | TipTap via JS interop (`initTipTap`/`destroyTipTap`/`OnMarkdownChanged`), backend, auth, sidebar, page tree — unchanged |
+### Goal
 
----
+Add a toggle/filter bar above the to-do list table that lets the user filter rows to show **all**, **done only**, or **not done only**. The filter state is local to the node — it does not affect the saved markdown data.
 
-## Architecture
+### Design
 
-```
-Blazor Server page (Editor.razor)
-  │
-  ├── .NET initialization → IJSRuntime.InvokeAsync("initTipTap", pageId)
-  │
-  ├── TipTap Editor (ProseMirror) in browser
-  │     ├── markdown shortcuts (# → H1, * → list, etc.)
-  │     ├── slash command menu (pure DOM plugin, not @tiptap/suggestion)
-  │     ├── wiki link [[ autocomplete (pure DOM plugin)
-  │     ├── image upload / paste / drag-drop
-  │     └── auto-save (debounced, calls DotNet.invokeMethodAsync)
-  │
-  ├── OnMarkdownChanged → C# receives markdown string
-  │     └── debounced PUT /api/pages/{id}/content
-  │
-  └── Rest of page (sidebar, search, account) — unchanged Blazor Server
+- **Filter bar** rendered above the `<table>` in `buildTableHTML()`: three pill buttons — `All`, `Done`, `Not done`.
+- **Active pill** is visually highlighted (e.g. filled background).
+- **Filtering is instant** — no save/debounce needed, purely client-side DOM filtering. Checking/unchecking a checkbox updates the DOM immediately and also keeps filter state consistent (if a row is checked while viewing "Not done", it disappears from view).
+- **Hidden rows** stay in the node data (`rows` array) untouched — only the DOM view is filtered. This means the saved markdown is never affected.
+
+### Implementation — What to change
+
+#### 1. `src/Yanoch.Web/wwwroot/js/tiptap/todo-list-node.js`
+
+**`buildTableHTML(rows)`** — add filter bar markup before the table:
+
+```html
+<div class="todo-filter">
+  <button class="todo-filter-btn active" data-filter="all">All</button>
+  <button class="todo-filter-btn" data-filter="done">Done</button>
+  <button class="todo-filter-btn" data-filter="open">Not done</button>
+</div>
 ```
 
+**`render()` (inside `addNodeView`)** — after `dom.innerHTML = buildTableHTML(...)`, wire up filter button click handlers that toggle a `data-active-filter` attribute on `dom` and show/hide `<tr>` elements in `<tbody>`:
+
+```js
+dom.querySelectorAll('.todo-filter-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    dom.querySelectorAll('.todo-filter-btn').forEach(b => b.classList.remove('active'))
+    btn.classList.add('active')
+    const filter = btn.dataset.filter
+    dom.querySelectorAll('tbody tr').forEach(tr => {
+      const checked = tr.querySelector('input[type="checkbox"]')?.checked
+      tr.style.display =
+        filter === 'all' ? '' :
+        filter === 'done' ? (checked ? '' : 'none') :
+        (!checked ? '' : 'none')
+    })
+  })
+})
+```
+
+**`stopEvent`** — add `.todo-filter-btn` so click events on filter buttons don't get swallowed (similar to how `.todo-add-btn` and inputs are already excluded).
+
+#### 2. `src/Yanoch.Web/wwwroot/app.css`
+
+Add filter bar styles (light + dark):
+
+```css
+/* ─── To Do Filter Bar ─────────────────────────── */
+.todo-filter {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 8px;
+}
+.todo-filter-btn {
+    padding: 3px 10px;
+    border: 1px solid var(--border, #e0e0e0);
+    border-radius: 999px;
+    background: transparent;
+    color: var(--text-secondary, #888);
+    font-size: 12px;
+    cursor: pointer;
+    font-family: inherit;
+    transition: all 0.12s;
+}
+.todo-filter-btn.active {
+    background: var(--accent, #2383e2);
+    color: #fff;
+    border-color: var(--accent, #2383e2);
+}
+.todo-filter-btn:hover:not(.active) {
+    background: var(--hover-bg, rgba(0,0,0,0.03));
+}
+
+/* Dark mode */
+.dark .todo-filter-btn {
+    border-color: rgba(255,255,255,0.15);
+    color: var(--text-tertiary);
+}
+.dark .todo-filter-btn.active {
+    background: var(--accent, #2383e2);
+    border-color: var(--accent, #2383e2);
+}
+```
+
+#### 3. `src/dist/wwwroot/app.css` (mirror file)
+
+Copy the same CSS additions as above. Keep this file in sync — it is the deployed bundle's CSS.
+
+#### 4. `src/Yanoch.Web/wwwroot/js/tiptap/todo-list-node.js` (mirror at `src/dist/`)
+
+The `todo-list-node.js` under `src/dist/wwwroot/js/tiptap/` is a tracked mirror of the source under `src/Yanoch.Web/wwwroot/js/tiptap/`. Both must be edited identically.
+
 ---
 
-## What Changed
+## Files to touch
 
-| Aspect | Before | After |
-|--------|--------|-------|
-| **Editor engine** | `<div contenteditable>` + custom JS interop | **TipTap** (markdown-based, ProseMirror) |
-| **Content model** | `Block` table (one row per block, sort order) | `Page.Content` — single markdown `TEXT` column |
-| **Editor component** | `BlockEditor.razor` (10+ block types, edit/view modes) | `<div id="tiptap-editor">` — TipTap mounts here |
-| **Save path** | `MergePageInPlace` + block CRUD per keystroke | Debounced `PUT /api/pages/{id}/content` |
-| **Slash menu** | Custom JS interop context menu | TipTap plugin — pure DOM, no `@tiptap/suggestion` |
-| **Wiki links** | Custom regex in view render | TipTap plugin — pure DOM, scans `[[` on input |
-| **JS interop** | `interop.js` (block DnD, context menu, slash) | `tiptap-editor.js` (bundled TipTap + custom plugins) |
-
----
-
-## Features Retained (All Working)
-
-- Blazor Server host, auth, sidebar, page tree, wiki links, backlinks, search, image upload, dark mode, responsive layout, soft delete, SQLite, REST API endpoints
-
-## Notion-Like Features in TipTap
-
-| Feature | How | Status |
-|---------|-----|--------|
-| **Slash command menu** | Type `/` → popup — pure DOM plugin, no `@tiptap/suggestion` | ✅ Fixed |
-| **Wiki link `[[`** | Typing `[[` → suggestion popup — pure DOM plugin | ✅ Fixed |
-| **Image upload** | 🖼️ button → file picker → `/api/upload` → inserts `![](url)` | ✅ |
-| **Paste/drop image** | Paste or drag image file → auto-upload + insert | ✅ |
-| **Image URL paste** | Paste image URL → inline embed | ✅ |
-| **Task lists** | `/task` or markdown `[ ]` / `[x]` | ✅ |
-| **Markdown shortcuts** | `#`/`##`/`###` → H1-3, `*`/`-` → list, `>` → quote, `` ``` `` → code | ✅ |
-| **Code block** | `` ``` `` or slash command → fenced code block | ✅ |
-| **Auto-save** | Debounced 800ms → `PUT /api/pages/{id}/content` | ✅ |
-| **Dark mode** | Inherits existing CSS variables | ✅ |
-| **Wiki link backlinks** | Extracted from markdown on save | ✅ |
-| **Placeholder** | `Start writing...` when empty | ✅ |
-
----
-
-## Files Modified
-
-| File | Change |
+| File | Reason |
 |------|--------|
-| `src/Yanoch.Domain/Models/Page.cs` | Added `Content` property |
-| `src/Yanoch.Infrastructure/Data/AppDbContext.cs` | Added `Content` column config |
-| `src/Yanoch.Infrastructure/Migrations/*_AddPageContent.cs` | Migration for `Content` column |
-| `src/Yanoch.Infrastructure/Data/Repositories/PageRepository.cs` | `GetContentAsync`, `SetContentAsync`; search queries `Content` |
-| `src/Yanoch.Domain/Interfaces/IPageRepository.cs` | Added content interfaces |
-| `src/Yanoch.Application/Interfaces/IPageService.cs` | Added content interfaces |
-| `src/Yanoch.Application/Services/PageService.cs` | `GetContentAsync`, `SetContentAsync` with backlink extraction; `CreateAsync` sets `Content`; search uses `Content` |
-| `src/Yanoch.Application/DTOs/PageDto.cs` | Added `Content` property |
-| `src/Yanoch.Application/DTOs/CreatePageDto.cs` | Replaced `Blocks` with `Content` |
-| `src/Yanoch.Application/DTOs/SetContentDto.cs` | **New** — DTO for content save |
-| `src/Yanoch.Web/Controllers/Api/PagesController.cs` | Added `GET/PUT /{id}/content` endpoints |
-| `src/Yanoch.Web/Components/Pages/Editor.razor` | Rewritten — TipTap JS interop |
-| `src/Yanoch.Web/Components/App.razor` | Added `<script>` for tiptap-editor.js |
-| `src/Yanoch.Web/wwwroot/js/tiptap-editor.src.js` | **New** — TipTap source (npm imports, custom plugins) |
-| `src/Yanoch.Web/wwwroot/js/tiptap-editor.js` | **New** — Vite bundle output |
-| `vite.config.js` | **New** — Vite build config |
-| `package.json` | **New** — npm deps (TipTap packages, Vite) |
-| `.gitignore` | Added `node_modules/` and `src/dist/` |
-| `src/Yanoch.Web/wwwroot/app.css` | Added `.editor-tiptap` and `.tiptap-editor` styles |
+| `src/Yanoch.Web/wwwroot/js/tiptap/todo-list-node.js` | Add filter bar UI + filtering logic to the node |
+| `src/Yanoch.Web/wwwroot/app.css` | Add `.todo-filter` / `.todo-filter-btn` styles |
+| `src/dist/wwwroot/app.css` | Mirror the CSS changes (deployed bundle) |
+| `src/dist/wwwroot/js/tiptap/todo-list-node.js` | Mirror the JS changes (deployed bundle) |
 
 ---
 
-## Build & Run
+## To Do: Syntax-Highlighted Code Blocks with Language Labels
 
-### Required steps (always — unless `tiptap-editor.js` is already built):
+### Goal
+
+Fenced markdown code blocks with a language label (e.g. `` ```python ``, `` ```csharp ``) should render with syntax highlighting inside the TipTap editor. The feature already has a partially implemented `code-block.js` that registers highlight.js languages and creates a `codeBlockHighlight` extension — it just needs to be wired in, have its dependency added, and get CSS styles.
+
+### Background
+
+The TipTap `StarterKit` already includes a `codeBlock` node that understands fenced markdown syntax (triple-backtick + optional language label) and stores the language in `node.attrs.language`. The `code-block.js` file under `src/Yanoch.Web/wwwroot/js/tiptap/` registers roughly 20 languages with highlight.js and defines a `CodeBlockHighlight` ProseMirror plugin that applies highlighting to `<pre><code>` elements on every doc/selection/viewport update. What is missing is:
+
+1. `highlight.js` is **not listed in `package.json`** — the import in `code-block.js` will fail at build time
+2. `CodeBlockHighlight` is **not imported or added to the extensions array** in `editor.js`
+3. **No highlight.js CSS** is loaded — highlighting classes (`.hljs`, `.language-python`, `.token.keyword`, etc.) have no styles
+4. `src/dist/` mirrors are not yet updated to include the feature
+
+### Design
+
+- **Language labels** use standard fenced-code-block markdown: triple-backtick + language name (e.g. `` ```python ``) — renders with a `language-python` class on the `<code>` element, set automatically by StarterKit's `codeBlock` node via `languageClassPrefix: 'language-'`
+- **Highlighting** is applied by the `CodeBlockHighlight` extension's `onCreate`/`onUpdate` hooks, which run `hljs.highlightElement()` on every `<pre><code>` block once, then cache it in a `WeakSet` so the same node is never re-highlighted
+- **Lazy approach** (already implemented in `code-block.js`): highlighting triggers only when new nodes enter the viewport, not on every keystroke
+- **Round-trip**: the saved markdown preserves the language label (e.g. `` ```csharp ``), so highlight state is not serialized — it's purely a view-layer concern
+
+### Implementation — What to change
+
+#### 1. `package.json`
+
+Add `highlight.js` as a dependency (the project already imports it in `code-block.js` but it's not declared):
 
 ```bash
-cd D:\Sourcecodes\Yanoch
-npm install              # install TipTalk deps (node_modules/)
-npx vite build           # build tiptap-editor.src.js → tiptap-editor.js
-dotnet run --project src/Yanoch.Web
-# http://localhost:5072
+npm install highlight.js
 ```
 
-**Important**: `npm install` and `npx vite build` are **required** after fresh clone or pull — the editor bundle is built from source. `tiptap-editor.js` is the Vite bundle (~560KB); it's tracked in git but the **compiled output** may be stale after source changes.
+This registers it so Vite can resolve the `highlight.js` imports in `code-block.js`.
 
-### After pull (if only source changed, deps already installed):
+#### 2. `src/Yanoch.Web/wwwroot/js/tiptap-editor.js` (editor entry point)
 
-```bash
-npx vite build
-dotnet run
+Import and add `CodeBlockHighlight` to the extensions array:
+
+```js
+import { CodeBlockHighlight } from './tiptap/code-block.js'
 ```
 
-### Cache-busting
+Place `CodeBlockHighlight` in the `extensions: [...]` array in `createEditor()`, anywhere after the `StarterKit` block:
 
-If `tiptap-editor.src.js` is updated, rebuild with `npx vite build` — no manual version bump needed for the JS file (Vite outputs stable hash). If the API endpoints or DTOs change, rebuild normally with `dotnet build`.
+```js
+StarterKit.configure({
+  codeBlock: true,
+  heading: { levels: [1, 2, 3] },
+}),
+CodeBlockHighlight,
+```
 
----
+> **Note:** `StarterKit` with `codeBlock: true` already registers the `codeBlock` node with `language` attribute support. `CodeBlockHighlight` is the companion plugin that adds the actual highlighting to the DOM. Both are needed.
 
-## Upcoming Features — Implementation Plan
+#### 3. `src/Yanoch.Web/wwwroot/js/tiptap/code-block.js`
 
-### 1. Movable Blocks (Drag Handle + GapCursor)
+This file is already complete and correct — no changes needed. It:
+- Registers 20 languages with highlight.js (`javascript`, `typescript`, `python`, `java`, `csharp`, `cpp`, `css`, `html`, `json`, `bash`, `sql`, `yaml`, `markdown`, `diff`, `go`, `rust`, `ruby`, `php`)
+- Exports `CodeBlockHighlight` extension with `onCreate`/`onUpdate` hooks that highlight blocks once and cache them in a `WeakSet`
+- Falls back to auto-detection for languages not explicitly registered
 
-**Status:** ✅ Done
+If more languages are needed later, add imports and `hljs.registerLanguage()` calls following the existing pattern.
 
-Top-level drag handle (⣿) on left gutter. GapCursor for clicking between blocks.
+#### 4. `src/Yanoch.Web/wwwroot/app.css`
 
----
+Add highlight.js base styles and a dark-mode override. The highlight.js library adds a `.hljs` class to the `<code>` element (and language-specific classes like `.language-python` to the `<code>` as well). Only `.hljs` is needed for a functional baseline:
 
-### 2. Callout Block
+```css
+/* ─── Code Block Highlighting ─────────────── */
+.tiptap-editor .hljs {
+    display: block;
+    padding: 16px;
+    overflow-x: auto;
+    border-radius: var(--radius);
+    font-size: 13px;
+    line-height: 1.5;
+    background: var(--code-bg);
+}
+```
 
-**Status:** ✅ Done
+**Dark mode:** highlight.js auto-detects dark backgrounds and adjusts token colours. If token contrast is insufficient in dark mode, import a highlight.js theme CSS (e.g. `highlight.js/styles/atom-one-dark.css`) and serve it alongside the library, or add an explicit dark override:
 
-Custom `callout` node with `:::callout {type="warning" icon="🔥"}` markdown. Color picker (13 colors) + emoji icon grid (50 emojis) via context menus. Button toggle to close/re-open.
+```css
+.dark .tiptap-editor .hljs {
+    background: var(--code-bg);
+}
+```
 
----
+For full accuracy across themes the cleanest route is to import a highlight.js theme CSS in the editor bundle and configure it in `code-block.js` with `hljs.configure({ theme: 'atom-one-dark' })`. That is a follow-up consideration — the minimal CSS above gets the feature working and leaves room to refine theming later.
 
-### 3. Table Block
+#### 5. `src/dist/wwwroot/app.css` (mirror file)
 
-**Status:** ✅ Done
+Copy the same CSS addition. Keep this file in sync — it is the deployed bundle's CSS.
 
-Via `@tiptap/extension-table`. 3×3 with header on `/table` slash. Resizable columns. Floating bubble menu for add/delete row/col + delete table.
+#### 6. `src/dist/wwwroot/js/tiptap-editor.js` (mirror at `src/dist/`)
 
----
+This is the built output from Vite. After editing the source files above, run `npx vite build` to regenerate it. The `code-block.js` imports and `CodeBlockHighlight` registration will be bundled into the output. Both the source and dist bundles must have the feature.
 
-### 4. Toggle Block (Collapsible)
+### Files to touch (for this feature)
 
-**Status:** ✅ Done
+| File | Reason |
+|------|--------|
+| `package.json` | Add `highlight.js` dependency (and run `npm install`) |
+| `src/Yanoch.Web/wwwroot/js/tiptap/editor.js` | Import `CodeBlockHighlight` and add it to the extensions array |
+| `src/Yanoch.Web/wwwroot/js/tiptap/code-block.js` | No changes needed — already complete |
+| `src/Yanoch.Web/wwwroot/app.css` | Add `.hljs` highlighting styles + dark-mode override |
+| `src/dist/wwwroot/app.css` | Mirror the CSS changes |
+| `src/dist/wwwroot/js/tiptap-editor.js` | Rebuild via `npx vite build` (mirrors the bundled source) |
 
-Custom `toggle` node with `:::toggle {collapsed:true}` markdown. Arrow click collapss/expands. Insert as child inside containers (toggle/callout) or sibling at top-level.
+### Verification
 
----
+1. Run `npm install` to pick up the new highlight.js dependency
+2. Run `npx vite build` to rebuild the TipTap bundle (this also updates `src/dist/`)
+3. Open a page with a fenced code block using a language label (`` ```python ``)
+4. The code block should render with coloured tokens inside the editor (highlight.js applies `.hljs` + token classes)
+5. Switch to dark mode → code block background should remain readable
+6. Edit the code block → highlighting should apply to newly typed content
+7. Save the page → reload → language label and highlighting are preserved (language stored in node attrs, highlighting reapplied on load)
+8. Try an unregistered language (e.g. `` ```elixir ``) → highlight.js auto-detects the language and still highlights with a reasonable token set
 
-### Implementation Order & Dependencies
+## Notes
 
-| Step | Feature | Depends on | Effort | Status |
-|------|---------|-----------|--------|--------|
-| 1 | GapCursor | Nothing | Low | ✅ Done |
-| 2 | Drag Handle | Nothing | Low | ✅ Done (was already) |
-| 3 | Callout (markdown round-trip) | Nothing | Medium | ✅ Done — `:::` fenced syntax via `createBlockMarkdownSpec` |
-| 4 | Wiki-link `[[` autocomplete | Nothing | Medium | ✅ Done — pure DOM popup, fetches /api/search |
-| 5 | Table block | Package install | Low | ✅ Done — `@tiptap/extension-table` + `/table` slash command (3×3 default, resizable) |
-| 6 | Toggle block | Callout patterns | Low/med | ✅ Done |
-| 7 | Migration (Block → Content) | Nothing | Medium | ⬜ Future (rollback safety)
+- No server-side changes needed; this is entirely client-side
+- The `src/dist/` directory is tracked in git (it is the built/deployed output) and must be rebuilt after any source edits
+- The `codeBlock` node is already part of StarterKit — the language label in fenced markdown (`` ```python ``) is parsed to `node.attrs.language` automatically; no extra work needed there
+- highlight.js auto-detection is the fallback for languages not explicitly registered; auto-registration of common languages is built into the library
+- If adding new languages later, follow the same pattern in `code-block.js`: `import x from 'highlight.js/lib/languages/x'` + `hljs.registerLanguage('x', x)`
+- The existing `stopEvent` pattern and `.todo-` prefixed styles are unrelated to this feature — no interference expected
 
-Steps 1-6 are complete.
+## How it fits in the existing todo-list node
 
----
+The current node data shape is unchanged — `rows: [{ checked, task, deadline }]`. The filter bar is purely a view-layer addition; it reads `checked` from each row's checkbox to decide visibility but never mutates the data array. Markdown export via `createBlockMarkdownSpec` continues to serialize all rows as-is, so saved content is unaffected.
 
-## Known Issues / Edge Cases
+## Verification
 
-1. **Migration pending**: Existing `Block` data not yet migrated to `Page.Content`. Old `Block` table still exists in initial migration; legacy `BlockEditor.razor` removed.
-2. **Old pages** show legacy block renderer; new pages use TipTap. Migration service not yet written.
-3. **Toggle block** not yet implemented — future work.
-5. **Vite build required** after any change to `tiptap-editor.src.js` — not automatic with `dotnet run`.
-6. **SQLite vulnerability warning** — `SQLitePCLRaw.lib.e_sqlite3` 2.1.11 CVE; update package when available.
+1. Create a page with a to-do list containing a mix of checked and unchecked items.
+2. Click each filter pill — only matching rows should be visible.
+3. Switch filter while a row is visible → row should hide/show instantly.
+4. Check/uncheck a row while a filter is active → row should appear/disappear in real time.
+5. Save the page → reload → all rows present (no data loss), filter state resets (default "All").
+6. Toggle dark mode → filter pill styles should adapt automatically.
+7. Confirm `src/dist/` mirrors are synced.
 
----
+## Notes
 
-## Regression Checklist
-
-- [ ] Register → login → home page shows recent pages
-- [ ] Create new page → appears in sidebar
-- [ ] Type in TipTap editor → debounced auto-saves (check network tab for PUT)
-- [ ] Slash `/` → command popup works
-- [ ] `[[` → wiki link suggestion works
-- [ ] 🖼️ Image button → file upload succeeds
-- [ ] Paste image file → auto-upload + embed
-- [ ] Task list check/toggle
-- [ ] Navigate between pages → editor loads correct content
-- [ ] `npx vite build` succeeds (0 errors)
-- [ ] `dotnet build` succeeds (0 errors, pre-existing warning OK)
-- [ ] Search finds content
-- [ ] Dark mode toggle persists
-- [ ] Page deletion and recovery
-- [ ] Mobile responsive
+- No server-side changes needed; this is entirely client-side.
+- The `src/dist/` directory is tracked in git (it is the built/deployed output) and must be kept in sync with `src/Yanoch.Web/wwwroot/` — same as the CSS mirror.
+- The existing `stopEvent` pattern (used for `.todo-add-btn`, `input`, `td`) should be extended to `.todo-filter-btn` so clicking filter pills doesn't accidentally trigger editor-level event handlers.

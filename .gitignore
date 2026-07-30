@@ -439,6 +439,8 @@ FodyWeavers.xsd
 
 # === Project-specific ===
 uploads/
+**/tiptap-editor.js
+src/dist/
 **/Yanoch.Web/yanoch.db
 yanoch.db-shm
 yanoch.db-wal
