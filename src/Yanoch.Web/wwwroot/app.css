@@ -1604,6 +1604,74 @@ body {
     background: var(--code-bg);
 }
 
+/* ─── hljs token colors (light) ──────────── */
+.tiptap-editor .hljs-comment,
+.tiptap-editor .hljs-quote { color: #6e7781; font-style: italic; }
+.tiptap-editor .hljs-keyword,
+.tiptap-editor .hljs-selector-tag,
+.tiptap-editor .hljs-literal,
+.tiptap-editor .hljs-type,
+.tiptap-editor .hljs-addition { color: #cf222e; }
+.tiptap-editor .hljs-string,
+.tiptap-editor .hljs-doctag,
+.tiptap-editor .hljs-regexp { color: #0a3069; }
+.tiptap-editor .hljs-number,
+.tiptap-editor .hljs-symbol,
+.tiptap-editor .hljs-bullet,
+.tiptap-editor .hljs-link { color: #0550ae; }
+.tiptap-editor .hljs-attr,
+.tiptap-editor .hljs-attribute,
+.tiptap-editor .hljs-variable,
+.tiptap-editor .hljs-template-variable,
+.tiptap-editor .hljs-title.class_ { color: #953800; }
+.tiptap-editor .hljs-built_in,
+.tiptap-editor .hljs-title,
+.tiptap-editor .hljs-section { color: #8250df; }
+.tiptap-editor .hljs-meta { color: #1f2328; }
+.tiptap-editor .hljs-deletion { color: #82071e; }
+.tiptap-editor .hljs-selector-id,
+.tiptap-editor .hljs-selector-class { color: #953800; }
+.tiptap-editor .hljs-subst { color: var(--text-primary); }
+.tiptap-editor .hljs-params { color: #1f2328; }
+.tiptap-editor .hljs-formula { color: #0550ae; }
+.tiptap-editor .hljs-name { color: #22863a; }
+.tiptap-editor .hljs-tag { color: #0550ae; }
+.tiptap-editor .hljs-emphasis { font-style: italic; }
+.tiptap-editor .hljs-strong { font-weight: bold; }
+
+/* ─── hljs token colors (dark) ───────────── */
+.dark .tiptap-editor .hljs-comment,
+.dark .tiptap-editor .hljs-quote { color: #8b949e; font-style: italic; }
+.dark .tiptap-editor .hljs-keyword,
+.dark .tiptap-editor .hljs-selector-tag,
+.dark .tiptap-editor .hljs-literal,
+.dark .tiptap-editor .hljs-type,
+.dark .tiptap-editor .hljs-addition { color: #ff7b72; }
+.dark .tiptap-editor .hljs-string,
+.dark .tiptap-editor .hljs-doctag,
+.dark .tiptap-editor .hljs-regexp { color: #a5d6ff; }
+.dark .tiptap-editor .hljs-number,
+.dark .tiptap-editor .hljs-symbol,
+.dark .tiptap-editor .hljs-bullet,
+.dark .tiptap-editor .hljs-link { color: #79c0ff; }
+.dark .tiptap-editor .hljs-attr,
+.dark .tiptap-editor .hljs-attribute,
+.dark .tiptap-editor .hljs-variable,
+.dark .tiptap-editor .hljs-template-variable,
+.dark .tiptap-editor .hljs-title.class_ { color: #ffa657; }
+.dark .tiptap-editor .hljs-built_in,
+.dark .tiptap-editor .hljs-title,
+.dark .tiptap-editor .hljs-section { color: #d2a8ff; }
+.dark .tiptap-editor .hljs-meta { color: #e6e6e6; }
+.dark .tiptap-editor .hljs-deletion { color: #ffdcd7; }
+.dark .tiptap-editor .hljs-selector-id,
+.dark .tiptap-editor .hljs-selector-class { color: #ffa657; }
+.dark .tiptap-editor .hljs-subst { color: var(--text-primary); }
+.dark .tiptap-editor .hljs-params { color: #e6e6e6; }
+.dark .tiptap-editor .hljs-formula { color: #79c0ff; }
+.dark .tiptap-editor .hljs-name { color: #7ee787; }
+.dark .tiptap-editor .hljs-tag { color: #79c0ff; }
+
 /* THEME TOGGLE — floating button in the corner of the page */
 .theme-toggle {
     position: fixed;
