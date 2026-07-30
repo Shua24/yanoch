@@ -1,4 +1,8 @@
 {
+  "scripts": {
+    "dev": "vite build --watch",
+    "build": "vite build && cp -r src/Yanoch.Web/wwwroot/app.css src/Yanoch.Web/wwwroot/bootstrap src/Yanoch.Web/wwwroot/favicon.png src/Yanoch.Web/wwwroot/js src/dist/wwwroot/"
+  },
   "dependencies": {
     "@tiptap/extension-blockquote": "^3.29.0",
     "@tiptap/extension-drag-handle": "^3.29.0",
