@@ -12,7 +12,7 @@ const todoListMd = createBlockMarkdownSpec({
   allowedAttributes: ['rows'],
   parseAttributes(str) {
     if (!str) return {}
-    const match = str.match(/rows=['"]([^'"]+)['"]/)
+    const match = str.match(/rows="([^"]+)"/)
     if (!match) return {}
     try {
       return { rows: JSON.parse(decodeURIComponent(match[1])) }
@@ -22,7 +22,7 @@ const todoListMd = createBlockMarkdownSpec({
   },
   serializeAttributes(attrs) {
     if (!attrs || !Array.isArray(attrs.rows) || attrs.rows.length === 0) return ''
-    return `rows='${encodeURIComponent(JSON.stringify(attrs.rows))}'`
+    return `rows="${encodeURIComponent(JSON.stringify(attrs.rows))}"`
   },
 })
 
