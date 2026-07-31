@@ -1,4 +1,7 @@
-﻿<!DOCTYPE html>
+﻿@inject IWebHostEnvironment Env
+@using System.IO
+@using System.Security.Cryptography
+<!DOCTYPE html>
 <html lang="en">
 
 <head>
@@ -6,12 +9,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <base href="/" />
     <link rel="stylesheet" href="bootstrap/bootstrap.min.css" />
-    <link rel="stylesheet" href="app.css?v=18" />
+    <link rel="stylesheet" href="@($"app.css?v={AssetVersion("app.css")}")" />
     <link rel="stylesheet" href="Yanoch.Web.styles.css" />
     <link rel="icon" type="image/png" href="favicon.png" />
     <!-- Apply the saved theme (or OS preference) BEFORE first paint to avoid a flash. -->
     <script src="js/theme.js"></script>
-    <script type="module" src="js/tiptap-editor.js?v=3"></script>
+    <script type="module" src="@($"js/tiptap-editor.js?v={AssetVersion("js/tiptap-editor.js")}")"></script>
     <HeadOutlet @rendermode="InteractiveServer" />
 </head>
 
@@ -23,3 +26,20 @@
 </body>
 
 </html>
+
+@code {
+    private static readonly Dictionary<string, string> _versions = new();
+
+    // Content-hash cache busting: stable URL per file content, changes only when the file changes.
+    private string AssetVersion(string path)
+    {
+        if (_versions.TryGetValue(path, out var version)) return version;
+
+        var fullPath = Path.Combine(Env.WebRootPath, path.Replace('/', Path.DirectorySeparatorChar));
+        version = File.Exists(fullPath)
+            ? Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(fullPath)))[..12].ToLowerInvariant()
+            : "missing";
+        _versions[path] = version;
+        return version;
+    }
+}
