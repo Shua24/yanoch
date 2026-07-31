@@ -28,18 +28,22 @@
 </html>
 
 @code {
+    private static readonly object _versionsLock = new();
     private static readonly Dictionary<string, string> _versions = new();
 
     // Content-hash cache busting: stable URL per file content, changes only when the file changes.
     private string AssetVersion(string path)
     {
-        if (_versions.TryGetValue(path, out var version)) return version;
+        lock (_versionsLock)
+        {
+            if (_versions.TryGetValue(path, out var version)) return version;
 
-        var fullPath = Path.Combine(Env.WebRootPath, path.Replace('/', Path.DirectorySeparatorChar));
-        version = File.Exists(fullPath)
-            ? Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(fullPath)))[..12].ToLowerInvariant()
-            : "missing";
-        _versions[path] = version;
-        return version;
+            var fullPath = Path.Combine(Env.WebRootPath, path.Replace('/', Path.DirectorySeparatorChar));
+            version = File.Exists(fullPath)
+                ? Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(fullPath)))[..12].ToLowerInvariant()
+                : "missing";
+            _versions[path] = version;
+            return version;
+        }
     }
 }
