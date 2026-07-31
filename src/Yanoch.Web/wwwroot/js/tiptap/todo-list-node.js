@@ -10,6 +10,20 @@ const todoListMd = createBlockMarkdownSpec({
   content: '',
   defaultAttributes: { rows: [] },
   allowedAttributes: ['rows'],
+  parseAttributes(str) {
+    if (!str) return {}
+    const match = str.match(/rows="([^"]+)"/)
+    if (!match) return {}
+    try {
+      return { rows: JSON.parse(decodeURIComponent(match[1])) }
+    } catch {
+      return {}
+    }
+  },
+  serializeAttributes(attrs) {
+    if (!attrs || !Array.isArray(attrs.rows) || attrs.rows.length === 0) return ''
+    return `rows="${encodeURIComponent(JSON.stringify(attrs.rows))}"`
+  },
 })
 
 // ─── Helpers ───────────────────────────────────────────────────
@@ -19,11 +33,13 @@ function escapeHtml(str) {
 }
 
 function buildTableHTML(rows) {
+  if (!Array.isArray(rows)) rows = []
   const tbody = rows.map(r => `
     <tr>
       <td><input class="todo-task" type="text" value="${escapeHtml(r.task)}" placeholder="What needs doing?"></td>
       <td><input class="todo-deadline" type="text" value="${escapeHtml(r.deadline)}" placeholder="Due date"></td>
       <td class="todo-check-col"><input type="checkbox"${r.checked ? ' checked' : ''}></td>
+      <td class="todo-actions-col"><button class="todo-remove-btn" title="Remove item">✕</button></td>
     </tr>
   `).join('')
   return `
@@ -33,7 +49,7 @@ function buildTableHTML(rows) {
       <button class="todo-filter-btn" data-filter="open">Not done</button>
     </div>
     <table class="todo-table">
-      <thead><tr><th>Task</th><th>Deadline</th><th>Checklist</th></tr></thead>
+      <thead><tr><th>Task</th><th>Deadline</th><th>Checklist</th><th></th></tr></thead>
       <tbody>${tbody}</tbody>
     </table>
     <button class="todo-add-btn">+ Add item</button>
@@ -56,19 +72,6 @@ function serializeRows(el) {
   return rows
 }
 
-function updateNodeData(el, rows) {
-  const editor = findEditorForElement(el)
-  if (!editor) return
-  const { state, view } = editor
-  const pos = view.posAtDOM(el, 0)
-  if (pos == null) return
-  const $pos = state.doc.resolve(pos)
-  let depth = $pos.depth
-  while (depth >= 0 && $pos.node(depth).type.name !== 'todoList') depth--
-  if (depth < 0) return
-  view.dispatch(state.tr.setNodeMarkup($pos.before(depth), null, { rows }))
-}
-
 function debounce(fn, ms) {
   let timer
   return (...args) => {
@@ -77,9 +80,30 @@ function debounce(fn, ms) {
   }
 }
 
-const debouncedUpdate = debounce((el) => {
-  updateNodeData(el, serializeRows(el))
-}, 300)
+// ─── Confirm dialog ────────────────────────────────────────────
+function showConfirmDialog(message, onConfirm) {
+  const overlay = document.createElement('div')
+  overlay.className = 'confirm-dialog'
+  overlay.innerHTML = `
+    <div class="confirm-dialog-box">
+      <div class="confirm-dialog-text">${escapeHtml(message)}</div>
+      <div class="confirm-dialog-actions">
+        <button class="btn-cancel" data-action="cancel">Cancel</button>
+        <button class="btn-confirm-delete" data-action="confirm">Delete</button>
+      </div>
+    </div>`
+
+  overlay.querySelector('[data-action="cancel"]').addEventListener('click', () => overlay.remove())
+  overlay.querySelector('[data-action="confirm"]').addEventListener('click', () => {
+    overlay.remove()
+    onConfirm()
+  })
+  overlay.addEventListener('click', (e) => {
+    if (e.target === overlay) overlay.remove()
+  })
+
+  document.body.appendChild(overlay)
+}
 
 // ─── TodoList node ─────────────────────────────────────────────
 export const TodoList = Node.create({
@@ -110,21 +134,44 @@ export const TodoList = Node.create({
   },
 
   addNodeView() {
-    return ({ node }) => {
+    return ({ node, getPos }) => {
       const dom = document.createElement('div')
       dom.setAttribute('data-todo-list', '')
       dom.className = 'todo-list'
       dom.contentEditable = 'false'
 
-      function render() {
-        dom.setAttribute('data-rows', JSON.stringify(node.attrs.rows || []))
+      let activeFilter = 'all'
 
-        // ---- preserve focus / selection across innerHTML rebuild ----
-        // innerHTML replaces every DOM node inside <div>, which drops
-        // the active input and collapses the caret. Capture the
-        // current input's state before the rebuild, then restore it
-        // to the matching new element afterward so the user can keep
-        // typing uninterrupted.
+      dom._todoUpdate = (rows) => {
+        const editor = findEditorForElement(dom)
+        if (!editor) return
+        const { state, view } = editor
+        const pos = getPos()
+        if (pos == null) return
+        view.dispatch(state.tr.setNodeMarkup(pos, null, { rows }))
+      }
+
+      dom._todoUpdateDebounced = debounce(() => {
+        dom._todoUpdate(serializeRows(dom))
+      }, 300)
+
+      function applyFilter() {
+        dom.querySelectorAll('.todo-filter-btn').forEach(b => b.classList.remove('active'))
+        const activeBtn = dom.querySelector(`.todo-filter-btn[data-filter="${activeFilter}"]`)
+        if (activeBtn) activeBtn.classList.add('active')
+        dom.querySelectorAll('tbody tr').forEach(tr => {
+          const checked = tr.querySelector('input[type="checkbox"]')?.checked
+          tr.style.display =
+            activeFilter === 'all' ? '' :
+            activeFilter === 'done' ? (checked ? '' : 'none') :
+            (!checked ? '' : 'none')
+        })
+      }
+
+      function render() {
+        const rows = Array.isArray(node.attrs.rows) ? node.attrs.rows : []
+        dom.setAttribute('data-rows', JSON.stringify(rows))
+
         const active = dom.ownerDocument.activeElement
         let savedSel = null
         if (active && dom.contains(active)) {
@@ -137,21 +184,13 @@ export const TodoList = Node.create({
           }
         }
 
-        dom.innerHTML = buildTableHTML(node.attrs.rows || [])
+        dom.innerHTML = buildTableHTML(rows)
 
         // Wire up filter bar click handlers
         dom.querySelectorAll('.todo-filter-btn').forEach(btn => {
           btn.addEventListener('click', () => {
-            dom.querySelectorAll('.todo-filter-btn').forEach(b => b.classList.remove('active'))
-            btn.classList.add('active')
-            const filter = btn.dataset.filter
-            dom.querySelectorAll('tbody tr').forEach(tr => {
-              const checked = tr.querySelector('input[type="checkbox"]')?.checked
-              tr.style.display =
-                filter === 'all' ? '' :
-                filter === 'done' ? (checked ? '' : 'none') :
-                (!checked ? '' : 'none')
-            })
+            activeFilter = btn.dataset.filter
+            applyFilter()
           })
         })
 
@@ -169,6 +208,8 @@ export const TodoList = Node.create({
             }
           }
         }
+
+        applyFilter()
       }
 
       render()
@@ -185,6 +226,7 @@ export const TodoList = Node.create({
         stopEvent(event) {
           const t = event.target
           return t.closest('.todo-add-btn') != null ||
+                 t.closest('.todo-remove-btn') != null ||
                  t.closest('.todo-filter-btn') != null ||
                  t.closest('input') != null ||
                  t.closest('td') != null
@@ -207,13 +249,27 @@ export function setupTodoList() {
       e.preventDefault()
       const rows = serializeRows(el)
       rows.push({ checked: false, task: '', deadline: '' })
-      updateNodeData(el, rows)
+      el._todoUpdate(rows)
+      return
+    }
+
+    // Remove button
+    if (e.target.closest('.todo-remove-btn')) {
+      e.preventDefault()
+      const tr = e.target.closest('tr')
+      const idx = Array.from(el.querySelectorAll('tbody tr')).indexOf(tr)
+      if (idx === -1) return
+      showConfirmDialog('Remove this item?', () => {
+        const rows = serializeRows(el)
+        rows.splice(idx, 1)
+        el._todoUpdate(rows)
+      })
       return
     }
 
     // Checkbox toggle — update immediately
     if (e.target.matches('input[type="checkbox"]')) {
-      updateNodeData(el, serializeRows(el))
+      el._todoUpdate(serializeRows(el))
       return
     }
   })
@@ -222,7 +278,7 @@ export function setupTodoList() {
     const el = e.target.closest('[data-todo-list]')
     if (!el) return
     if (e.target.matches('.todo-task, .todo-deadline')) {
-      debouncedUpdate(el)
+      el._todoUpdateDebounced()
     }
   })
 }
