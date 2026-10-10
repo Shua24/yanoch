@@ -1,0 +1,38 @@
+﻿@page "/"
+@using Yanoch.Domain
+@namespace Yanoch.Ui.Components.Pages
+
+<PageTitle>Yanoch</PageTitle>
+
+<div class="yanoch-home">
+    <header class="yanoch-home-header">
+        <h1 class="yanoch-home-title">Yanoch</h1>
+        <button class="yanoch-primary-button" @onclick="CreatePageAsync">New page</button>
+    </header>
+
+    @if (isLoading)
+    {
+        <p class="yanoch-muted">Loading…</p>
+    }
+    else if (pages.Count == 0)
+    {
+        <p class="yanoch-muted">No pages yet. Create your first one.</p>
+    }
+    else
+    {
+        <ul class="yanoch-page-list">
+            @foreach (Page workspacePage in pages)
+            {
+                <li class="yanoch-page-list-item">
+                    <a class="yanoch-page-link" href="@BuildPageHref(workspacePage.Id)">
+                        <span class="yanoch-page-icon">@workspacePage.Icon</span>
+                        <span class="yanoch-page-name">@workspacePage.Title</span>
+                        <span class="yanoch-page-date">@workspacePage.UpdatedAtUtc.ToLocalTime().ToString("yyyy-MM-dd HH:mm")</span>
+                    </a>
+                    <button class="yanoch-icon-button" title="Delete page"
+                            @onclick="() => DeletePageAsync(workspacePage.Id)">✕</button>
+                </li>
+            }
+        </ul>
+    }
+</div>

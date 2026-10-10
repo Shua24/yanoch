@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk.Razor">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AllowMissingPrunePackageData>true</AllowMissingPrunePackageData>
+    <RootNamespace>Yanoch.Ui</RootNamespace>
+    <!-- Serve this library's wwwroot at the application root (e.g. /js/yanoch-editor.js)
+         rather than under /_content/Yanoch.Ui/, so both hosts use identical asset URLs. -->
+    <StaticWebAssetBasePath>/</StaticWebAssetBasePath>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <SupportedPlatform Include="browser" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Yanoch.Data\Yanoch.Data.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Components.Web" Version="10.0.12" />
+    <PackageReference Include="Microsoft.JSInterop" Version="10.0.12" />
+  </ItemGroup>
+
+  <!-- The Blazor WebView host needs blazor.webview.js; the server host serves blazor.web.js.
+       Each host references only the one it uses, so the shared library carries neither. -->
+
+</Project>

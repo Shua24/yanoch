@@ -1,0 +1,135 @@
+@using Yanoch.Domain
+@using Yanoch.Ui.Components.Pages
+@using Yanoch.Ui.Interop
+@namespace Yanoch.Ui.Components.Editor
+
+@*
+    Renders one level of the block tree: the siblings that share a parent. A column list renders
+    as a row of column cells; a column cell recurses into its own children. Nesting is capped at
+    one level because a column never contains another column list (the repository reuses the
+    existing list instead of nesting).
+*@
+
+@foreach (Block sibling in Siblings)
+{
+    if (sibling.BlockType == BlockType.ColumnList)
+    {
+        <div class="yanoch-column-list">
+            @foreach (Block column in ReadChildren(sibling.Id))
+            {
+                <div class="yanoch-column">
+                    <BlockTree Siblings="ReadChildren(column.Id)"
+                               EditorModels="EditorModels"
+                               EditorComponents="EditorComponents"
+                               OnEditorEvent="OnEditorEvent"
+                               OnRegisterEditor="OnRegisterEditor"
+                               OnDragStartBlock="OnDragStartBlock"
+                               OnDragEndBlock="OnDragEndBlock"
+                               OnDropOnBlock="OnDropOnBlock"
+                               OnDropBesideBlock="OnDropBesideBlock"
+                               OnDropAtEnd="OnDropAtEnd"
+                               DragOverBlockId="DragOverBlockId"
+                               DraggingBlockId="DraggingBlockId"
+                               SlashMenuBlockId="SlashMenuBlockId"
+                               BlockTypeOptions="BlockTypeOptions"
+                               OnApplyBlockType="OnApplyBlockType"
+                               OnToggleToDo="OnToggleToDo"
+                               OnDeleteBlock="OnDeleteBlock" />
+                </div>
+            }
+        </div>
+    }
+    else
+    {
+        <BlockRow Block="sibling"
+                  EditorModel="ReadEditorModel(sibling.Id)"
+                  OnEditorEvent="OnEditorEvent"
+                  OnRegisterEditor="OnRegisterEditor"
+                  OnDragStartBlock="OnDragStartBlock"
+                  OnDragEndBlock="OnDragEndBlock"
+                  OnDropOnBlock="OnDropOnBlock"
+                  OnDropBesideBlock="OnDropBesideBlock"
+                  DragOverBlockId="DragOverBlockId"
+                  DraggingBlockId="DraggingBlockId"
+                  IsSlashMenuOpen="SlashMenuBlockId == sibling.Id"
+                  BlockTypeOptions="BlockTypeOptions"
+                  OnApplyBlockType="OnApplyBlockType"
+                  OnToggleToDo="OnToggleToDo"
+                  OnDeleteBlock="OnDeleteBlock" />
+    }
+}
+
+@code {
+    /// <summary>The sibling blocks to render, already ordered by the caller.</summary>
+    [Parameter]
+    public IReadOnlyList<Block> Siblings { get; set; } = new List<Block>();
+
+    [Parameter]
+    public IReadOnlyDictionary<Guid, BlockEditorModel> EditorModels { get; set; } = default!;
+
+    [Parameter]
+    public IReadOnlyDictionary<Guid, BlockEditor> EditorComponents { get; set; } = default!;
+
+    /// <summary>All blocks of the page, used to resolve a container's children.</summary>
+    [Parameter]
+    public IReadOnlyList<Block> AllBlocks { get; set; } = new List<Block>();
+
+    [Parameter]
+    public EventCallback<EditorEvent> OnEditorEvent { get; set; }
+
+    [Parameter]
+    public EventCallback<BlockEditor> OnRegisterEditor { get; set; }
+
+    [Parameter]
+    public EventCallback<Guid> OnDragStartBlock { get; set; }
+
+    [Parameter]
+    public EventCallback OnDragEndBlock { get; set; }
+
+    [Parameter]
+    public EventCallback<Guid> OnDropOnBlock { get; set; }
+
+    [Parameter]
+    public EventCallback<BlockDropTarget> OnDropBesideBlock { get; set; }
+
+    [Parameter]
+    public EventCallback OnDropAtEnd { get; set; }
+
+    [Parameter]
+    public Guid? DragOverBlockId { get; set; }
+
+    [Parameter]
+    public Guid? DraggingBlockId { get; set; }
+
+    [Parameter]
+    public Guid? SlashMenuBlockId { get; set; }
+
+    [Parameter]
+    public IReadOnlyList<BlockTypeOption> BlockTypeOptions { get; set; } = new List<BlockTypeOption>();
+
+    [Parameter]
+    public EventCallback<BlockTypeSelection> OnApplyBlockType { get; set; }
+
+    [Parameter]
+    public EventCallback<Guid> OnToggleToDo { get; set; }
+
+    [Parameter]
+    public EventCallback<Guid> OnDeleteBlock { get; set; }
+
+    private IReadOnlyList<Block> ReadChildren(Guid parentBlockId)
+    {
+        return AllBlocks
+            .Where(block => block.ParentBlockId == parentBlockId)
+            .OrderBy(block => block.SortOrder)
+            .ToList();
+    }
+
+    private BlockEditorModel ReadEditorModel(Guid blockId)
+    {
+        if (EditorModels.TryGetValue(blockId, out BlockEditorModel? model))
+        {
+            return model;
+        }
+        return new BlockEditorModel { BlockId = blockId };
+    }
+}

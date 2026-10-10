@@ -1,0 +1,18 @@
+# Build output
+bin/
+obj/
+
+# Node / editor bundle build inputs
+js/node_modules/
+
+# Local SQLite database (created at runtime)
+*.db
+*.db-shm
+*.db-wal
+
+# The esbuild sourcemap is pure build output: ~1.5 MB regenerated on every `npm run build`, and
+# useless in history. The bundle itself (yanoch-editor.js) stays committed so a fresh clone runs
+# without needing npm. Both live in src/Yanoch.Ui/wwwroot/js/ - see the outfile in js/build.mjs.
+src/Yanoch.Ui/wwwroot/js/yanoch-editor.js.map
+# To also stop committing the bundle and rely on `npm run build` after clone, uncomment:
+# src/Yanoch.Ui/wwwroot/js/yanoch-editor.js

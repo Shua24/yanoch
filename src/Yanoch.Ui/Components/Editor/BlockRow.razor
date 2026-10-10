@@ -1,0 +1,145 @@
+@using Yanoch.Domain
+@using Yanoch.Ui.Components.Pages
+@using Yanoch.Ui.Interop
+@namespace Yanoch.Ui.Components.Editor
+
+@*
+    One block row: drag handle, controls, optional to do checkbox, the ProseMirror editor and the
+    slash menu.
+
+    While a block is being dragged the row grows two explicit side drop zones (narrow strips at
+    its left and right edges). Dropping on one splits the row sideways into columns; dropping on
+    the row body itself reorders. The zones are real elements rather than coordinate maths on
+    purpose: Blazor's drop handler is then told which zone was hit instead of having to work out
+    the pointer position, which drag events do not carry.
+*@
+
+<div class="yanoch-block-row @ReadRowDropZoneClass()"
+     @ondragover:preventDefault="@(DraggingBlockId is not null)"
+     @ondragover="() => OnDragOverBlock.InvokeAsync(Block.Id)"
+     @ondragleave="() => OnDragLeaveBlock.InvokeAsync(Block.Id)"
+     @ondrop:preventDefault
+     @ondrop="() => OnDropOnBlock.InvokeAsync(Block.Id)">
+
+    @* The side drop zones are ALWAYS in the DOM so the affordance is discoverable on row hover.
+       They stay faint until a drag is in progress, and JS lights the one under the pointer
+       instantly (no Blazor round trip). *@
+    <div class="yanoch-split-zone yanoch-split-left"
+         title="Drop a block here to put it in a column on the left"
+         @ondragover:preventDefault
+         @ondragover:stopPropagation
+         @ondrop:preventDefault
+         @ondrop:stopPropagation
+         @ondrop="() => OnDropBesideBlock.InvokeAsync(new BlockDropTarget(Block.Id, BlockDropSide.Left))"></div>
+    <div class="yanoch-split-zone yanoch-split-right"
+         title="Drop a block here to put it in a column on the right"
+         @ondragover:preventDefault
+         @ondragover:stopPropagation
+         @ondrop:preventDefault
+         @ondrop:stopPropagation
+         @ondrop="() => OnDropBesideBlock.InvokeAsync(new BlockDropTarget(Block.Id, BlockDropSide.Right))"></div>
+
+    <div class="yanoch-block-controls">
+        <span class="yanoch-drag-handle" draggable="true" title="Drag to move, or to either edge to split"
+              @ondragstart="() => OnDragStartBlock.InvokeAsync(Block.Id)"
+              @ondragend="() => OnDragEndBlock.InvokeAsync()">⋮⋮</span>
+        <button class="yanoch-icon-button" title="Delete block"
+                @onclick="() => OnDeleteBlock.InvokeAsync(Block.Id)">✕</button>
+    </div>
+
+    @if (Block.BlockType == BlockType.ToDo)
+    {
+        <input type="checkbox" class="yanoch-todo-checkbox" checked="@Block.IsChecked"
+               @onchange="() => OnToggleToDo.InvokeAsync(Block.Id)" />
+    }
+
+    <div class="yanoch-block-body" style="@ReadIndentStyle()">
+        <BlockEditor @key="Block.Id" Model="EditorModel"
+                     OnRegister="OnRegisterEditor"
+                     OnEditorEvent="OnEditorEvent" />
+
+        @if (IsSlashMenuOpen)
+        {
+            <div class="yanoch-slash-menu">
+                @foreach (BlockTypeOption option in BlockTypeOptions)
+                {
+                    <button class="yanoch-slash-item"
+                            @onclick="() => OnApplyBlockType.InvokeAsync(new BlockTypeSelection(Block.Id, option))">
+                        <span class="yanoch-slash-title">@option.Title</span>
+                        <span class="yanoch-slash-description">@option.Description</span>
+                    </button>
+                }
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public Block Block { get; set; } = default!;
+
+    [Parameter]
+    public BlockEditorModel EditorModel { get; set; } = new BlockEditorModel();
+
+    [Parameter]
+    public EventCallback<EditorEvent> OnEditorEvent { get; set; }
+
+    [Parameter]
+    public EventCallback<BlockEditor> OnRegisterEditor { get; set; }
+
+    [Parameter]
+    public EventCallback<Guid> OnDragStartBlock { get; set; }
+
+    [Parameter]
+    public EventCallback OnDragEndBlock { get; set; }
+
+    [Parameter]
+    public EventCallback<Guid> OnDragOverBlock { get; set; }
+
+    [Parameter]
+    public EventCallback<Guid> OnDragLeaveBlock { get; set; }
+
+    [Parameter]
+    public EventCallback<Guid> OnDropOnBlock { get; set; }
+
+    [Parameter]
+    public EventCallback<BlockDropTarget> OnDropBesideBlock { get; set; }
+
+    [Parameter]
+    public Guid? DragOverBlockId { get; set; }
+
+    [Parameter]
+    public Guid? DraggingBlockId { get; set; }
+
+    [Parameter]
+    public bool IsSlashMenuOpen { get; set; }
+
+    [Parameter]
+    public IReadOnlyList<BlockTypeOption> BlockTypeOptions { get; set; } = new List<BlockTypeOption>();
+
+    [Parameter]
+    public EventCallback<BlockTypeSelection> OnApplyBlockType { get; set; }
+
+    [Parameter]
+    public EventCallback<Guid> OnToggleToDo { get; set; }
+
+    [Parameter]
+    public EventCallback<Guid> OnDeleteBlock { get; set; }
+
+    private string ReadRowDropZoneClass()
+    {
+        // Only the row body sets dragOverBlockId now: the side zones stop propagation, so this
+        // can only mean "the pointer is over the middle of this row".
+        return DragOverBlockId == Block.Id ? "yanoch-drop-target" : string.Empty;
+    }
+
+    private string ReadIndentStyle()
+    {
+        if (Block.IndentLevel <= 0)
+        {
+            return string.Empty;
+        }
+        int leftPadding = Block.IndentLevel * 28;
+        return $"padding-left:{leftPadding}px;";
+    }
+}

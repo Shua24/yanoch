@@ -1,0 +1,197 @@
+@using Yanoch.Ui.Components.Editor
+@using Yanoch.Ui.Interop
+@inject BlockEditorInterop EditorInterop
+@implements IAsyncDisposable
+
+<div class="yanoch-block" style="@BuildIndentStyle()">
+    <div id="@Model.EditorId" @ref="editorElement" class="yanoch-block-surface"></div>
+</div>
+
+@code {
+    [Parameter]
+    public BlockEditorModel Model { get; set; } = new BlockEditorModel();
+
+    [Parameter]
+    public EventCallback<EditorEvent> OnEditorEvent { get; set; }
+
+    private ElementReference editorElement;
+    private DotNetObjectReference<BlockEditor>? selfReference;
+    private bool isInitialised;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        // A reorder or a @key move relocates this component's DOM node without recreating the
+        // component, so firstRender is not a reliable "mount" signal. Re-create the editor
+        // whenever the surface is empty; that is idempotent and covers both cases.
+        bool isSurfaceEmpty = await EditorInterop.IsSurfaceEmptyAsync(Model.EditorId);
+        if (isInitialised && !isSurfaceEmpty)
+        {
+            return;
+        }
+
+        selfReference ??= DotNetObjectReference.Create(this);
+        await EditorInterop.CreateEditorAsync(
+            Model.EditorId,
+            editorElement,
+            Model.ContentJson,
+            selfReference,
+            Model.AutoFocus);
+        isInitialised = true;
+        await OnRegister.InvokeAsync(this);
+    }
+
+    [JSInvokable]
+    public async Task OnEditorChanged(string contentJson)
+    {
+        EditorEvent editorEvent = new EditorEvent(EditorEventKind.Changed, Model.BlockId, contentJson);
+        await OnEditorEvent.InvokeAsync(editorEvent);
+    }
+
+    [JSInvokable]
+    public async Task OnEditorFocused()
+    {
+        EditorEvent editorEvent = new EditorEvent(EditorEventKind.Focused, Model.BlockId, null);
+        await OnEditorEvent.InvokeAsync(editorEvent);
+    }
+
+    [JSInvokable]
+    public async Task OnEnterPressed()
+    {
+        EditorEvent editorEvent = new EditorEvent(EditorEventKind.Enter, Model.BlockId, null);
+        await OnEditorEvent.InvokeAsync(editorEvent);
+    }
+
+    /// <summary>
+    /// Called by the editor when Enter divides the block's text at the caret. The editor has
+    /// already computed both halves; this only forwards them to the page that owns the block list.
+    /// </summary>
+    [JSInvokable]
+    public async Task OnSplitRequested(string beforeJson, string afterJson, bool isAtStart, bool isEmpty)
+    {
+        BlockSplitRequest splitRequest = new BlockSplitRequest(beforeJson, afterJson, isAtStart, isEmpty);
+        EditorEvent editorEvent = new EditorEvent(EditorEventKind.Split, Model.BlockId, null, splitRequest);
+        await OnEditorEvent.InvokeAsync(editorEvent);
+    }
+
+    [JSInvokable]
+    public async Task OnBackspaceAtStart()
+    {
+        EditorEvent editorEvent = new EditorEvent(EditorEventKind.BackspaceAtStart, Model.BlockId, null);
+        await OnEditorEvent.InvokeAsync(editorEvent);
+    }
+
+    [JSInvokable]
+    public async Task OnArrowUp()
+    {
+        EditorEvent editorEvent = new EditorEvent(EditorEventKind.ArrowUp, Model.BlockId, null);
+        await OnEditorEvent.InvokeAsync(editorEvent);
+    }
+
+    [JSInvokable]
+    public async Task OnArrowDown()
+    {
+        EditorEvent editorEvent = new EditorEvent(EditorEventKind.ArrowDown, Model.BlockId, null);
+        await OnEditorEvent.InvokeAsync(editorEvent);
+    }
+
+    [JSInvokable]
+    public async Task OnIndentOutdent(bool shouldIndent)
+    {
+        EditorEventKind kind = shouldIndent ? EditorEventKind.Indent : EditorEventKind.Outdent;
+        EditorEvent editorEvent = new EditorEvent(kind, Model.BlockId, null);
+        await OnEditorEvent.InvokeAsync(editorEvent);
+    }
+
+    [JSInvokable]
+    public async Task OnSlashPressed()
+    {
+        EditorEvent editorEvent = new EditorEvent(EditorEventKind.Slash, Model.BlockId, null);
+        await OnEditorEvent.InvokeAsync(editorEvent);
+    }
+
+    [Parameter]
+    public EventCallback<BlockEditor> OnRegister { get; set; }
+
+    public async Task FocusAsync()
+    {
+        if (isInitialised)
+        {
+            await EditorInterop.FocusAsync(Model.EditorId);
+        }
+    }
+
+    public async Task PlaceCaretAtStartAsync()
+    {
+        if (isInitialised)
+        {
+            await EditorInterop.PlaceCaretAtStartAsync(Model.EditorId);
+        }
+    }
+
+    public async Task PlaceCaretAtEndAsync()
+    {
+        if (isInitialised)
+        {
+            await EditorInterop.PlaceCaretAtEndAsync(Model.EditorId);
+        }
+    }
+
+    public async Task<string> ReadContentAsync()
+    {
+        if (!isInitialised)
+        {
+            return Model.ContentJson;
+        }
+        string contentJson = await EditorInterop.GetContentAsync(Model.EditorId);
+        return contentJson;
+    }
+
+    public async Task ApplyBlockTypeAsync(string nodeName, object? attributes)
+    {
+        if (isInitialised)
+        {
+            await EditorInterop.ReplaceBlockTypeAsync(Model.EditorId, nodeName, attributes);
+        }
+    }
+
+    public async Task ClearContentAsync()
+    {
+        if (isInitialised)
+        {
+            await EditorInterop.ClearContentAsync(Model.EditorId);
+        }
+    }
+
+    public async Task SetContentAsync(string contentJson)
+    {
+        if (isInitialised)
+        {
+            await EditorInterop.SetContentAsync(Model.EditorId, contentJson);
+        }
+    }
+
+    private string BuildIndentStyle()
+    {
+        if (Model.IndentLevel <= 0)
+        {
+            return string.Empty;
+        }
+        int leftPadding = Model.IndentLevel * 28;
+        return $"padding-left:{leftPadding}px;";
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        try
+        {
+            await EditorInterop.DestroyAsync(Model.EditorId);
+        }
+        catch (Exception)
+        {
+            // Disposal also runs while the circuit is tearing down, when the JS interop call can
+            // no longer reach the page. Nothing is left to clean up at that point, so the failure
+            // must not surface as an unhandled circuit exception.
+        }
+        selfReference?.Dispose();
+    }
+}

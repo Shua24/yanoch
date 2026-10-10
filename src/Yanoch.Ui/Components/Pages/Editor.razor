@@ -1,0 +1,64 @@
+@page "/page/{PageId:guid}"
+@using Yanoch.Domain
+@using Yanoch.Ui.Components.Editor
+@using Yanoch.Ui.Interop
+@namespace Yanoch.Ui.Components.Pages
+
+<PageTitle>@(currentPage?.Title ?? "Yanoch")</PageTitle>
+
+<div class="yanoch-editor-shell" data-theme="@(isDarkMode ? "dark" : "light")">
+
+    <header class="yanoch-toolbar">
+        <a class="yanoch-toolbar-button" href="/">Pages</a>
+        <div class="yanoch-toolbar-spacer"></div>
+        <button class="yanoch-toolbar-button" @onclick="ImportMarkdownAsync" title="Import Markdown">Import</button>
+        <button class="yanoch-toolbar-button" @onclick="ExportMarkdownAsync" title="Export as Markdown">Export</button>
+        <button class="yanoch-toolbar-button" @onclick="ToggleThemeAsync" title="Toggle light or dark mode">
+            @(isDarkMode ? "Light" : "Dark")
+        </button>
+    </header>
+
+    @if (isLoading)
+    {
+        <p class="yanoch-muted">Loading page…</p>
+    }
+    else if (currentPage is null)
+    {
+        <p class="yanoch-muted">This page no longer exists.</p>
+    }
+    else
+    {
+        <article class="yanoch-page">
+            <input class="yanoch-title" value="@currentPage.Title"
+                   @onchange="UpdateTitleAsync" placeholder="Untitled" />
+
+            <div class="yanoch-blocks">
+                <BlockTree Siblings="ReadChildren(null)"
+                           AllBlocks="orderedBlocks"
+                           EditorModels="ReadEditorModelMap()"
+                           EditorComponents="editorComponents"
+                           OnEditorEvent="HandleEditorEventAsync"
+                           OnRegisterEditor="CaptureEditorComponent"
+                           OnDragStartBlock="HandleDragStart"
+                           OnDragEndBlock="HandleDragEndAsync"
+                           OnDropOnBlock="HandleDropAsync"
+                           OnDropBesideBlock="HandleDropBesideAsync"
+                           DragOverBlockId="dragOverBlockId"
+                           DraggingBlockId="draggingBlockId"
+                           SlashMenuBlockId="slashMenuBlockId"
+                           BlockTypeOptions="BlockTypeOptions"
+                           OnApplyBlockType="HandleApplyBlockTypeAsync"
+                           OnToggleToDo="ToggleToDoAsync"
+                           OnDeleteBlock="DeleteBlockAsync" />
+
+                <div class="yanoch-drop-end @(dragOverBlockId == EndDropTargetId ? "yanoch-drop-target" : string.Empty)"
+                     @ondragover:preventDefault="@(draggingBlockId is not null)"
+                     @ondragover="() => HandleDragOver(EndDropTargetId)"
+                     @ondrop:preventDefault
+                     @ondrop="HandleDropAtEndAsync"></div>
+            </div>
+
+            <button class="yanoch-add-block" @onclick="AddBlockAtEndAsync">+ Add a block</button>
+        </article>
+    }
+</div>

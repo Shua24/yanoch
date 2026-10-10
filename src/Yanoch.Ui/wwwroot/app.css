@@ -1,0 +1,520 @@
+/* Yanoch application styles. A single stylesheet keyed on data-theme so light and dark mode
+   share one layout and only swap colour tokens. */
+
+/* The Blazor error banner is hidden until a real unhandled error raises it. Both hosts ship
+   the element; without this rule it renders as permanent text on the page. */
+#blazor-error-ui {
+    display: none;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 1000;
+    padding: 0.6rem 1.25rem 0.7rem 1.25rem;
+    background: #b32121;
+    color: #ffffff;
+    box-shadow: 0 -1px 2px rgba(0, 0, 0, 0.2);
+}
+
+#blazor-error-ui .dismiss {
+    cursor: pointer;
+    position: absolute;
+    top: 0.5rem;
+    right: 0.75rem;
+}
+
+:root,
+html[data-theme="dark"] {
+    --yanoch-background: #191919;
+    --yanoch-surface: #202020;
+    --yanoch-surface-hover: #2a2a2a;
+    --yanoch-border: #333333;
+    --yanoch-text: #e6e6e6;
+    --yanoch-text-muted: #8f8f8f;
+    --yanoch-accent: #2f7bd6;
+    --yanoch-accent-soft: #24354a;
+    --yanoch-selection: #2f5b8a;
+}
+
+html[data-theme="light"] {
+    --yanoch-background: #ffffff;
+    --yanoch-surface: #f7f7f5;
+    --yanoch-surface-hover: #ececeb;
+    --yanoch-border: #e0e0de;
+    --yanoch-text: #37352f;
+    --yanoch-text-muted: #9b9a97;
+    --yanoch-accent: #2f7bd6;
+    --yanoch-accent-soft: #e7f0fb;
+    --yanoch-selection: #b9d4f5;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+html,
+body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    background: var(--yanoch-background);
+    color: var(--yanoch-text);
+    font-family: ui-sans-serif, -apple-system, "Segoe UI", Helvetica, Arial, sans-serif;
+    font-size: 16px;
+    line-height: 1.5;
+}
+
+::selection {
+    background: var(--yanoch-selection);
+}
+
+h1:focus {
+    outline: none;
+}
+
+.yanoch-muted {
+    color: var(--yanoch-text-muted);
+}
+
+/* Home page */
+
+.yanoch-home {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 64px 24px;
+}
+
+.yanoch-home-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 24px;
+}
+
+.yanoch-home-title {
+    font-size: 32px;
+    font-weight: 700;
+    margin: 0;
+}
+
+.yanoch-primary-button {
+    background: var(--yanoch-accent);
+    color: #ffffff;
+    border: none;
+    border-radius: 6px;
+    padding: 8px 14px;
+    font-size: 14px;
+    cursor: pointer;
+}
+
+.yanoch-primary-button:hover {
+    filter: brightness(1.1);
+}
+
+.yanoch-page-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.yanoch-page-list-item {
+    display: flex;
+    align-items: center;
+    border-radius: 6px;
+    margin-bottom: 4px;
+}
+
+.yanoch-page-list-item:hover {
+    background: var(--yanoch-surface-hover);
+}
+
+.yanoch-page-link {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex: 1;
+    padding: 10px 12px;
+    text-decoration: none;
+    color: var(--yanoch-text);
+}
+
+.yanoch-page-name {
+    flex: 1;
+    font-weight: 500;
+}
+
+.yanoch-page-date {
+    color: var(--yanoch-text-muted);
+    font-size: 12px;
+}
+
+/* Editor shell */
+
+.yanoch-editor-shell {
+    min-height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+.yanoch-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--yanoch-border);
+    background: var(--yanoch-surface);
+}
+
+.yanoch-toolbar-spacer {
+    flex: 1;
+}
+
+.yanoch-toolbar-button {
+    background: transparent;
+    color: var(--yanoch-text);
+    border: 1px solid var(--yanoch-border);
+    border-radius: 6px;
+    padding: 6px 12px;
+    font-size: 14px;
+    text-decoration: none;
+    cursor: pointer;
+}
+
+.yanoch-toolbar-button:hover {
+    background: var(--yanoch-surface-hover);
+}
+
+.yanoch-page {
+    flex: 1;
+    max-width: 760px;
+    width: 100%;
+    margin: 0 auto;
+    padding: 56px 72px 160px;
+}
+
+.yanoch-title {
+    width: 100%;
+    border: none;
+    background: transparent;
+    color: var(--yanoch-text);
+    font-size: 40px;
+    font-weight: 700;
+    padding: 0 0 12px;
+    margin-bottom: 12px;
+}
+
+.yanoch-title:focus {
+    outline: none;
+}
+
+.yanoch-blocks {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+}
+
+.yanoch-block-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 2px;
+    border-radius: 4px;
+    position: relative;
+}
+
+.yanoch-block-row:hover {
+    background: var(--yanoch-surface);
+}
+
+/* The controls float over the left margin so they take part in no layout height. The old
+   stacked column of four buttons was what made a one-line block occupy three or four lines. */
+.yanoch-block-controls {
+    position: absolute;
+    left: -52px;
+    top: 2px;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 0;
+    opacity: 0;
+    transition: opacity 0.1s ease;
+}
+
+/* Column layout: a column list is a horizontal row of equal cells, each holding its own blocks.
+   Nesting is capped at one level, so a cell only ever contains rows. */
+.yanoch-column-list {
+    display: flex;
+    flex-direction: row;
+    align-items: stretch;
+    gap: 16px;
+    width: 100%;
+}
+
+.yanoch-column {
+    flex: 1 1 0;
+    min-width: 0;
+    padding: 0 4px;
+}
+
+/* Side drop zones for the drag-to-split gesture: vertical bars in the left and right MARGIN
+   beside the row, like Notion's gutter, so they never intrude on the text.
+
+   They are always in the DOM (so the affordance is discoverable) but stay invisible until the
+   row is hovered or a drag is in progress. The lit state is applied by JS (js/src/splitzones.js)
+   so it reacts instantly with no Blazor round trip. */
+.yanoch-split-zone {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 10px;
+    z-index: 5;
+    border-radius: 5px;
+    background: transparent;
+    opacity: 0;
+}
+
+/* No transition here on purpose: a transition on opacity leaves the element invisible in any
+   environment where the compositor does not advance (observed in headless WebKitGTK, where the
+   computed value stays frozen at the transition's start). The state change is instant anyway. */
+
+.yanoch-split-left {
+    left: -18px;
+}
+
+.yanoch-split-right {
+    right: -18px;
+}
+
+/* Discoverable: reveal both bars when the row is hovered. */
+.yanoch-block-row:hover .yanoch-split-zone {
+    opacity: 1;
+    background: var(--yanoch-accent-soft);
+}
+
+/* During a drag every row advertises its split targets. */
+.yanoch-editor-shell.yanoch-is-dragging .yanoch-split-zone {
+    opacity: 1;
+    background: var(--yanoch-accent-soft);
+}
+
+/* The bar under the pointer (set by JS on dragover) fills solid. */
+.yanoch-split-zone.yanoch-split-active,
+.yanoch-split-zone:hover {
+    opacity: 1;
+    background: var(--yanoch-accent);
+}
+
+.yanoch-block-row:hover .yanoch-block-controls {
+    opacity: 1;
+}
+
+.yanoch-drag-handle {
+    cursor: grab;
+    color: var(--yanoch-text-muted);
+    font-size: 11px;
+    letter-spacing: -2px;
+    line-height: 1;
+    padding: 3px 4px;
+    border-radius: 4px;
+    user-select: none;
+}
+
+.yanoch-drag-handle:hover {
+    background: var(--yanoch-surface-hover);
+    color: var(--yanoch-text);
+}
+
+.yanoch-drag-handle:active {
+    cursor: grabbing;
+}
+
+/* Drop indicators while dragging a block. */
+.yanoch-drop-target {
+    box-shadow: inset 0 2px 0 0 var(--yanoch-accent);
+}
+
+.yanoch-drop-end {
+    height: 6px;
+    border-radius: 3px;
+}
+
+.yanoch-drop-end.yanoch-drop-target {
+    box-shadow: inset 0 2px 0 0 var(--yanoch-accent);
+    background: var(--yanoch-accent-soft);
+}
+
+.yanoch-icon-button {
+    background: transparent;
+    border: none;
+    color: var(--yanoch-text-muted);
+    cursor: pointer;
+    font-size: 12px;
+    line-height: 1;
+    padding: 3px 5px;
+    border-radius: 4px;
+}
+
+.yanoch-icon-button:hover {
+    background: var(--yanoch-surface-hover);
+    color: var(--yanoch-text);
+}
+
+.yanoch-block-body {
+    flex: 1;
+    min-width: 0;
+    position: relative;
+}
+
+.yanoch-todo-checkbox {
+    margin-top: 5px;
+}
+
+.yanoch-block-editor {
+    outline: none;
+    padding: 3px 0;
+    line-height: 1.4;
+    /* Long unbroken runs (a pasted URL or token) must wrap rather than push the line past the
+       block, which would leave the text wider than the row it belongs to. */
+    overflow-wrap: anywhere;
+    word-break: break-word;
+}
+
+.yanoch-add-block {
+    margin-top: 12px;
+    background: transparent;
+    border: none;
+    color: var(--yanoch-text-muted);
+    cursor: pointer;
+    font-size: 14px;
+    padding: 6px 0;
+}
+
+.yanoch-add-block:hover {
+    color: var(--yanoch-text);
+}
+
+/* ProseMirror content */
+
+.yanoch-block-editor p {
+    margin: 0;
+}
+
+.yanoch-block-editor h1 {
+    font-size: 30px;
+    line-height: 1.25;
+    margin: 10px 0 2px;
+}
+
+.yanoch-block-editor h2 {
+    font-size: 24px;
+    margin: 14px 0 2px;
+}
+
+.yanoch-block-editor h3 {
+    font-size: 20px;
+    margin: 12px 0 2px;
+}
+
+.yanoch-block-editor blockquote {
+    border-left: 3px solid var(--yanoch-text);
+    margin: 4px 0;
+    padding-left: 14px;
+}
+
+.yanoch-block-editor pre {
+    background: var(--yanoch-surface);
+    border: 1px solid var(--yanoch-border);
+    border-radius: 6px;
+    padding: 12px 14px;
+    overflow-x: auto;
+    font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 14px;
+}
+
+.yanoch-block-editor code {
+    font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 0.92em;
+}
+
+.yanoch-block-editor p code {
+    background: var(--yanoch-surface-hover);
+    border-radius: 3px;
+    padding: 1px 4px;
+}
+
+.yanoch-block-editor hr {
+    border: none;
+    border-top: 1px solid var(--yanoch-border);
+    margin: 12px 0;
+}
+
+.yanoch-block-editor li {
+    list-style: none;
+}
+
+.yanoch-block-editor li[data-list="bullet"]::before {
+    content: "•";
+    margin-right: 8px;
+    color: var(--yanoch-text);
+}
+
+.yanoch-block-editor li[data-list="ordered"]::before {
+    content: "1.";
+    margin-right: 8px;
+    color: var(--yanoch-text);
+}
+
+/* Slash command menu */
+
+.yanoch-slash-menu {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    z-index: 20;
+    min-width: 280px;
+    max-height: 320px;
+    overflow-y: auto;
+    background: var(--yanoch-surface);
+    border: 1px solid var(--yanoch-border);
+    border-radius: 8px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+    padding: 6px;
+}
+
+.yanoch-slash-item {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    width: 100%;
+    background: transparent;
+    border: none;
+    color: var(--yanoch-text);
+    cursor: pointer;
+    padding: 8px 10px;
+    border-radius: 6px;
+    text-align: left;
+}
+
+.yanoch-slash-item:hover {
+    background: var(--yanoch-accent-soft);
+}
+
+.yanoch-slash-title {
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.yanoch-slash-description {
+    font-size: 12px;
+    color: var(--yanoch-text-muted);
+}
+
+/* Only show the GitHub light theme file when the light theme is active, and vice versa. */
+
+html[data-theme="light"] .hljs {
+    color: #24292e;
+    background: var(--yanoch-surface);
+}
+
+html[data-theme="dark"] .hljs {
+    background: var(--yanoch-surface);
+}
