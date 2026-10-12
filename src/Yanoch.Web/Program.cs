@@ -1,45 +1,16 @@
-using Yanoch.Data;
-using Yanoch.Data.Repositories;
-using Yanoch.Web.Components;
-using Yanoch.Ui.Interop;
-using Yanoch.Ui.Services;
+using Yanoch.Server;
 
-var builder = WebApplication.CreateBuilder(args);
+// Thin browser harness. It exists so the app can be driven in a normal browser during development;
+// the desktop app is the deliverable. Both hosts share ONE composition (Yanoch.Server) so they
+// cannot drift apart.
+WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
-builder.Services.AddRazorComponents()
-    .AddInteractiveServerComponents();
+builder.Services.AddYanochServer(builder.Configuration);
 
-builder.Services.AddYanochDatabase(builder.Configuration);
-builder.Services.AddScoped<PageRepository>();
-builder.Services.AddScoped<BlockEditorInterop>();
-builder.Services.AddScoped<FileInterop>();
-builder.Services.AddScoped<ThemeService>();
+WebApplication application = builder.Build();
 
-var app = builder.Build();
+application.UseYanochServer(loopbackLaunchToken: null);
 
-// Create the database schema on startup so a fresh checkout runs with no manual migration step.
-using (IServiceScope startupScope = app.Services.CreateScope())
-{
-    YanochDbContext databaseContext = startupScope.ServiceProvider.GetRequiredService<YanochDbContext>();
-    databaseContext.Database.EnsureCreated();
-}
+await application.InitialiseYanochDatabaseAsync();
 
-// Configure the HTTP request pipeline.
-if (!app.Environment.IsDevelopment())
-{
-    app.UseExceptionHandler("/Error", createScopeForErrors: true);
-    // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
-    app.UseHsts();
-}
-app.UseStatusCodePagesWithReExecute("/not-found", createScopeForStatusCodePages: true);
-app.UseHttpsRedirection();
-
-app.UseAntiforgery();
-
-app.MapStaticAssets();
-app.MapRazorComponents<App>()
-    .AddAdditionalAssemblies(typeof(Yanoch.Ui.Components.Routes).Assembly)
-    .AddInteractiveServerRenderMode();
-
-app.Run();
+application.Run();
