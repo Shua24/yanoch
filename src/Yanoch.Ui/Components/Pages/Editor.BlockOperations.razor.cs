@@ -15,51 +15,6 @@ namespace Yanoch.Ui.Components.Pages;
 /// </summary>
 public partial class Editor
 {
-    /// <summary>
-    /// The entries of the slash command menu, in the order they are offered. It lives here with
-    /// the other block operations because applying an entry is a block operation.
-    /// </summary>
-    private static readonly IReadOnlyList<BlockTypeOption> BlockTypeOptions = new List<BlockTypeOption>
-    {
-        new BlockTypeOption(BlockType.Paragraph, "Text", "plain text", "paragraph"),
-        new BlockTypeOption(BlockType.Heading1, "Heading 1", "big section heading", "heading", 1),
-        new BlockTypeOption(BlockType.Heading2, "Heading 2", "medium section heading", "heading", 2),
-        new BlockTypeOption(BlockType.Heading3, "Heading 3", "small section heading", "heading", 3),
-        new BlockTypeOption(BlockType.BulletedListItem, "Bulleted list", "unordered list", "bulleted_list_item"),
-        new BlockTypeOption(BlockType.NumberedListItem, "Numbered list", "ordered list", "ordered_list_item"),
-        new BlockTypeOption(BlockType.ToDo, "To-do", "task with a checkbox", "todo_item"),
-        new BlockTypeOption(BlockType.Quote, "Quote", "captured quote", "blockquote"),
-        new BlockTypeOption(BlockType.Code, "Code", "code with syntax highlighting", "code_block"),
-        new BlockTypeOption(BlockType.Divider, "Divider", "visual separator", "horizontal_rule"),
-        new BlockTypeOption(BlockType.Image, "Image", "picture from a URL", "image"),
-    };
-
-    private async Task HandleApplyBlockTypeAsync(BlockTypeSelection selection)
-    {
-        await ApplyBlockTypeAsync(selection.BlockId, selection.Option);
-    }
-
-    private async Task ApplyBlockTypeAsync(Guid blockId, BlockTypeOption option)
-    {
-        slashMenuBlockId = null;
-        Block? block = orderedBlocks.FirstOrDefault(candidate => candidate.Id == blockId);
-        if (block is null || block.IsContainer)
-        {
-            return;
-        }
-
-        BlockContentService.ConvertType(block, option.BlockType);
-        await Repository.SaveBlockAsync(block);
-
-        BlockEditor? editor = ReadEditorComponent(blockId);
-        if (editor is not null)
-        {
-            await editor.ApplyBlockTypeAsync(option.NodeName, option.BuildAttributes());
-            await editor.FocusAsync();
-        }
-        await ReloadBlocksAsync(blockId, false, true);
-    }
-
     private async Task ToggleToDoAsync(Guid blockId)
     {
         Block? block = orderedBlocks.FirstOrDefault(candidate => candidate.Id == blockId);

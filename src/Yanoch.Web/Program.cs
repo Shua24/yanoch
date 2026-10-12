@@ -6,6 +6,7 @@ using Yanoch.Server;
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddYanochServer(builder.Configuration);
+builder.ConfigureYanochUploadLimits();
 
 WebApplication application = builder.Build();
 

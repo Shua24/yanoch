@@ -17,6 +17,12 @@ public static class ProseMirrorConverter
 {
     public static string EmptyParagraphJson => "{\"type\":\"doc\",\"content\":[{\"type\":\"paragraph\"}]}";
 
+    /// <summary>
+    /// The text that marks a block as holding an image node. Used to narrow a database scan to the
+    /// blocks that could reference a stored image file, without parsing every block's document.
+    /// </summary>
+    public static string ImageNodeMarker => $"\"{ProseMirrorNodes.ImageType}\"";
+
     public static JsonObject ParseDocument(string contentJson)
     {
         JsonNode? parsedNode = JsonNode.Parse(string.IsNullOrWhiteSpace(contentJson) ? EmptyParagraphJson : contentJson);
@@ -72,6 +78,54 @@ public static class ProseMirrorConverter
             return source;
         }
         return string.Empty;
+    }
+
+    /// <summary>
+    /// Collects the stored media names referenced by one block's document.
+    /// </summary>
+    /// <remarks>
+    /// Two shapes reach this method, and both must be handled. A block the EDITOR wrote is a
+    /// document wrapping the image (<c>{"type":"doc","content":[{"type":"image",…}]}</c>), because
+    /// the editor serialises its whole state. A block built by <c>ProseMirrorNodes.CreateImage</c>
+    /// is the BARE image node instead, because that factory returns a node rather than a document —
+    /// the same shape <c>CreateDivider</c> produces. Reading only the wrapped form would silently
+    /// treat every such image as unreferenced, and the cleanup sweep would then delete a file that
+    /// is still in use.
+    /// </remarks>
+    public static void AppendReferencedMediaNames(string contentJson, HashSet<string> referencedNames)
+    {
+        JsonObject document = ParseDocument(contentJson);
+
+        // The wrapped form: walk the document's top level children.
+        if (document["content"] is JsonArray content)
+        {
+            foreach (JsonNode? node in content)
+            {
+                if (node is JsonObject blockObject)
+                {
+                    AppendMediaNameFromNode(blockObject, referencedNames);
+                }
+            }
+            return;
+        }
+
+        // The bare form: the parsed object IS the block node.
+        AppendMediaNameFromNode(document, referencedNames);
+    }
+
+    private static void AppendMediaNameFromNode(JsonObject blockObject, HashSet<string> referencedNames)
+    {
+        if (blockObject["attrs"] is not JsonObject attributes
+            || attributes["src"] is not JsonValue sourceValue)
+        {
+            return;
+        }
+
+        string source = sourceValue.GetValue<string>();
+        if (source.Length > 0)
+        {
+            referencedNames.Add(source);
+        }
     }
 
     public static bool ReadIsChecked(JsonObject document)

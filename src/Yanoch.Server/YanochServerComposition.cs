@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
@@ -74,8 +75,37 @@ public static class YanochServerComposition
         services.AddScoped<BlockEditorInterop>();
         services.AddScoped<FileInterop>();
         services.AddScoped<ThemeService>();
+        services.AddScoped<MediaCleanupService>();
 
         return services;
+    }
+
+    /// <summary>
+    /// Raises Kestrel's request-body limit so the application's own upload cap is the one that
+    /// applies. Kestrel defaults to 30,000,000 bytes, which is BELOW the 50 MB the app accepts: a
+    /// file between the two would be refused by the server with a bare 413 before the upload
+    /// endpoint ever ran, so the user would get no explanation.
+    /// </summary>
+    public static WebApplicationBuilder ConfigureYanochUploadLimits(this WebApplicationBuilder builder)
+    {
+        // Comfortably above MediaEndpoints.MaximumUploadBytes, leaving room for the multipart
+        // envelope around the file.
+        const long kestrelRequestBodyLimit = 55L * 1024 * 1024;
+
+        builder.WebHost.ConfigureKestrel(kestrelOptions =>
+        {
+            kestrelOptions.Limits.MaxRequestBodySize = kestrelRequestBodyLimit;
+        });
+
+        // The multipart parser has its own ceiling, separate from Kestrel's. Its default (128 MB)
+        // is already above the app cap, but it is pinned here so the relationship between the three
+        // limits is explicit rather than implied by a framework default.
+        builder.Services.Configure<FormOptions>(formOptions =>
+        {
+            formOptions.MultipartBodyLengthLimit = kestrelRequestBodyLimit;
+        });
+
+        return builder;
     }
 
     /// <summary>
@@ -122,6 +152,9 @@ public static class YanochServerComposition
             .AddInteractiveServerRenderMode();
 
         application.MapYanochApplicationEndpoints();
+
+        // Chained at the same call site as the endpoints above, so BOTH hosts get the media routes.
+        application.MapYanochMediaEndpoints();
 
         return application;
     }

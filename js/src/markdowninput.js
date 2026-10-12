@@ -25,6 +25,64 @@ import { schema } from "./schema.js";
 
 export const dividerShortcutMeta = "yanochDividerShortcut";
 
+// Set on the transaction that converts a block into an image, so the host knows to add the empty
+// block the caret moves into. An image is a leaf, exactly like a divider: it cannot hold text.
+export const imageShortcutMeta = "yanochImageShortcut";
+
+// Undoes the typography input rules' substitutions inside a URL.
+//
+// The em-dash, ellipsis and smart-quote rules run BEFORE the markdown shorthand rules, so by the
+// time a typed URL reaches the image rule its text may already be rewritten: "--" has become an em
+// dash, "..." an ellipsis, and a straight quote a curly one. This is the same problem the divider
+// rule solves by accepting both "---" and "—-", but a URL cannot enumerate its variants, so the
+// text is normalised back instead.
+//
+// This is a deliberate DIVERGENCE from Notion, which has no typed image rule at all: its
+// markdown-on-typing table holds 11 block shortcuts and none is an image, so it never has to
+// normalise a URL. Recovered from its decoded bundle: the shortcut table at @2859497, and the
+// em-dash rule {regex:/--$/,replace:"—"} at @2862456.
+function normaliseUrlText(text) {
+  return text
+    .replace(/\u2014/g, "--")
+    .replace(/\u2026/g, "...")
+    .replace(/[\u2018\u2019]/g, "'")
+    .replace(/[\u201c\u201d]/g, '"');
+}
+
+// Typed markdown image reference: `![alt](url)` as the ENTIRE text of a block converts it into an
+// image block, the same convention every other shortcut follows.
+//
+// The alt text becomes the CAPTION. Notion keeps caption and alt_text as separate stores, but this
+// app has one field, and the import path already writes the alt text into the caption, so the two
+// ways of getting an image in agree on where the text lands.
+function buildImageRule() {
+  const rule = new InputRule(/^!\[([^\]]*)\]\(([^)]+)\)$/, (state, match, start, end) => {
+    const currentBlock = state.doc.firstChild;
+    if (!currentBlock || currentBlock.type.name === "image") {
+      return null;
+    }
+
+    const altText = match[1] || "";
+    const source = normaliseUrlText(match[2] || "");
+    if (!source) {
+      return null;
+    }
+
+    // The alt text fills BOTH alt and caption, matching what the markdown IMPORT path does
+    // (MarkdownInlineReader calls CreateImage(source, altText, altText)). Keeping the two entry
+    // points identical matters more than matching Notion here: Notion keeps caption and alt_text as
+    // separate stores, but this app has one visible field, and an image that arrives by import and
+    // one that arrives by typing should not end up with different attributes. alt also carries the
+    // screen-reader text, so leaving it empty would quietly degrade accessibility.
+    const image = schema.nodes.image.create({ src: source, alt: altText, caption: altText });
+    const transaction = state.tr.replaceWith(0, state.doc.content.size, image);
+    transaction.setMeta(imageShortcutMeta, true);
+    return transaction;
+  });
+  return rule;
+}
+
+
 function buildTextblockTypeRule(regularExpression, nodeType, attributes) {
   const rule = new InputRule(regularExpression, (state, match, start, end) => {
     const resolvedStart = state.doc.resolve(start);
@@ -96,5 +154,9 @@ export function buildMarkdownShorthandRules() {
     buildTextblockTypeRule(/^```$/, schema.nodes.code_block, { language: "" }),
 
     buildDividerRule(),
+    // The typed image reference, registered LAST so it is tried after the block-type shortcuts.
+    // That order matters: no other pattern can match a string starting with "![", so there is no
+    // conflict, but keeping it last means a future rule can be slotted in without renumbering.
+    buildImageRule(),
   ];
 }

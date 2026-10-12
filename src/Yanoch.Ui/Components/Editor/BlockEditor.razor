@@ -109,6 +109,18 @@
         await OnEditorEvent.InvokeAsync(editorEvent);
     }
 
+    /// <summary>
+    /// Called by the editor after the divider shorthand converted this block into a horizontal rule.
+    /// A rule is a leaf and cannot hold the caret, so the host has to add the empty block below it.
+    /// Without this the user is left with a rule and nowhere to type.
+    /// </summary>
+    [JSInvokable]
+    public async Task OnDividerShortcut()
+    {
+        EditorEvent editorEvent = new EditorEvent(EditorEventKind.DividerShortcut, Model.BlockId, null);
+        await OnEditorEvent.InvokeAsync(editorEvent);
+    }
+
     [Parameter]
     public EventCallback<BlockEditor> OnRegister { get; set; }
 
@@ -151,6 +163,18 @@
         if (isInitialised)
         {
             await EditorInterop.ReplaceBlockTypeAsync(Model.EditorId, nodeName, attributes);
+        }
+    }
+
+    /// <summary>
+    /// Opens the image picker for a block that was just converted to an image. Called by the slash
+    /// menu so choosing Image uploads straight away.
+    /// </summary>
+    public async Task StartImageUploadAsync()
+    {
+        if (isInitialised)
+        {
+            await EditorInterop.StartImageUploadAsync(Model.EditorId);
         }
     }
 

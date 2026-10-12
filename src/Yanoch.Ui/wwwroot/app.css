@@ -76,6 +76,120 @@ h1:focus {
     color: var(--yanoch-text-muted);
 }
 
+/* Sign in / create account. These pages render OUTSIDE the editor shell, so they carry their own
+   centred layout. The classes below were referenced by Login.razor and Register.razor from the
+   start but had no rules, which left both pages as unstyled document flow. */
+
+.yanoch-shell {
+    min-height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+.yanoch-auth-wrapper {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 48px 24px;
+}
+
+.yanoch-auth-form {
+    width: 100%;
+    max-width: 360px;
+    background: var(--yanoch-surface);
+    border: 1px solid var(--yanoch-border);
+    border-radius: 10px;
+    padding: 28px 28px 24px;
+}
+
+.yanoch-auth-form h2 {
+    margin: 0 0 20px;
+    font-size: 22px;
+    font-weight: 600;
+}
+
+.yanoch-auth-form label {
+    display: block;
+    margin-bottom: 6px;
+    font-size: 13px;
+    color: var(--yanoch-text-muted);
+}
+
+.yanoch-auth-form input[type="email"],
+.yanoch-auth-form input[type="password"],
+.yanoch-auth-form input[type="text"] {
+    width: 100%;
+    margin-bottom: 16px;
+    padding: 9px 11px;
+    font: inherit;
+    font-size: 14px;
+    color: var(--yanoch-text);
+    background: var(--yanoch-background);
+    border: 1px solid var(--yanoch-border);
+    border-radius: 6px;
+}
+
+.yanoch-auth-form input[type="email"]:focus,
+.yanoch-auth-form input[type="password"]:focus,
+.yanoch-auth-form input[type="text"]:focus {
+    outline: none;
+    border-color: var(--yanoch-accent);
+    box-shadow: 0 0 0 3px var(--yanoch-accent-soft);
+}
+
+.yanoch-auth-form .yanoch-primary-button {
+    width: 100%;
+    padding: 10px 14px;
+    font-size: 15px;
+}
+
+/* The remember-me row: the checkbox and its label sit on one line, and the label must NOT get the
+   block treatment the field labels above it use.
+
+   Scoped under .yanoch-auth-form ON PURPOSE: `.yanoch-auth-form label` (one class + one element)
+   outranks a bare `.yanoch-checkbox-label` (one class), so an unscoped rule here loses the cascade
+   and the row silently renders stacked. */
+.yanoch-auth-form .yanoch-checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 18px;
+    font-size: 13px;
+    color: var(--yanoch-text-muted);
+    cursor: pointer;
+}
+
+.yanoch-auth-form .yanoch-checkbox-label input[type="checkbox"] {
+    margin: 0;
+    width: 15px;
+    height: 15px;
+    accent-color: var(--yanoch-accent);
+    cursor: pointer;
+}
+
+.yanoch-auth-alt {
+    margin: 18px 0 0;
+    font-size: 14px;
+    text-align: center;
+}
+
+.yanoch-link-button {
+    color: var(--yanoch-accent);
+    text-decoration: none;
+}
+
+.yanoch-link-button:hover {
+    text-decoration: underline;
+}
+
+.yanoch-error {
+    display: block;
+    margin: -10px 0 14px;
+    font-size: 13px;
+    color: #e05252;
+}
+
 /* Home page */
 
 .yanoch-home {
@@ -486,6 +600,55 @@ h1:focus {
     font-size: 12px;
     color: var(--yanoch-text-muted);
     overflow-wrap: anywhere;
+}
+
+/* The entry form shown on an image block that has no source yet: a URL field and an upload button
+   on one line, with a status line beneath for upload progress and errors. This is what replaced the
+   dead end where an image block could be created but never given a source. */
+.yanoch-image-source-form {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 0;
+}
+
+.yanoch-image-source-input {
+    flex: 1 1 240px;
+    min-width: 0;
+    padding: 7px 10px;
+    font: inherit;
+    font-size: 13px;
+    color: var(--yanoch-text);
+    background: var(--yanoch-background);
+    border: 1px solid var(--yanoch-border);
+    border-radius: 6px;
+}
+
+.yanoch-image-source-input:focus {
+    outline: none;
+    border-color: var(--yanoch-accent);
+    box-shadow: 0 0 0 3px var(--yanoch-accent-soft);
+}
+
+.yanoch-image-upload-button {
+    padding: 7px 14px;
+    font-size: 13px;
+    color: var(--yanoch-text);
+    background: var(--yanoch-surface-hover);
+    border: 1px solid var(--yanoch-border);
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+.yanoch-image-upload-button:hover {
+    border-color: var(--yanoch-accent);
+}
+
+.yanoch-image-source-status {
+    flex: 1 1 100%;
+    font-size: 12px;
+    color: var(--yanoch-text-muted);
 }
 
 .yanoch-block-editor li {

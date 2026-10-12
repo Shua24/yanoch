@@ -99,6 +99,7 @@ builder.WebHost.UseUrls($"http://127.0.0.1:{loopbackPort}");
 StaticWebAssetsLoader.UseStaticWebAssets(builder.Environment, builder.Configuration);
 
 builder.Services.AddYanochServer(configuration);
+builder.ConfigureYanochUploadLimits();
 
 WebApplication serverApplication = builder.Build();
 

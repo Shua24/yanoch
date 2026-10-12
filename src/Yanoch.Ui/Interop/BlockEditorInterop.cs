@@ -108,6 +108,17 @@ public sealed class BlockEditorInterop : IAsyncDisposable
         await module.InvokeVoidAsync("replaceBlockType", editorId, nodeName, attributes);
     }
 
+    /// <summary>
+    /// Opens the image picker for a block that has just been converted to an image, and stores the
+    /// chosen file under the block. Used by the slash menu so picking Image uploads in one step
+    /// instead of leaving the user on the block's own entry form.
+    /// </summary>
+    public async Task StartImageUploadAsync(string editorId)
+    {
+        IJSObjectReference module = await EnsureModuleAsync();
+        await module.InvokeVoidAsync("startImageUpload", editorId);
+    }
+
     public async Task ClearContentAsync(string editorId)
     {
         IJSObjectReference module = await EnsureModuleAsync();

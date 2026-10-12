@@ -16,6 +16,7 @@ public enum EditorEventKind
     Indent,
     Outdent,
     Slash,
+    DividerShortcut,
 }
 
 /// <summary>

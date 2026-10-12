@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Components;
 using Microsoft.JSInterop;
+using Yanoch.Data;
 using Yanoch.Data.Repositories;
 using Yanoch.Domain;
 using Yanoch.Domain.Services;
@@ -23,6 +24,9 @@ public partial class Editor
 
     [Inject]
     private PageRepository Repository { get; set; } = default!;
+
+    [Inject]
+    private MediaCleanupService MediaCleanup { get; set; } = default!;
 
     [Inject]
     private BlockEditorInterop EditorInterop { get; set; } = default!;
@@ -80,6 +84,25 @@ public partial class Editor
         backlinkPages = await Repository.ReadBacklinkPagesAsync(PageId);
         isDarkMode = ThemeService.IsDarkMode;
         isLoading = false;
+
+        // Sweep orphaned media once the page has loaded. Deleting an image block leaves its file on
+        // disk so an undo can still reach it; this is what eventually collects those files, after a
+        // grace period and only when no page anywhere still references them. It runs off the render
+        // path so a slow or failing sweep cannot delay or break the page.
+        _ = SweepMediaInBackgroundAsync();
+    }
+
+    private async Task SweepMediaInBackgroundAsync()
+    {
+        try
+        {
+            await MediaCleanup.SweepUnreferencedFilesAsync();
+        }
+        catch (Exception sweepException)
+        {
+            // A sweep is housekeeping. A failure here must never surface as a broken page.
+            Console.Error.WriteLine($"Media sweep failed: {sweepException.Message}");
+        }
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -169,6 +192,9 @@ public partial class Editor
                 break;
             case EditorEventKind.Slash:
                 slashMenuBlockId = editorEvent.BlockId;
+                break;
+            case EditorEventKind.DividerShortcut:
+                await CompleteDividerShortcutAsync(editorEvent.BlockId);
                 break;
         }
     }

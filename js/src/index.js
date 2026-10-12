@@ -5,7 +5,7 @@ import { createPlugins } from "./plugins.js";
 import { currentBlockNode, isCaretAtStart } from "./blocks.js";
 import { handleKeyDown } from "./keyboard.js";
 import { armSplitZones, setDraggingClass } from "./splitzones.js";
-import { dividerShortcutMeta } from "./markdowninput.js";
+import { dividerShortcutMeta, imageShortcutMeta } from "./markdowninput.js";
 import { createImageView } from "./imageview.js";
 import {
   buildDocumentFromContent,
@@ -76,6 +76,11 @@ export function create(id, element, contentJson, dotnetReference, options) {
       if (transaction.getMeta(dividerShortcutMeta)) {
         dotnetReference.invokeMethodAsync("OnDividerShortcut");
       }
+      // The typed image reference does the same thing: an image is a leaf too, so the caret needs
+      // a fresh block below it just as it does after a divider.
+      if (transaction.getMeta(imageShortcutMeta)) {
+        dotnetReference.invokeMethodAsync("OnDividerShortcut");
+      }
     },
   });
 
@@ -92,6 +97,8 @@ export function create(id, element, contentJson, dotnetReference, options) {
     },
   };
 }
+
+export { startImageUpload } from "./imageupload.js";
 
 export function setContent(id, contentJson) {
   const entry = getEntry(id);
