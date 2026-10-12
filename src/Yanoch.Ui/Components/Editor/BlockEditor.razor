@@ -170,6 +170,17 @@
         }
     }
 
+    /// <summary>
+    /// Inserts a link to another page at the caret, for the page-reference picker.
+    /// </summary>
+    public async Task InsertPageLinkAsync(string label, string href)
+    {
+        if (isInitialised)
+        {
+            await EditorInterop.InsertPageLinkAsync(Model.EditorId, label, href);
+        }
+    }
+
     private string BuildIndentStyle()
     {
         if (Model.IndentLevel <= 0)

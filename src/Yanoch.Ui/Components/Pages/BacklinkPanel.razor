@@ -1,0 +1,32 @@
+@using Yanoch.Domain
+@namespace Yanoch.Ui.Components.Pages
+
+@*
+    The linked-references panel. It renders nothing at all when there are no backlinks: an empty
+    heading on every page is noise, and Notion hides the section in the same case.
+*@
+
+@if (Pages.Count > 0)
+{
+    <section class="yanoch-backlinks">
+        <h2 class="yanoch-backlinks-heading">
+            Linked references
+            <span class="yanoch-backlinks-count">@Pages.Count</span>
+        </h2>
+
+        <ul class="yanoch-backlink-list">
+            @foreach (Page backlinkPage in Pages)
+            {
+                <li class="yanoch-backlink-item">
+                    <a class="yanoch-backlink-link" href="@BuildPageHref(backlinkPage.Id)">
+                        <span class="yanoch-backlink-icon">@backlinkPage.Icon</span>
+                        <span class="yanoch-backlink-title">@ReadPageLabel(backlinkPage)</span>
+                        <span class="yanoch-backlink-date">
+                            @backlinkPage.UpdatedAtUtc.ToLocalTime().ToString("yyyy-MM-dd HH:mm")
+                        </span>
+                    </a>
+                </li>
+            }
+        </ul>
+    </section>
+}

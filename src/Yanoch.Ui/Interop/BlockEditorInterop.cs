@@ -129,6 +129,16 @@ public sealed class BlockEditorInterop : IAsyncDisposable
         await module.InvokeVoidAsync("setDraggingClass", isDragging);
     }
 
+    /// <summary>
+    /// Inserts a link to another page at the caret. The editor stores it as its ordinary link mark,
+    /// which is the shape the backlink scan looks for.
+    /// </summary>
+    public async Task InsertPageLinkAsync(string editorId, string label, string href)
+    {
+        IJSObjectReference module = await EnsureModuleAsync();
+        await module.InvokeVoidAsync("insertPageLink", editorId, label, href);
+    }
+
     public async Task DestroyAsync(string editorId)
     {
         if (editorModule is null)

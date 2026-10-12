@@ -90,6 +90,53 @@ export const schema = new Schema({
       },
     },
 
+    // An image is a LEAF block with no text content, so it models exactly like horizontal_rule.
+    // The caption is an attribute rather than a child block, which keeps the one-node-per-block
+    // invariant: a block editor still holds exactly one top-level node.
+    //
+    // The source URL is rendered through an <img> and the caption below it. A failed load must be
+    // VISIBLE (a bordered box naming the URL), never a silently broken image, so the error state is
+    // part of the node view rather than left to the browser.
+    image: {
+      group: "block",
+      draggable: true,
+      attrs: {
+        src: { default: "" },
+        alt: { default: "" },
+        caption: { default: "" },
+      },
+      parseDOM: [
+        {
+          tag: "figure[data-image]",
+          getAttrs(dom) {
+            return {
+              src: dom.getAttribute("data-src") || "",
+              alt: dom.getAttribute("data-alt") || "",
+              caption: dom.getAttribute("data-caption") || "",
+            };
+          },
+        },
+      ],
+      toDOM(node) {
+        const { src, alt, caption } = node.attrs;
+        const children = [["img", { src, alt, class: "yanoch-image" }]];
+        if (caption) {
+          children.push(["figcaption", { class: "yanoch-image-caption" }, caption]);
+        }
+        return [
+          "figure",
+          {
+            "data-image": "true",
+            "data-src": src,
+            "data-alt": alt,
+            "data-caption": caption,
+            class: "yanoch-image-block",
+          },
+          ...children,
+        ];
+      },
+    },
+
     hard_break: {
       group: "inline",
       inline: true,
@@ -151,6 +198,7 @@ export const blockTypeToNodeName = {
   Quote: "blockquote",
   Code: "code_block",
   Divider: "horizontal_rule",
+  Image: "image",
 };
 
 export function headingLevelFromBlockType(blockType) {

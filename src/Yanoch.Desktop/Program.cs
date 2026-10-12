@@ -1,15 +1,24 @@
-using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Components.Web;
+using Microsoft.AspNetCore.Hosting.StaticWebAssets;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Photino.Blazor;
-using Yanoch.Data;
-using Yanoch.Data.Repositories;
-using Yanoch.Ui.Components;
-using Yanoch.Ui.Interop;
-using Yanoch.Ui.Services;
+using Microsoft.Extensions.Hosting;
+using Photino.NET;
+using Yanoch.Server;
+using Yanoch.Server.Identity;
 
-// Yanoch desktop host. Photino opens a native OS window (WebKitGTK 4.1 on Linux) and hosts the
-// shared Blazor UI in process, so no browser and no web server are involved.
+// Yanoch desktop host. It runs a REAL in-process HTTP server on loopback and points a plain
+// Photino window at it.
+//
+// Why not Photino.Blazor: that serves the UI over a custom "app://" scheme with no HTTP pipeline,
+// and on Linux that scheme cannot be intercepted as http. ASP.NET Core Identity's cookie flow needs
+// a real request, so no cookie could ever be written and auth could never work. A loopback Kestrel
+// gives the desktop app the same transport the browser harness uses, so the two cannot drift.
+//
+// The loopback port is reachable by any local process and by any page in the user's own browser,
+// so it is hardened: an ephemeral port, plus a per-launch random token that the window presents
+// once and which is exchanged for an HttpOnly launch cookie.
 
 // Wayland: WebKitGTK aborts with "Error 71 (Protocol error) dispatching to Wayland display" and
 // the window never paints, so the app shows nothing. This is why the X11 backend is forced here.
@@ -73,28 +82,41 @@ static string QuoteArgument(string argument)
 IConfigurationRoot configuration = new ConfigurationBuilder()
     .SetBasePath(AppContext.BaseDirectory)
     .AddJsonFile("appsettings.json", optional: true)
+    // Without this, an environment override (such as Database__ConnectionString) is ignored.
     .AddEnvironmentVariables()
     .Build();
 
-PhotinoBlazorAppBuilder builder = PhotinoBlazorAppBuilder.CreateDefault(args);
+int loopbackPort = LoopbackPort.Reserve();
+string launchToken = LoopbackLaunchGate.CreateLaunchToken();
 
-builder.Services.AddSingleton<IConfiguration>(configuration);
-builder.Services.AddYanochDatabase(configuration);
-builder.Services.AddScoped<PageRepository>();
-builder.Services.AddScoped<BlockEditorInterop>();
-builder.Services.AddScoped<FileInterop>();
-builder.Services.AddScoped<ThemeService>();
+WebApplicationBuilder builder = WebApplication.CreateSlimBuilder(args);
 
-builder.RootComponents.Add<Routes>("#app");
+builder.WebHost.UseUrls($"http://127.0.0.1:{loopbackPort}");
 
-PhotinoBlazorApp app = builder.Build();
-app.MainWindow.SetTitle("Yanoch").SetSize(1200, 820);
+// The desktop host runs as Production, where static web assets are NOT wired automatically, so
+// every asset would otherwise be served as 200 with zero bytes: an unstyled page and an empty
+// blazor.web.js, meaning nothing is interactive.
+StaticWebAssetsLoader.UseStaticWebAssets(builder.Environment, builder.Configuration);
 
-// Create the database schema on startup so a fresh install runs with no manual migration step.
-using (IServiceScope startupScope = app.Services.CreateScope())
-{
-    YanochDbContext databaseContext = startupScope.ServiceProvider.GetRequiredService<YanochDbContext>();
-    databaseContext.Database.EnsureCreated();
-}
+builder.Services.AddYanochServer(configuration);
 
-app.Run();
+WebApplication serverApplication = builder.Build();
+
+serverApplication.UseYanochServer(launchToken);
+
+await serverApplication.InitialiseYanochDatabaseAsync();
+
+// StartAsync, NOT Run(): the native window owns the main thread.
+await serverApplication.StartAsync();
+
+string startUrl = $"http://127.0.0.1:{loopbackPort}/?{LoopbackLaunchGate.LaunchTokenQueryName}={launchToken}";
+
+PhotinoWindow window = new PhotinoWindow()
+    .SetTitle("Yanoch")
+    .SetSize(1200, 820)
+    .Center();
+
+window.Load(new Uri(startUrl));
+window.WaitForClose();
+
+await serverApplication.StopAsync();

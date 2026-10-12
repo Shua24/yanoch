@@ -1,6 +1,11 @@
-﻿<Router AppAssembly="@typeof(Yanoch.Ui.Components.Routes).Assembly" NotFoundPage="@typeof(Yanoch.Ui.Components.Pages.NotFound)">
+﻿@using Yanoch.Ui.Components.Account.Shared
+<Router AppAssembly="@typeof(Yanoch.Ui.Components.Routes).Assembly" NotFoundPage="@typeof(Yanoch.Ui.Components.Pages.NotFound)">
     <Found Context="routeData">
-        <RouteView RouteData="routeData" DefaultLayout="typeof(Yanoch.Ui.Components.Layout.MainLayout)" />
+        <AuthorizeRouteView RouteData="routeData" DefaultLayout="typeof(Yanoch.Ui.Components.Layout.MainLayout)">
+            <NotAuthorized>
+                <RedirectToLogin />
+            </NotAuthorized>
+        </AuthorizeRouteView>
         <FocusOnNavigate RouteData="routeData" Selector="h1" />
     </Found>
 </Router>

@@ -59,9 +59,33 @@ public static class MarkdownWriter
                 return WriteCodeBlock(block, content);
             case ProseMirrorNodes.DividerType:
                 return "---";
+            case ProseMirrorNodes.ImageType:
+                return WriteImage(block);
             default:
                 return WriteInline(content);
         }
+    }
+
+    /// <summary>
+    /// Writes an image block as Markdown. The caption is preferred over the alt text when both are
+    /// present, because the caption is what the user sees under the picture; Markdown's bracket
+    /// slot is the closest equivalent to it.
+    /// </summary>
+    private static string WriteImage(JsonObject block)
+    {
+        string source = string.Empty;
+        string altText = string.Empty;
+        string caption = string.Empty;
+        if (block["attrs"] is JsonObject attributes)
+        {
+            source = attributes["src"]?.GetValue<string>() ?? string.Empty;
+            altText = attributes["alt"]?.GetValue<string>() ?? string.Empty;
+            caption = attributes["caption"]?.GetValue<string>() ?? string.Empty;
+        }
+
+        string label = caption.Length > 0 ? caption : altText;
+        string result = $"![{label}]({source})";
+        return result;
     }
 
     private static string WriteHeading(JsonObject block, JsonArray? content)
@@ -118,6 +142,13 @@ public static class MarkdownWriter
         {
             if (node is not JsonObject textNode)
             {
+                continue;
+            }
+            // A hard break is an inline node, not text. Markdown spells a hard break as two
+            // trailing spaces before the newline; writing nothing would drop the break entirely.
+            if (textNode["type"]?.GetValue<string>() == ProseMirrorNodes.HardBreakType)
+            {
+                builder.Append("  \n");
                 continue;
             }
             string text = textNode["text"]?.GetValue<string>() ?? string.Empty;

@@ -172,6 +172,10 @@ public static class BlockContentService
                 return ProseMirrorNodes.CreateCodeBlock(string.Empty, existingContent);
             case BlockType.Divider:
                 return ProseMirrorNodes.CreateDivider();
+            case BlockType.Image:
+                // An image block's own content is rebuilt from the document, so nothing to carry
+                // over: the source and caption live on the node's attributes, not in its content.
+                return ProseMirrorNodes.CreateImage(string.Empty, string.Empty, string.Empty);
             default:
                 return ProseMirrorNodes.CreateParagraph(existingContent);
         }

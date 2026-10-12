@@ -31,6 +31,7 @@ public partial class Editor
         new BlockTypeOption(BlockType.Quote, "Quote", "captured quote", "blockquote"),
         new BlockTypeOption(BlockType.Code, "Code", "code with syntax highlighting", "code_block"),
         new BlockTypeOption(BlockType.Divider, "Divider", "visual separator", "horizontal_rule"),
+        new BlockTypeOption(BlockType.Image, "Image", "picture from a URL", "image"),
     };
 
     private async Task HandleApplyBlockTypeAsync(BlockTypeSelection selection)
@@ -79,10 +80,19 @@ public partial class Editor
     private async Task AddBlockAtEndAsync()
     {
         IReadOnlyList<Block> topLevel = ReadChildren(null);
+
+        // A page with no blocks at all is a state the editor can reach (deleting the last leaf of
+        // a column list empties the page), and it used to be a DEAD END: this method returned
+        // early, so the page rendered nothing and no gesture could ever add a block back. The
+        // button's whole job is to give the page somewhere to type, so it recreates the first
+        // block instead of giving up.
         if (topLevel.Count == 0)
         {
+            Block firstBlock = await Repository.AppendBlockAsync(PageId, 0);
+            await ReloadBlocksAsync(firstBlock.Id, true);
             return;
         }
+
         Block lastBlock = topLevel[^1];
         Block newBlock = await Repository.AppendBlockAsync(PageId, lastBlock.IndentLevel);
         await ReloadBlocksAsync(newBlock.Id, true);
@@ -92,6 +102,13 @@ public partial class Editor
     /// Deletes a block. A block that was the last one inside its column also collapses the column
     /// list, so an emptied column cannot linger.
     /// </summary>
+    /// <remarks>
+    /// The "last block" guard counts TEXT BLOCKS, not every row. Counting every row was wrong
+    /// because the structural containers inflate the total: a page holding a single paragraph
+    /// inside a column list has three rows, so the guard never fired, the delete went through, and
+    /// the collapse that followed removed the column, the list and the paragraph together —
+    /// leaving the page with ZERO blocks and no way to add one back.
+    /// </remarks>
     private async Task DeleteBlockAsync(Guid blockId)
     {
         Block? block = orderedBlocks.FirstOrDefault(candidate => candidate.Id == blockId);
@@ -100,9 +117,11 @@ public partial class Editor
             return;
         }
 
-        Guid? columnListId = await ReadEnclosingColumnListAsync(blockId);
-        if (columnListId is null && orderedBlocks.Count <= 1)
+        Guid? columnListId = await Repository.ReadEnclosingColumnListIdAsync(blockId);
+        int textBlockCount = orderedBlocks.Count(candidate => !candidate.IsContainer);
+        if (textBlockCount <= 1)
         {
+            // The page's last piece of text: deleting it would leave nothing to edit.
             return;
         }
 
@@ -169,6 +188,11 @@ public partial class Editor
             return;
         }
 
+        // A reorder that moves a block out of a column can empty that column, which would leave a
+        // degenerate one-column list rendering as a stray empty cell. Captured before the move,
+        // because the parentage is rewritten by it.
+        Guid? sourceColumnId = await Repository.ReadEnclosingColumnIdAsync(movedBlockId.Value);
+
         List<Block> siblings = ReadChildren(targetBlock.ParentBlockId).ToList();
         siblings.RemoveAll(candidate => candidate.Id == movedBlockId.Value);
         int targetIndex = siblings.FindIndex(candidate => candidate.Id == targetBlockId);
@@ -179,6 +203,7 @@ public partial class Editor
 
         siblings.Insert(targetIndex, movedBlock);
         await Repository.ReplaceSiblingsAsync(PageId, targetBlock.ParentBlockId, siblings);
+        await Repository.CollapseEmptiedColumnAsync(PageId, sourceColumnId);
         await ReloadBlocksAsync(movedBlockId, false);
     }
 
@@ -252,34 +277,6 @@ public partial class Editor
     {
         HandleDragEnd();
         await ToggleDraggingClassAsync(false);
-    }
-
-    /// <summary>
-    /// The column list that contains the given block, if any. A block inside a column returns its
-    /// column's parent; a block that IS a column returns its own parent.
-    /// </summary>
-    private async Task<Guid?> ReadEnclosingColumnListAsync(Guid blockId)
-    {
-        Block? block = orderedBlocks.FirstOrDefault(candidate => candidate.Id == blockId);
-        if (block?.ParentBlockId is not Guid parentId)
-        {
-            return null;
-        }
-
-        Block? parent = orderedBlocks.FirstOrDefault(candidate => candidate.Id == parentId);
-        if (parent is null)
-        {
-            return null;
-        }
-        if (parent.BlockType == BlockType.ColumnList)
-        {
-            return parent.Id;
-        }
-        if (parent.BlockType == BlockType.Column && parent.ParentBlockId is Guid columnListId)
-        {
-            return columnListId;
-        }
-        return null;
     }
 
     private async Task UpdateTitleAsync(ChangeEventArgs changeEvent)

@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Yanoch.Domain;
 using Yanoch.Domain.Services;
 
@@ -173,7 +174,33 @@ public sealed partial class PageRepository
             block.PageId = pageId;
             block.ParentBlockId = parentBlockId;
             block.SortOrder = index;
-            dbContext.Blocks.Add(block);
+
+            // Decide from the DATABASE whether this row exists, not from the change tracker. A
+            // block can arrive here still tracked as Modified while an earlier operation in the
+            // same request already deleted its row (a collapsed column, for example). An UPDATE
+            // against a missing row affects 0 rows, EF raises a concurrency exception, and the
+            // circuit dies — so existence is checked against the database and the tracker is
+            // corrected to match before the save.
+            bool rowExists = await dbContext.Blocks
+                .AsNoTracking()
+                .AnyAsync(candidate => candidate.Id == block.Id);
+
+            EntityEntry<Block> entry = dbContext.Entry(block);
+            if (!rowExists)
+            {
+                if (entry.State != EntityState.Detached)
+                {
+                    entry.State = EntityState.Detached;
+                }
+                dbContext.Blocks.Add(block);
+                continue;
+            }
+
+            if (entry.State == EntityState.Detached)
+            {
+                dbContext.Blocks.Attach(block);
+            }
+            entry.State = EntityState.Modified;
         }
 
         await TouchPageAsync(pageId);

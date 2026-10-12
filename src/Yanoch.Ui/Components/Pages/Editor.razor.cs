@@ -46,6 +46,12 @@ public partial class Editor
 
     private List<BlockEditorModel> editorModels = new List<BlockEditorModel>();
     private Dictionary<Guid, BlockEditor> editorComponents = new Dictionary<Guid, BlockEditor>();
+
+    /// <summary>
+    /// The pages that reference this one, shown under the editor. Loaded once per page load by the
+    /// read-time scan in the repository; there is no reference index to keep in step.
+    /// </summary>
+    private IReadOnlyList<Page> backlinkPages = Array.Empty<Page>();
     private Guid? focusedBlockId;
     private Guid? slashMenuBlockId;
     private Guid? draggingBlockId;
@@ -71,6 +77,7 @@ public partial class Editor
 
         orderedBlocks = currentPage.Blocks.ToList();
         BuildEditorModels();
+        backlinkPages = await Repository.ReadBacklinkPagesAsync(PageId);
         isDarkMode = ThemeService.IsDarkMode;
         isLoading = false;
     }

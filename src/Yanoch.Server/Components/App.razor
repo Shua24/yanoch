@@ -11,12 +11,20 @@
     <link rel="stylesheet" href="css/hljs-github-light.css" />
     <link rel="stylesheet" href="css/hljs-github-dark.css" />
     <link rel="stylesheet" href="@Assets["app.css"]" />
+    @* The scoped-CSS bundle. ReconnectModal.razor.css is compiled into this file and every one of
+       its rules is scoped to an attribute (b-xxxx) that Blazor stamps onto the dialog's markup.
+       Without this link the stylesheet is never fetched, so the reconnect dialog renders as a
+       plain unstyled block of text with no backdrop — the markup is scoped but nothing styles it. *@
+    <link rel="stylesheet" href="@Assets["Yanoch.Server.styles.css"]" />
     <ImportMap />
     <HeadOutlet @rendermode="InteractiveServer" />
 </head>
 
 <body>
-    <Yanoch.Ui.Components.Routes @rendermode="InteractiveServer" />
+    @* No @rendermode here: a globally interactive router re-renders the static-SSR identity pages
+       inside the circuit, and the router then renders NotFound for them (HTTP 200, "Not Found" in
+       the browser). Interactivity is declared PER PAGE (Home/Editor) instead. *@
+    <Yanoch.Ui.Components.Routes />
     <ReconnectModal />
     <script src="js/yanoch-files.js"></script>
     <script src="@Assets["_framework/blazor.web.js"]"></script>

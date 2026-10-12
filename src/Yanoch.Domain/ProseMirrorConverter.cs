@@ -33,13 +33,45 @@ public static class ProseMirrorConverter
     /// <summary>
     /// Reads the first block node of the document and returns the derived block type. A
     /// document with several top level nodes is not produced by this app; the first node wins.
+    /// A heading's LEVEL decides which heading type it is, so the node's attributes are read
+    /// too: without that, a level two or three heading would be derived as a level one heading
+    /// and the next keystroke would rewrite its stored type.
     /// </summary>
     public static BlockType ReadBlockType(JsonObject document)
     {
         JsonObject? firstBlock = ReadFirstBlockNode(document);
         string nodeType = firstBlock?["type"]?.GetValue<string>() ?? ProseMirrorNodes.ParagraphType;
-        BlockType blockType = MapNodeTypeToBlockType(nodeType);
+        int headingLevel = ReadHeadingLevel(firstBlock);
+        BlockType blockType = MapNodeTypeToBlockType(nodeType, headingLevel);
         return blockType;
+    }
+
+    /// <summary>
+    /// Reads a heading node's level attribute, defaulting to one. Any other node type has no
+    /// level and gets the default.
+    /// </summary>
+    public static int ReadHeadingLevel(JsonObject? firstBlock)
+    {
+        if (firstBlock?["attrs"] is JsonObject attributes && attributes["level"] is JsonValue levelValue)
+        {
+            int level = levelValue.GetValue<int>();
+            return level;
+        }
+        return 1;
+    }
+
+    /// <summary>
+    /// Reads an image node's source URL, for search indexing and list previews.
+    /// </summary>
+    public static string ReadImageSource(JsonObject document)
+    {
+        JsonObject? firstBlock = ReadFirstBlockNode(document);
+        if (firstBlock?["attrs"] is JsonObject attributes && attributes["src"] is JsonValue sourceValue)
+        {
+            string source = sourceValue.GetValue<string>();
+            return source;
+        }
+        return string.Empty;
     }
 
     public static bool ReadIsChecked(JsonObject document)
@@ -77,12 +109,12 @@ public static class ProseMirrorConverter
         return result;
     }
 
-    public static BlockType MapNodeTypeToBlockType(string nodeType)
+    public static BlockType MapNodeTypeToBlockType(string nodeType, int headingLevel = 1)
     {
         switch (nodeType)
         {
             case ProseMirrorNodes.HeadingType:
-                return BlockType.Heading1;
+                return MapHeadingLevelToBlockType(headingLevel);
             case ProseMirrorNodes.BulletedListType:
                 return BlockType.BulletedListItem;
             case ProseMirrorNodes.NumberedListType:
@@ -95,8 +127,27 @@ public static class ProseMirrorConverter
                 return BlockType.Code;
             case ProseMirrorNodes.DividerType:
                 return BlockType.Divider;
+            case ProseMirrorNodes.ImageType:
+                return BlockType.Image;
             default:
                 return BlockType.Paragraph;
+        }
+    }
+
+    /// <summary>
+    /// Maps a heading level to its block type. Levels outside one to three are clamped into that
+    /// range, because the app only offers three heading kinds.
+    /// </summary>
+    public static BlockType MapHeadingLevelToBlockType(int headingLevel)
+    {
+        switch (headingLevel)
+        {
+            case 2:
+                return BlockType.Heading2;
+            case 3:
+                return BlockType.Heading3;
+            default:
+                return BlockType.Heading1;
         }
     }
 

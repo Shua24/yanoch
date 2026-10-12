@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AllowMissingPrunePackageData>true</AllowMissingPrunePackageData>
+    <RootNamespace>Yanoch.Server</RootNamespace>
+    <!-- A library: the desktop host and the web harness each provide their own entry point. -->
+    <OutputType>Library</OutputType>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Yanoch.Ui\Yanoch.Ui.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="10.0.12" />
+    <!-- Supplies the framework's own client assets (notably _framework/blazor.web.js). A Blazor
+         Web App pulls this in implicitly; a Razor Class Library does not, so without it
+         blazor.web.js is unmapped and NO page becomes interactive. -->
+    <PackageReference Include="Microsoft.AspNetCore.App.Internal.Assets" Version="10.0.12" />
+  </ItemGroup>
+
+</Project>

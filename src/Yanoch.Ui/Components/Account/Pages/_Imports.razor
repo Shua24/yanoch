@@ -1,0 +1,6 @@
+@using Yanoch.Ui.Components.Account.Shared
+@using Yanoch.Ui.Components.Account
+
+@* Static SSR, never interactive: HttpContext is null inside an interactive circuit, so the
+   sign-in cookie could not be written from there. *@
+@attribute [ExcludeFromInteractiveRouting]

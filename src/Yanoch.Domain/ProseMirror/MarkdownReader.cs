@@ -18,7 +18,7 @@ namespace Yanoch.Domain.ProseMirror;
 /// document node per item. That keeps every stored block exactly one node, which the editor and
 /// the block list both rely on.
 /// </summary>
-public static class MarkdownReader
+public static partial class MarkdownReader
 {
     private static readonly MarkdownPipeline Pipeline =
         new MarkdownPipelineBuilder().UseTaskLists().Build();
@@ -52,7 +52,7 @@ public static class MarkdownReader
         {
             case HeadingBlock heading:
                 JsonArray headingContent = MarkdownInlineReader.MapInline(heading.Inline);
-                JsonObject headingNode = ProseMirrorNodes.CreateHeading(heading.Level, headingContent);
+                JsonObject headingNode = ProseMirrorNodes.CreateHeading(ClampHeadingLevel(heading.Level), headingContent);
                 return new List<JsonObject> { headingNode };
 
             case FencedCodeBlock fenced:
@@ -77,9 +77,7 @@ public static class MarkdownReader
                 return new List<JsonObject> { ProseMirrorNodes.CreateDivider() };
 
             case ParagraphBlock paragraph:
-                JsonArray paragraphContent = MarkdownInlineReader.MapInline(paragraph.Inline);
-                JsonObject paragraphNode = ProseMirrorNodes.CreateParagraph(paragraphContent);
-                return new List<JsonObject> { paragraphNode };
+                return MapParagraphBlocks(paragraph);
 
             default:
                 return new List<JsonObject>();
@@ -231,5 +229,24 @@ public static class MarkdownReader
         int spaceIndex = info.IndexOf(' ');
         string language = spaceIndex > 0 ? info.Substring(0, spaceIndex) : info;
         return language;
+    }
+
+    /// <summary>
+    /// Clamps a Markdown heading level into the one to three range the block model and the editor
+    /// schema support. Markdown allows six levels; without this, a level four to six heading would
+    /// be stored as a level four to six node that the editor's schema rejects, while its derived
+    /// block type silently claimed to be a first level heading.
+    /// </summary>
+    private static int ClampHeadingLevel(int level)
+    {
+        if (level < 1)
+        {
+            return 1;
+        }
+        if (level > 3)
+        {
+            return 3;
+        }
+        return level;
     }
 }

@@ -15,6 +15,13 @@
     <SupportedPlatform Include="browser" />
   </ItemGroup>
 
+  <!-- Needed for [Authorize] / AuthorizeView / AuthorizeRouteView and the authentication state
+       cascading parameter. These live in the Microsoft.AspNetCore.App shared framework, which a
+       plain Razor Class Library does not reference by default. -->
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
   <ItemGroup>
     <ProjectReference Include="..\Yanoch.Data\Yanoch.Data.csproj" />
   </ItemGroup>

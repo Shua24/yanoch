@@ -18,6 +18,8 @@ public static class ProseMirrorNodes
     public const string QuoteType = "blockquote";
     public const string CodeBlockType = "code_block";
     public const string DividerType = "horizontal_rule";
+    public const string HardBreakType = "hard_break";
+    public const string ImageType = "image";
 
     public static JsonObject CreateDocument(JsonArray content)
     {
@@ -113,5 +115,37 @@ public static class ProseMirrorNodes
     {
         JsonObject divider = CreateLeafBlock(DividerType, null, null);
         return divider;
+    }
+
+    /// <summary>
+    /// Creates the inline node that represents a line break inside a block. The editor's schema
+    /// spells this <c>hard_break</c> and uses it for Shift+Enter, so Markdown breaks must map to
+    /// this node rather than to a newline character inside a text node: the editor does not render
+    /// a bare newline as a break, and the Markdown writer would silently drop it on export.
+    /// </summary>
+    public static JsonObject CreateHardBreak()
+    {
+        JsonObject hardBreak = new JsonObject
+        {
+            ["type"] = HardBreakType,
+        };
+        return hardBreak;
+    }
+
+    /// <summary>
+    /// Creates an image block. The image is a LEAF with no text content, so it is modelled exactly
+    /// like a divider: one node, no inline content. The caption is a separate field on the node's
+    /// attributes rather than a child block, which keeps the one-node-per-block invariant intact.
+    /// </summary>
+    public static JsonObject CreateImage(string source, string altText, string caption)
+    {
+        JsonObject attributes = new JsonObject
+        {
+            ["src"] = source,
+            ["alt"] = altText,
+            ["caption"] = caption,
+        };
+        JsonObject image = CreateLeafBlock(ImageType, null, attributes);
+        return image;
     }
 }

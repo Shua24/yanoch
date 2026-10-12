@@ -5,6 +5,8 @@ import { createPlugins } from "./plugins.js";
 import { currentBlockNode, isCaretAtStart } from "./blocks.js";
 import { handleKeyDown } from "./keyboard.js";
 import { armSplitZones, setDraggingClass } from "./splitzones.js";
+import { dividerShortcutMeta } from "./markdowninput.js";
+import { createImageView } from "./imageview.js";
 import {
   buildDocumentFromContent,
   clearChangeTimer,
@@ -46,6 +48,14 @@ export function create(id, element, contentJson, dotnetReference, options) {
       class: "yanoch-block-editor",
       spellcheck: "true",
     },
+    // The image block needs a node view rather than the schema's plain toDOM: only a view can
+    // react to a load failure, and a failed image must SAY it failed instead of showing the
+    // browser's broken-image glyph.
+    nodeViews: {
+      image(node, viewInstance, getPos) {
+        return createImageView(node, viewInstance, getPos);
+      },
+    },
     handleDOMEvents: {
       focus() {
         dotnetReference.invokeMethodAsync("OnEditorFocused");
@@ -60,6 +70,11 @@ export function create(id, element, contentJson, dotnetReference, options) {
       view.updateState(newState);
       if (transaction.docChanged) {
         scheduleChangeNotify(id, view);
+      }
+      // The divider shorthand converts the block into a leaf node, which cannot hold text. The
+      // host creates the empty block below it so the caret has somewhere to land.
+      if (transaction.getMeta(dividerShortcutMeta)) {
+        dotnetReference.invokeMethodAsync("OnDividerShortcut");
       }
     },
   });
@@ -176,12 +191,17 @@ export function replaceBlockType(id, nodeName, attributes) {
   if (!block) {
     return;
   }
-  let newNode;
-  if (nodeName === "horizontal_rule") {
-    newNode = schema.node(nodeName, attributes || null);
-  } else {
-    newNode = schema.node(nodeName, attributes || null, block.content);
+  // A node that cannot hold text is built WITHOUT content. Handing a leaf a content fragment
+  // throws, and both the divider and the image are leaves, so this is decided from the schema
+  // rather than from a hard-coded list of names.
+  const targetType = schema.nodes[nodeName];
+  if (!targetType) {
+    return;
   }
+  const canHoldText = targetType.isTextblock;
+  const newNode = canHoldText
+    ? schema.node(nodeName, attributes || null, block.content)
+    : schema.node(nodeName, attributes || null);
   const transaction = state.tr.replaceWith(0, state.doc.content.size, newNode);
   entry.view.dispatch(transaction);
   notifyChange(id, entry.view);
@@ -214,6 +234,33 @@ export function setReadOnly(id, isReadOnly) {
     return;
   }
   entry.view.setProps({ editable: () => !isReadOnly });
+}
+
+// Inserts a link to another page at the caret. The mark is the editor's ordinary `link` mark, so a
+// page reference is stored in exactly the shape the server's backlink scan looks for; the two
+// halves of the feature therefore cannot drift apart.
+//
+// The insertion is done in TWO steps — insert the plain text, then apply the mark over exactly that
+// range — because `insertText(text, from, to, mark)` did NOT carry the mark into the stored document
+// (measured: the text arrived, the mark was silently dropped). `addMark` over the inserted range is
+// explicit and does not depend on how the insertion is classified.
+export function insertPageLink(id, label, href) {
+  const entry = getEntry(id);
+  if (!entry) {
+    return;
+  }
+  const state = entry.view.state;
+  const linkMark = schema.marks.link.create({ href });
+  const from = state.selection.from;
+  const to = from + label.length;
+
+  const transaction = state.tr.insertText(label, from, from);
+  transaction.addMark(from, to, linkMark);
+  // Leave the caret AFTER the inserted link rather than inside it, so typing continues as plain
+  // text instead of extending the link.
+  transaction.setSelection(TextSelection.create(transaction.doc, to));
+  entry.view.dispatch(transaction);
+  notifyChange(id, entry.view);
 }
 
 // Re-exported so Blazor can call it through the module. Importing alone would let esbuild

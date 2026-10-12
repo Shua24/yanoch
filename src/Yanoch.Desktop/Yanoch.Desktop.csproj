@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk.Razor">
+<Project Sdk="Microsoft.NET.Sdk.Web">
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
@@ -8,20 +8,21 @@
     <AllowMissingPrunePackageData>true</AllowMissingPrunePackageData>
     <RootNamespace>Yanoch.Desktop</RootNamespace>
     <AssemblyName>Yanoch.Desktop</AssemblyName>
+    <!-- Matches the shared app: lets a static-SSR redirect (RedirectToLogin) perform the
+         navigation instead of throwing NavigationException. -->
+    <BlazorDisableThrowNavigationException>true</BlazorDisableThrowNavigationException>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Photino.Blazor" Version="4.0.13" />
+    <!-- Plain Photino.NET, not Photino.Blazor: the UI is served by the in-process ASP.NET Core
+         server so that ASP.NET Core Identity's cookie flow works. Photino.Blazor serves the UI
+         over a custom app:// scheme with no HTTP pipeline, where no auth cookie can exist. -->
+    <PackageReference Include="Photino.NET" Version="4.0.16" />
     <PackageReference Include="Microsoft.Extensions.Configuration.EnvironmentVariables" Version="10.0.0" />
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Yanoch.Ui\Yanoch.Ui.csproj" />
-  </ItemGroup>
-
-  <!-- Photino.Blazor reads wwwroot next to the built binary, so it must be copied there. -->
-  <ItemGroup>
-    <Content Update="wwwroot/**" CopyToOutputDirectory="PreserveNewest" />
+    <ProjectReference Include="..\Yanoch.Server\Yanoch.Server.csproj" />
   </ItemGroup>
 
 </Project>

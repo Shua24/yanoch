@@ -1,0 +1,11 @@
+@inject NavigationManager NavigationManager
+
+@* Rendered by Routes.razor when the current user is not authorized. The navigation must force a
+   full load: the sign-in flow is a real HTTP request, so it cannot run inside the circuit. *@
+@code {
+    protected override void OnInitialized()
+    {
+        string returnUrl = Uri.EscapeDataString(NavigationManager.Uri);
+        NavigationManager.NavigateTo($"/login?returnUrl={returnUrl}", forceLoad: true);
+    }
+}

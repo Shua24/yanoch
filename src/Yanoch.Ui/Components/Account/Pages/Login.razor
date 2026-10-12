@@ -1,0 +1,102 @@
+@page "/login"
+@using System.Security.Claims
+@using Microsoft.AspNetCore.Http
+@using Yanoch.Domain
+@using Yanoch.Ui.Components.Account
+@using Yanoch.Ui.Components.Account.Shared
+@using Microsoft.AspNetCore.Identity
+
+@inject SignInManager<ApplicationUser> SignInManager
+@inject NavigationManager NavigationManager
+
+<PageTitle>Sign in — Yanoch</PageTitle>
+
+<div class="yanoch-auth-wrapper">
+    <div class="yanoch-auth-form">
+        <h2>Sign in</h2>
+
+        <StatusMessage Message="@DisplayedStatusMessage" />
+
+        @if (alreadySignedIn)
+        {
+            <p class="yanoch-muted">
+                You are already signed in as <strong>@signedInDisplayName</strong>.
+            </p>
+            <p class="yanoch-auth-alt">
+                <a href="/" class="yanoch-link-button">Go to your workspace</a>
+            </p>
+        }
+        else
+        {
+            @* A real form POST to the /Account/Login endpoint. The endpoint, not this component,
+               writes the authentication cookie. *@
+            <form method="post" action="@AccountPaths.LoginEndpointPath">
+                @* A plain form does NOT get an antiforgery token automatically (only EditForm
+                   does), and UseAntiforgery validates every POST, so this is required. *@
+                <AntiforgeryToken />
+                <input type="hidden" name="ReturnUrl" value="@ReturnUrl" />
+
+                <label for="login-email">Email</label>
+                <input id="login-email" name="Email" type="email" placeholder="you@example.com"
+                       required autocomplete="username" />
+
+                <label for="login-password">Password</label>
+                <input id="login-password" name="Password" type="password" placeholder="••••••••"
+                       required autocomplete="current-password" />
+
+                <label class="yanoch-checkbox-label" for="login-remember">
+                    <input id="login-remember" name="RememberMe" type="checkbox" value="true" checked />
+                    <span>Keep me signed in on this device</span>
+                </label>
+
+                <button type="submit" class="yanoch-primary-button">Sign in</button>
+            </form>
+
+            <p class="yanoch-muted yanoch-auth-alt">
+                New here?
+                <a href="@AccountNavigation.BuildRegisterUrl(ReturnUrl)" class="yanoch-link-button">
+                    Create an account
+                </a>
+            </p>
+        }
+    </div>
+</div>
+
+@code {
+    // Static SSR is the only place HttpContext exists; inside an interactive circuit it is null.
+    [CascadingParameter]
+    private HttpContext? HttpContext { get; set; }
+
+    [SupplyParameterFromQuery(Name = AccountPaths.ReturnUrlQueryName)]
+    private string? ReturnUrl { get; set; }
+
+    [SupplyParameterFromQuery(Name = AccountPaths.LoginFailedQueryName)]
+    private bool LoginFailed { get; set; }
+
+    private bool alreadySignedIn;
+    private string signedInDisplayName = string.Empty;
+
+    private string? DisplayedStatusMessage
+        => LoginFailed ? "Error: invalid email or password." : null;
+
+    protected override async Task OnInitializedAsync()
+    {
+        ClaimsPrincipal? principal = HttpContext?.User;
+        if (principal is null)
+        {
+            return;
+        }
+
+        ApplicationUser? currentUser = await SignInManager.UserManager.GetUserAsync(principal);
+        if (currentUser is null)
+        {
+            return;
+        }
+
+        alreadySignedIn = true;
+        string? displayName = currentUser.DisplayName;
+        signedInDisplayName = string.IsNullOrWhiteSpace(displayName)
+            ? currentUser.Email ?? "your account"
+            : displayName;
+    }
+}

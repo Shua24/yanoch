@@ -3,6 +3,7 @@
     <Project Path="src/Yanoch.Data/Yanoch.Data.csproj" />
     <Project Path="src/Yanoch.Desktop/Yanoch.Desktop.csproj" />
     <Project Path="src/Yanoch.Domain/Yanoch.Domain.csproj" />
+    <Project Path="src/Yanoch.Server/Yanoch.Server.csproj" />
     <Project Path="src/Yanoch.Ui/Yanoch.Ui.csproj" />
     <Project Path="src/Yanoch.Web/Yanoch.Web.csproj" />
   </Folder>

@@ -1,3 +1,5 @@
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using Yanoch.Domain;
 
@@ -7,8 +9,12 @@ namespace Yanoch.Data;
 /// The Entity Framework Core context for the Yanoch workspace. It is provider agnostic: the
 /// concrete database (SQLite for tests, PostgreSQL for production) is chosen by the host when
 /// the options are built, so nothing here references a specific provider.
+///
+/// It derives from the ROLE-LESS Identity base: Yanoch has no roles, so
+/// <c>IdentityUserContext</c> gives the user tables without creating AspNetRoles and
+/// AspNetRoleClaims that nothing would ever populate.
 /// </summary>
-public sealed class YanochDbContext : DbContext
+public sealed class YanochDbContext : IdentityUserContext<ApplicationUser>
 {
     public YanochDbContext(DbContextOptions<YanochDbContext> options)
         : base(options)
@@ -21,6 +27,10 @@ public sealed class YanochDbContext : DbContext
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        // Mandatory: the Identity base adds its own entity configuration here. Skipping it leaves
+        // the Identity entities unmapped.
+        base.OnModelCreating(modelBuilder);
+
         modelBuilder.Entity<Page>(pageEntity =>
         {
             pageEntity.HasKey(page => page.Id);

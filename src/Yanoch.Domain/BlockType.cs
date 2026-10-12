@@ -18,4 +18,9 @@ public enum BlockType
     Divider = 9,
     ColumnList = 10,
     Column = 11,
+    /// <summary>
+    /// An image block. APPENDED, never inserted mid-list: the enum is stored as an int, so
+    /// renumbering an existing member would silently reinterpret every stored row.
+    /// </summary>
+    Image = 12,
 }

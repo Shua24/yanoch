@@ -67,6 +67,17 @@ public static class MarkdownInlineReader
                 nodes.Add(ProseMirrorNodes.CreateText(code.Content, codeMarks));
                 break;
 
+            case LinkInline link when link.IsImage:
+                // An image is NOT a link with a picture in it: `![alt](src)` arrives as a
+                // LinkInline with IsImage set, and treating it as a link turned every imported
+                // image into a hyperlink and erased any image with empty alt text. It becomes an
+                // image NODE instead. The alt text doubles as the caption, which is what Notion
+                // shows under the picture.
+                string imageSource = link.Url ?? string.Empty;
+                string imageAltText = ReadLinkText(link);
+                nodes.Add(ProseMirrorNodes.CreateImage(imageSource, imageAltText, imageAltText));
+                break;
+
             case LinkInline link:
                 JsonArray linkMarks = CloneMarks(inheritedMarks);
                 JsonObject linkAttributes = new JsonObject { ["href"] = link.Url ?? string.Empty };
@@ -74,8 +85,19 @@ public static class MarkdownInlineReader
                 AppendContainerInline(nodes, link, linkMarks);
                 break;
 
-            case LineBreakInline:
-                nodes.Add(ProseMirrorNodes.CreateText("\n", CloneMarks(inheritedMarks)));
+            case LineBreakInline lineBreak:
+                // A hard break is an inline NODE, not a newline character: the editor renders a
+                // hard_break as a break, and the Markdown writer emits it as two trailing spaces.
+                // A soft break stays a newline character, which is what Markdown itself means by
+                // a plain line break.
+                if (lineBreak.IsHard)
+                {
+                    nodes.Add(ProseMirrorNodes.CreateHardBreak());
+                }
+                else
+                {
+                    nodes.Add(ProseMirrorNodes.CreateText("\n", CloneMarks(inheritedMarks)));
+                }
                 break;
 
             case TaskList:
@@ -110,5 +132,33 @@ public static class MarkdownInlineReader
             }
         }
         return clone;
+    }
+
+    /// <summary>
+    /// Reads the plain text of a link or image, which is its label for a link and its alt text for
+    /// an image. Nested emphasis is flattened, because this text is used as a caption.
+    /// </summary>
+    private static string ReadLinkText(ContainerInline container)
+    {
+        System.Text.StringBuilder builder = new System.Text.StringBuilder();
+        AppendLinkText(builder, container);
+        string text = builder.ToString();
+        return text;
+    }
+
+    private static void AppendLinkText(System.Text.StringBuilder builder, ContainerInline container)
+    {
+        foreach (Inline child in container)
+        {
+            switch (child)
+            {
+                case LiteralInline literal:
+                    builder.Append(literal.Content.ToString());
+                    break;
+                case ContainerInline nested:
+                    AppendLinkText(builder, nested);
+                    break;
+            }
+        }
     }
 }

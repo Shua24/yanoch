@@ -1,6 +1,25 @@
 ﻿@inherits LayoutComponentBase
+@using Yanoch.Ui.Components.Account
 
-@Body
+<div class="yanoch-shell">
+    <AuthorizeView>
+        <Authorized>
+            <header class="yanoch-account-bar">
+                <span class="yanoch-account-name">@context.User.Identity?.Name</span>
+                @* A real POST form, not a button with @onclick: signing out has to reach a real HTTP
+                   request, because inside an interactive circuit HttpContext is null and the
+                   authentication cookie cannot be cleared from there. *@
+                <form method="post" action="@AccountPaths.LogoutEndpointPath">
+                    <AntiforgeryToken />
+                    <input type="hidden" name="returnUrl" value="@AccountPaths.HomePath" />
+                    <button type="submit" class="yanoch-toolbar-button">Sign out</button>
+                </form>
+            </header>
+        </Authorized>
+    </AuthorizeView>
+
+    @Body
+</div>
 
 <div id="blazor-error-ui" data-nosnippet>
     An unhandled error has occurred.

@@ -1,8 +1,11 @@
 @page "/page/{PageId:guid}"
+@rendermode InteractiveServer
 @using Yanoch.Domain
 @using Yanoch.Ui.Components.Editor
 @using Yanoch.Ui.Interop
 @namespace Yanoch.Ui.Components.Pages
+
+@attribute [Authorize]
 
 <PageTitle>@(currentPage?.Title ?? "Yanoch")</PageTitle>
 
@@ -13,10 +16,36 @@
         <div class="yanoch-toolbar-spacer"></div>
         <button class="yanoch-toolbar-button" @onclick="ImportMarkdownAsync" title="Import Markdown">Import</button>
         <button class="yanoch-toolbar-button" @onclick="ExportMarkdownAsync" title="Export as Markdown">Export</button>
+        <button class="yanoch-toolbar-button" @onclick="ToggleLinkPickerAsync" title="Insert a link to another page">Link to page</button>
         <button class="yanoch-toolbar-button" @onclick="ToggleThemeAsync" title="Toggle light or dark mode">
             @(isDarkMode ? "Light" : "Dark")
         </button>
     </header>
+
+    @if (isLinkPickerOpen)
+    {
+        <div class="yanoch-link-picker">
+            @if (linkPickerPages.Count == 0)
+            {
+                <p class="yanoch-muted">No other pages yet. Create one first.</p>
+            }
+            else
+            {
+                <ul class="yanoch-link-picker-list">
+                    @foreach (Page candidatePage in linkPickerPages)
+                    {
+                        <li>
+                            <button class="yanoch-link-picker-item"
+                                    @onclick="() => InsertPageLinkAsync(candidatePage)">
+                                <span class="yanoch-page-icon">@candidatePage.Icon</span>
+                                <span>@(string.IsNullOrWhiteSpace(candidatePage.Title) ? "Untitled" : candidatePage.Title)</span>
+                            </button>
+                        </li>
+                    }
+                </ul>
+            }
+        </div>
+    }
 
     @if (isLoading)
     {
@@ -60,5 +89,7 @@
 
             <button class="yanoch-add-block" @onclick="AddBlockAtEndAsync">+ Add a block</button>
         </article>
+
+        <BacklinkPanel Pages="backlinkPages" />
     }
 </div>

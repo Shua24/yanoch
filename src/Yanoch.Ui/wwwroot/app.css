@@ -277,11 +277,11 @@ h1:focus {
    computed value stays frozen at the transition's start). The state change is instant anyway. */
 
 .yanoch-split-left {
-    left: -18px;
+    left: -70px;
 }
 
 .yanoch-split-right {
-    right: -18px;
+    right: -20px;
 }
 
 /* Discoverable: reveal both bars when the row is hovered. */
@@ -447,6 +447,47 @@ h1:focus {
     margin: 12px 0;
 }
 
+/* Image blocks. The figure is a leaf node, so it carries its own spacing; the caption sits under
+   the picture in muted text, matching how Notion shows it. */
+.yanoch-image-block {
+    margin: 8px 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.yanoch-image {
+    max-width: 100%;
+    height: auto;
+    border-radius: 4px;
+    display: block;
+}
+
+.yanoch-image-caption {
+    /* Matches Notion's own caption styling (dump @897100: fontSize 14, lineHeight 1.4,
+       secondary text colour, 6px above and below). */
+    font-size: 14px;
+    line-height: 1.4;
+    color: var(--yanoch-text-muted);
+    padding-top: 6px;
+    padding-bottom: 6px;
+}
+
+/* A source that cannot be loaded must SAY so. A bare broken <img> is indistinguishable from a
+   layout bug, and an empty image is indistinguishable from a missing one. */
+.yanoch-image-block.yanoch-image-failed .yanoch-image {
+    display: none;
+}
+
+.yanoch-image-error {
+    border: 1px dashed var(--yanoch-border);
+    border-radius: 4px;
+    padding: 12px;
+    font-size: 12px;
+    color: var(--yanoch-text-muted);
+    overflow-wrap: anywhere;
+}
+
 .yanoch-block-editor li {
     list-style: none;
 }
@@ -517,4 +558,109 @@ html[data-theme="light"] .hljs {
 
 html[data-theme="dark"] .hljs {
     background: var(--yanoch-surface);
+}
+
+/* The linked-references panel. Notion hides this section entirely when there are no backlinks, and
+   so does this: an empty heading on every page would be noise. */
+.yanoch-backlinks {
+    margin-top: 48px;
+    padding-top: 16px;
+    border-top: 1px solid var(--yanoch-border);
+}
+
+.yanoch-backlinks-heading {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--yanoch-text-muted);
+    margin: 0 0 8px 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.yanoch-backlinks-count {
+    font-weight: 400;
+    opacity: 0.7;
+}
+
+.yanoch-backlink-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.yanoch-backlink-item {
+    margin: 0;
+}
+
+.yanoch-backlink-link {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 6px;
+    border-radius: 3px;
+    text-decoration: none;
+    color: inherit;
+}
+
+.yanoch-backlink-link:hover {
+    background: var(--yanoch-surface-hover);
+}
+
+.yanoch-backlink-icon {
+    flex: 0 0 auto;
+}
+
+.yanoch-backlink-title {
+    flex: 1 1 auto;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.yanoch-backlink-date {
+    flex: 0 0 auto;
+    font-size: 12px;
+    color: var(--yanoch-text-muted);
+}
+
+/* The page-reference picker, opened from the toolbar. */
+.yanoch-link-picker {
+    position: absolute;
+    right: 16px;
+    top: 48px;
+    z-index: 50;
+    background: var(--yanoch-surface);
+    border: 1px solid var(--yanoch-border);
+    border-radius: 6px;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
+    padding: 6px;
+    min-width: 240px;
+    max-height: 320px;
+    overflow-y: auto;
+}
+
+.yanoch-link-picker-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.yanoch-link-picker-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    padding: 6px 8px;
+    border: none;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+    border-radius: 4px;
+}
+
+.yanoch-link-picker-item:hover {
+    background: var(--yanoch-surface-hover);
 }
