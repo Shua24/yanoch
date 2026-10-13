@@ -149,30 +149,6 @@ public static partial class MarkdownReader
         return listItemNode;
     }
 
-    private static JsonObject MapQuoteBlock(QuoteBlock quote)
-    {
-        JsonArray quoteContent = new JsonArray();
-        foreach (Markdig.Syntax.Block child in quote)
-        {
-            if (child is ParagraphBlock paragraph)
-            {
-                JsonArray inlineContent = MarkdownInlineReader.MapInline(paragraph.Inline);
-                MarkdownInlineReader.AppendInlineNodes(quoteContent, inlineContent);
-            }
-            else
-            {
-                List<JsonObject> childBlocks = MapBlocks(child);
-                foreach (JsonObject childBlock in childBlocks)
-                {
-                    quoteContent.Add(childBlock.DeepClone());
-                }
-            }
-        }
-
-        JsonObject quoteNode = ProseMirrorNodes.CreateLeafBlock(ProseMirrorNodes.QuoteType, quoteContent, null);
-        return quoteNode;
-    }
-
     private static ParagraphBlock? ReadFirstParagraph(ListItemBlock listItem)
     {
         foreach (Markdig.Syntax.Block child in listItem)
@@ -232,10 +208,11 @@ public static partial class MarkdownReader
     }
 
     /// <summary>
-    /// Clamps a Markdown heading level into the one to three range the block model and the editor
-    /// schema support. Markdown allows six levels; without this, a level four to six heading would
-    /// be stored as a level four to six node that the editor's schema rejects, while its derived
-    /// block type silently claimed to be a first level heading.
+    /// Clamps a Markdown heading level into the one to four range the block model and the editor
+    /// schema support. Markdown allows six levels and Notion itself stops at four (header,
+    /// sub_header, sub_sub_header, header_4 — there is no header_5 or header_6); without this, a
+    /// level five or six heading would be stored as a node the editor's schema rejects, while its
+    /// derived block type silently claimed to be a first level heading.
     /// </summary>
     private static int ClampHeadingLevel(int level)
     {
@@ -243,9 +220,9 @@ public static partial class MarkdownReader
         {
             return 1;
         }
-        if (level > 3)
+        if (level > 4)
         {
-            return 3;
+            return 4;
         }
         return level;
     }

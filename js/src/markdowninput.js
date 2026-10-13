@@ -128,14 +128,23 @@ export function buildMarkdownShorthandRules() {
     buildTextblockTypeRule(/^\[\][ \u00a0]$/, schema.nodes.todo_item, { checked: false }),
     buildTextblockTypeRule(/^\[ \][ \u00a0]$/, schema.nodes.todo_item, { checked: false }),
 
-    // Headings. Longest first so the three-hash rule is never shadowed by the one-hash rule.
+    // Headings. Longest first so the four-hash rule is never shadowed by the one-hash rule.
+    // Notion's own patterns are `/^(#### |＃＃＃＃)$/`, `/^(### |＃＃＃)$/`, `/^(## |＃＃)$/` and
+    // `/^(# |＃)$/` — the full-width variants exist so the shortcut matches whatever the keyboard
+    // produced. Only the ASCII forms plus U+00A0 are implemented here, matching the rest of this
+    // table; the full-width characters are a recorded gap, not an oversight.
+    buildTextblockTypeRule(/^####[ \u00a0]$/, schema.nodes.heading, { level: 4 }),
     buildTextblockTypeRule(/^###[ \u00a0]$/, schema.nodes.heading, { level: 3 }),
     buildTextblockTypeRule(/^##[ \u00a0]$/, schema.nodes.heading, { level: 2 }),
     buildTextblockTypeRule(/^#[ \u00a0]$/, schema.nodes.heading, { level: 1 }),
 
-    // Quote. Notion accepts the pipe and all three double-quote spellings; "> " is its toggle,
-    // which has no equivalent node here, so it maps to the quote instead of doing nothing.
-    buildTextblockTypeRule(/^>[ \u00a0]$/, schema.nodes.blockquote, null),
+    // Toggle. Notion's `> ` maps to its TOGGLE, not to a quote (its quote shortcuts are the pipe
+    // and the three double-quote spellings). This rule MUST be tried before the quote rules below,
+    // because `^>` would otherwise be consumed by the quote pattern that also starts with a
+    // character `>` matches — order within this array is the order the rules run.
+    buildTextblockTypeRule(/^>[ \u00a0]$/, schema.nodes.toggle, null),
+
+    // Quote. Notion accepts the pipe and all three double-quote spellings.
     buildTextblockTypeRule(/^\|[ \u00a0]$/, schema.nodes.blockquote, null),
     buildTextblockTypeRule(/^"[ \u00a0]$/, schema.nodes.blockquote, null),
     buildTextblockTypeRule(/^\u201c[ \u00a0]$/, schema.nodes.blockquote, null),
@@ -155,7 +164,7 @@ export function buildMarkdownShorthandRules() {
 
     buildDividerRule(),
     // The typed image reference, registered LAST so it is tried after the block-type shortcuts.
-    // That order matters: no other pattern can match a string starting with "![", so there is no
+    // That order matters: no other pattern can match a string starting with "![" , so there is no
     // conflict, but keeping it last means a future rule can be slotted in without renumbering.
     buildImageRule(),
   ];

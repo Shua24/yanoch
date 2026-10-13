@@ -1,5 +1,6 @@
 @using Yanoch.Ui.Components.Editor
 @using Yanoch.Ui.Interop
+@using System.Text
 @inject BlockEditorInterop EditorInterop
 @implements IAsyncDisposable
 
@@ -207,12 +208,22 @@
 
     private string BuildIndentStyle()
     {
-        if (Model.IndentLevel <= 0)
+        // The list marker is published as a custom property on the SAME wrapper that carries the
+        // indent. Custom properties inherit, so the editor's <li> inside can read it without this
+        // component having to know about the node's DOM — and it survives a ProseMirror re-render
+        // because the property lives on the wrapper, not on a node the editor owns.
+        StringBuilder style = new StringBuilder();
+        if (Model.IndentLevel > 0)
         {
-            return string.Empty;
+            int leftPadding = Model.IndentLevel * 28;
+            style.Append($"padding-left:{leftPadding}px;");
         }
-        int leftPadding = Model.IndentLevel * 28;
-        return $"padding-left:{leftPadding}px;";
+        if (Model.ListMarker.Length > 0)
+        {
+            style.Append($"--yanoch-list-marker:\"{Model.ListMarker}\";");
+        }
+        string result = style.ToString();
+        return result;
     }
 
     public async ValueTask DisposeAsync()

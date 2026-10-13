@@ -160,6 +160,8 @@ public static class BlockContentService
                 return ProseMirrorNodes.CreateHeading(2, existingContent);
             case BlockType.Heading3:
                 return ProseMirrorNodes.CreateHeading(3, existingContent);
+            case BlockType.Heading4:
+                return ProseMirrorNodes.CreateHeading(4, existingContent);
             case BlockType.BulletedListItem:
                 return ProseMirrorNodes.CreateLeafBlock(ProseMirrorNodes.BulletedListType, existingContent, null);
             case BlockType.NumberedListItem:
@@ -176,6 +178,16 @@ public static class BlockContentService
                 // An image block's own content is rebuilt from the document, so nothing to carry
                 // over: the source and caption live on the node's attributes, not in its content.
                 return ProseMirrorNodes.CreateImage(string.Empty, string.Empty, string.Empty);
+            case BlockType.Toggle:
+                return ProseMirrorNodes.CreateToggle(existingContent);
+            case BlockType.Callout:
+                // The colour and icon survive a type change: converting a paragraph to a callout
+                // must not silently reset styling the user already chose on another callout, and
+                // the defaults match Notion's own ("default" colour).
+                return ProseMirrorNodes.CreateCallout(
+                    ProseMirrorNodes.DefaultCalloutIcon,
+                    ProseMirrorNodes.DefaultCalloutColor,
+                    existingContent);
             default:
                 return ProseMirrorNodes.CreateParagraph(existingContent);
         }

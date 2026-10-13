@@ -78,7 +78,9 @@
                            BlockTypeOptions="BlockTypeOptions"
                            OnApplyBlockType="HandleApplyBlockTypeAsync"
                            OnToggleToDo="ToggleToDoAsync"
-                           OnDeleteBlock="DeleteBlockAsync" />
+                           OnDeleteBlock="DeleteBlockAsync"
+                           IsToggleOpen="ToggleState.IsOpen"
+                           OnToggleDisclosure="HandleToggleDisclosureAsync" />
 
                 <div class="yanoch-drop-end @(dragOverBlockId == EndDropTargetId ? "yanoch-drop-target" : string.Empty)"
                      @ondragover:preventDefault="@(draggingBlockId is not null)"

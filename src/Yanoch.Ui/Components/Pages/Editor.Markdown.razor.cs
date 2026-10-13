@@ -84,6 +84,10 @@ public partial class Editor
 
     private void AppendMarkdown(StringBuilder builder, IReadOnlyList<Block> siblings)
     {
+        // The numbered-list ordinals are computed ONCE per sibling list by the SAME helper the
+        // editor renders from, so an item cannot render as "3." and export as "1.".
+        IReadOnlyDictionary<Guid, string> listMarkers = OrderedListNumbering.ComputeMarkers(siblings);
+
         foreach (Block block in siblings)
         {
             if (block.BlockType == BlockType.ColumnList)
@@ -95,7 +99,20 @@ public partial class Editor
                 continue;
             }
 
-            string blockMarkdown = BlockContentService.ReadMarkdown(block);
+            string blockMarkdown;
+            if (block.BlockType == BlockType.NumberedListItem)
+            {
+                string marker = listMarkers.TryGetValue(block.Id, out string? computedMarker)
+                    ? computedMarker
+                    : "1.";
+                string body = BlockContentService.ReadPlainText(block);
+                blockMarkdown = marker + " " + body;
+            }
+            else
+            {
+                blockMarkdown = BlockContentService.ReadMarkdown(block);
+            }
+
             builder.Append(blockMarkdown);
             builder.Append('\n');
         }

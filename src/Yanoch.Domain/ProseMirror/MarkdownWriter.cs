@@ -61,9 +61,33 @@ public static class MarkdownWriter
                 return "---";
             case ProseMirrorNodes.ImageType:
                 return WriteImage(block);
+            case ProseMirrorNodes.CalloutType:
+                // Markdown has no callout construct, and Notion has no callout shortcut either, so
+                // there is no canonical form to copy. A blockquote carrying the icon is the closest
+                // lossless-ish shape: the icon and text survive a round trip through the reader,
+                // which a bare paragraph would silently drop. The colour is NOT representable and
+                // is lost on export — a recorded limitation, not an oversight.
+                return "> " + WriteCalloutIcon(block) + " " + WriteInline(content);
+            case ProseMirrorNodes.ToggleType:
+                // A toggle's own text is written as a bulleted item; its CHILDREN are separate
+                // blocks in the tree and are written by the caller, indented, like any nested list.
+                return "- " + WriteInline(content);
             default:
                 return WriteInline(content);
         }
+    }
+
+    /// <summary>
+    /// Reads a callout's icon for the Markdown form, defaulting when the attribute is missing.
+    /// </summary>
+    private static string WriteCalloutIcon(JsonObject block)
+    {
+        string icon = ProseMirrorNodes.DefaultCalloutIcon;
+        if (block["attrs"] is JsonObject attributes && attributes["icon"] is JsonValue iconValue)
+        {
+            icon = iconValue.GetValue<string>();
+        }
+        return icon;
     }
 
     /// <summary>

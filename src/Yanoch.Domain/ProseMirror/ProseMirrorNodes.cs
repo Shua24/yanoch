@@ -20,6 +20,21 @@ public static class ProseMirrorNodes
     public const string DividerType = "horizontal_rule";
     public const string HardBreakType = "hard_break";
     public const string ImageType = "image";
+    public const string ToggleType = "toggle";
+    public const string CalloutType = "callout";
+
+    /// <summary>
+    /// The default callout colour key. Notion's own default is the literal string <c>"default"</c>
+    /// (recovered from its format store read: <c>getKeyValue("block_color")||"default"</c>), so the
+    /// same value is used here rather than an invented one.
+    /// </summary>
+    public const string DefaultCalloutColor = "default";
+
+    /// <summary>
+    /// The default callout icon. Notion stores the icon in a store with no plain format key; this
+    /// project keeps it on the node's attributes and defaults it to the pencil it uses in its menu.
+    /// </summary>
+    public const string DefaultCalloutIcon = "💡";
 
     public static JsonObject CreateDocument(JsonArray content)
     {
@@ -147,5 +162,33 @@ public static class ProseMirrorNodes
         };
         JsonObject image = CreateLeafBlock(ImageType, null, attributes);
         return image;
+    }
+
+    /// <summary>
+    /// Creates a toggle block. A toggle is a TEXT block that also owns children: the text is its
+    /// own content and the children are ordinary blocks whose parent is the toggle. The open/closed
+    /// state is deliberately NOT an attribute — Notion keeps it client-side, and storing it here
+    /// would make it travel with the document rather than with the viewer.
+    /// </summary>
+    public static JsonObject CreateToggle(JsonArray? content)
+    {
+        JsonObject toggle = CreateLeafBlock(ToggleType, content, null);
+        return toggle;
+    }
+
+    /// <summary>
+    /// Creates a callout block: a text block carrying an icon and a colour. The colour key defaults
+    /// to Notion's own <c>"default"</c> rather than to an empty string, so an unstyled callout and a
+    /// callout that was explicitly set back to default are the same document.
+    /// </summary>
+    public static JsonObject CreateCallout(string icon, string color, JsonArray? content)
+    {
+        JsonObject attributes = new JsonObject
+        {
+            ["icon"] = icon,
+            ["color"] = color,
+        };
+        JsonObject callout = CreateLeafBlock(CalloutType, content, attributes);
+        return callout;
     }
 }

@@ -1,4 +1,5 @@
 using Yanoch.Domain;
+using Yanoch.Domain.ProseMirror;
 
 namespace Yanoch.Ui.Components.Pages;
 
@@ -40,6 +41,13 @@ public sealed class BlockTypeOption
         if (BlockType == BlockType.Code)
         {
             return new { language = string.Empty };
+        }
+        if (BlockType == BlockType.Callout)
+        {
+            // The defaults match Notion's own: the colour key is the literal "default", and the
+            // icon is the same one CreateCallout writes, so a callout made from the menu and one
+            // made by converting a paragraph are the same document.
+            return new { icon = ProseMirrorNodes.DefaultCalloutIcon, color = ProseMirrorNodes.DefaultCalloutColor };
         }
         return null;
     }

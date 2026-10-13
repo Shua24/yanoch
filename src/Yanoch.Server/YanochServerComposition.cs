@@ -75,6 +75,9 @@ public static class YanochServerComposition
         services.AddScoped<BlockEditorInterop>();
         services.AddScoped<FileInterop>();
         services.AddScoped<ThemeService>();
+        // Scoped so one page's open/closed toggles survive its own re-renders but are not shared
+        // between circuits: the state belongs to the viewer's session, not to the document.
+        services.AddScoped<ToggleStateService>();
         services.AddScoped<MediaCleanupService>();
 
         return services;
@@ -160,13 +163,19 @@ public static class YanochServerComposition
     }
 
     /// <summary>
-    /// Creates the schema on startup so a fresh checkout runs with no manual migration step.
+    /// Applies the schema on startup so a fresh checkout runs with no manual migration step.
+    ///
+    /// This uses MIGRATIONS, not EnsureCreated. The two are mutually exclusive: a database created
+    /// by EnsureCreated has no __EFMigrationsHistory table, so it can never be migrated later and
+    /// every future schema change would cost a data migration. An existing EnsureCreated database
+    /// must be BASELINED first (see the migration note) or startup fails with
+    /// 'table "AspNetUsers" already exists'.
     /// </summary>
     public static async Task InitialiseYanochDatabaseAsync(this WebApplication application)
     {
         await using AsyncServiceScope startupScope = application.Services.CreateAsyncScope();
         YanochDbContext databaseContext = startupScope.ServiceProvider
             .GetRequiredService<YanochDbContext>();
-        await databaseContext.Database.EnsureCreatedAsync();
+        await databaseContext.Database.MigrateAsync();
     }
 }

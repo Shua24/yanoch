@@ -183,14 +183,19 @@ public static class ProseMirrorConverter
                 return BlockType.Divider;
             case ProseMirrorNodes.ImageType:
                 return BlockType.Image;
+            case ProseMirrorNodes.ToggleType:
+                return BlockType.Toggle;
+            case ProseMirrorNodes.CalloutType:
+                return BlockType.Callout;
             default:
                 return BlockType.Paragraph;
         }
     }
 
     /// <summary>
-    /// Maps a heading level to its block type. Levels outside one to three are clamped into that
-    /// range, because the app only offers three heading kinds.
+    /// Maps a heading level to its block type. Levels outside one to four are clamped into that
+    /// range, because the app offers four heading kinds — matching Notion, which has header,
+    /// sub_header, sub_sub_header and header_4 and NO fifth or sixth level.
     /// </summary>
     public static BlockType MapHeadingLevelToBlockType(int headingLevel)
     {
@@ -200,9 +205,40 @@ public static class ProseMirrorConverter
                 return BlockType.Heading2;
             case 3:
                 return BlockType.Heading3;
+            case 4:
+                return BlockType.Heading4;
             default:
                 return BlockType.Heading1;
         }
+    }
+
+    /// <summary>
+    /// Reads a callout's icon, falling back to the default when the attribute is absent. Used by
+    /// the Markdown writer and by any consumer that needs the icon without parsing the node itself.
+    /// </summary>
+    public static string ReadCalloutIcon(JsonObject document)
+    {
+        return ReadStringAttribute(document, "icon", ProseMirrorNodes.DefaultCalloutIcon);
+    }
+
+    /// <summary>
+    /// Reads a callout's colour key, falling back to Notion's own default key.
+    /// </summary>
+    public static string ReadCalloutColor(JsonObject document)
+    {
+        return ReadStringAttribute(document, "color", ProseMirrorNodes.DefaultCalloutColor);
+    }
+
+    private static string ReadStringAttribute(JsonObject document, string attributeName, string fallback)
+    {
+        JsonObject? firstBlock = ReadFirstBlockNode(document);
+        if (firstBlock?["attrs"] is JsonObject attributes
+            && attributes[attributeName] is JsonValue attributeValue)
+        {
+            string attributeText = attributeValue.GetValue<string>();
+            return attributeText;
+        }
+        return fallback;
     }
 
     private static JsonObject? ReadFirstBlockNode(JsonObject document)

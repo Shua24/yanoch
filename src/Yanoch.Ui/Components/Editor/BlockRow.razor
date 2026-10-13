@@ -53,6 +53,16 @@
                @onchange="() => OnToggleToDo.InvokeAsync(Block.Id)" />
     }
 
+    @* The disclosure control for a toggle. It lives in the same margin strip as the to-do
+       checkbox because it is a per-row control, not part of the editable text: the editor holds
+       one text block, and the children are separate blocks the tree renders below. *@
+    @if (Block.BlockType == BlockType.Toggle)
+    {
+        <button class="yanoch-toggle-disclosure" title="Toggle open or closed"
+                aria-expanded="@(IsOpen ? "true" : "false")"
+                @onclick="() => OnToggleDisclosure.InvokeAsync(Block.Id)">@(IsOpen ? "▾" : "▸")</button>
+    }
+
     <div class="yanoch-block-body" style="@ReadIndentStyle()">
         <BlockEditor @key="Block.Id" Model="EditorModel"
                      OnRegister="OnRegisterEditor"
@@ -125,6 +135,17 @@
 
     [Parameter]
     public EventCallback<Guid> OnDeleteBlock { get; set; }
+
+    /// <summary>
+    /// True when this row is an OPEN toggle. Only meaningful for a toggle; every other block type
+    /// ignores it.
+    /// </summary>
+    [Parameter]
+    public bool IsOpen { get; set; }
+
+    /// <summary>The disclosure control on this toggle was clicked.</summary>
+    [Parameter]
+    public EventCallback<Guid> OnToggleDisclosure { get; set; }
 
     private string ReadRowDropZoneClass()
     {

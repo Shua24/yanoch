@@ -1,6 +1,8 @@
 <Solution>
   <Folder Name="/src/">
     <Project Path="src/Yanoch.Data/Yanoch.Data.csproj" />
+    <Project Path="src/Yanoch.Data.Migrations.Postgres/Yanoch.Data.Migrations.Postgres.csproj" />
+    <Project Path="src/Yanoch.Data.Migrations.Sqlite/Yanoch.Data.Migrations.Sqlite.csproj" />
     <Project Path="src/Yanoch.Desktop/Yanoch.Desktop.csproj" />
     <Project Path="src/Yanoch.Domain/Yanoch.Domain.csproj" />
     <Project Path="src/Yanoch.Server/Yanoch.Server.csproj" />

@@ -34,7 +34,9 @@
                                BlockTypeOptions="BlockTypeOptions"
                                OnApplyBlockType="OnApplyBlockType"
                                OnToggleToDo="OnToggleToDo"
-                               OnDeleteBlock="OnDeleteBlock" />
+                               OnDeleteBlock="OnDeleteBlock"
+                               IsToggleOpen="IsToggleOpen"
+                               OnToggleDisclosure="OnToggleDisclosure" />
                 </div>
             }
         </div>
@@ -55,7 +57,38 @@
                   BlockTypeOptions="BlockTypeOptions"
                   OnApplyBlockType="OnApplyBlockType"
                   OnToggleToDo="OnToggleToDo"
-                  OnDeleteBlock="OnDeleteBlock" />
+                  OnDeleteBlock="OnDeleteBlock"
+                  IsOpen="IsToggleOpen(sibling.Id)"
+                  OnToggleDisclosure="OnToggleDisclosure" />
+
+        @* A toggle's children are ordinary blocks whose parent is the toggle. They render only
+           while it is open, and they render through the SAME recursion, so a nested toggle works
+           without any extra case. The children carry their own handle and Enter behaviour. *@
+        @if (sibling.BlockType == BlockType.Toggle && IsToggleOpen(sibling.Id))
+        {
+            <div class="yanoch-toggle-children">
+                <BlockTree Siblings="ReadChildren(sibling.Id)"
+                           AllBlocks="AllBlocks"
+                           EditorModels="EditorModels"
+                           EditorComponents="EditorComponents"
+                           OnEditorEvent="OnEditorEvent"
+                           OnRegisterEditor="OnRegisterEditor"
+                           OnDragStartBlock="OnDragStartBlock"
+                           OnDragEndBlock="OnDragEndBlock"
+                           OnDropOnBlock="OnDropOnBlock"
+                           OnDropBesideBlock="OnDropBesideBlock"
+                           OnDropAtEnd="OnDropAtEnd"
+                           DragOverBlockId="DragOverBlockId"
+                           DraggingBlockId="DraggingBlockId"
+                           SlashMenuBlockId="SlashMenuBlockId"
+                           BlockTypeOptions="BlockTypeOptions"
+                           OnApplyBlockType="OnApplyBlockType"
+                           OnToggleToDo="OnToggleToDo"
+                           OnDeleteBlock="OnDeleteBlock"
+                           IsToggleOpen="IsToggleOpen"
+                           OnToggleDisclosure="OnToggleDisclosure" />
+            </div>
+        }
     }
 }
 
@@ -115,6 +148,18 @@
 
     [Parameter]
     public EventCallback<Guid> OnDeleteBlock { get; set; }
+
+    /// <summary>
+    /// Reports whether a toggle is open. Passed down rather than read here so the recursion has a
+    /// single source of truth (the page's <c>ToggleStateService</c>) instead of each level holding
+    /// its own copy that could disagree after a re-render.
+    /// </summary>
+    [Parameter]
+    public Func<Guid, bool> IsToggleOpen { get; set; } = _ => false;
+
+    /// <summary>The disclosure control on a toggle was clicked.</summary>
+    [Parameter]
+    public EventCallback<Guid> OnToggleDisclosure { get; set; }
 
     private IReadOnlyList<Block> ReadChildren(Guid parentBlockId)
     {

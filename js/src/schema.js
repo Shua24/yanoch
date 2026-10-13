@@ -147,6 +147,57 @@ export const schema = new Schema({
       },
     },
 
+    // A toggle is a TEXT block that also owns child blocks. The open/closed state is NOT an
+    // attribute: Notion keeps it client-side (a keyed store plus a per-user preference), so storing
+    // it in the document would make it travel with the content instead of with the viewer.
+    //
+    // The disclosure control is rendered by the host (BlockRow), not by this node, because the
+    // children are separate blocks in the block list rather than nodes inside this editor.
+    toggle: {
+      group: "block",
+      content: "inline*",
+      parseDOM: [{ tag: "div[data-toggle]" }],
+      toDOM() {
+        return ["div", { "data-toggle": "true", class: "yanoch-toggle-text" }, 0];
+      },
+    },
+
+    // A callout is a TEXT block carrying an icon and a colour, modelled like a paragraph plus two
+    // attributes. Notion keeps the colour in the block's FORMAT under `block_color` (default
+    // "default") and the icon in a store; both are node attributes here, which keeps the
+    // one-node-per-block invariant.
+    callout: {
+      group: "block",
+      content: "inline*",
+      attrs: {
+        icon: { default: "💡" },
+        color: { default: "default" },
+      },
+      parseDOM: [
+        {
+          tag: "div[data-callout]",
+          getAttrs(dom) {
+            return {
+              icon: dom.getAttribute("data-icon") || "💡",
+              color: dom.getAttribute("data-color") || "default",
+            };
+          },
+        },
+      ],
+      toDOM(node) {
+        return [
+          "div",
+          {
+            "data-callout": "true",
+            "data-icon": node.attrs.icon,
+            "data-color": node.attrs.color,
+            class: "yanoch-callout-text",
+          },
+          0,
+        ];
+      },
+    },
+
     text: { group: "inline" },
   },
 
@@ -192,6 +243,7 @@ export const blockTypeToNodeName = {
   Heading1: "heading",
   Heading2: "heading",
   Heading3: "heading",
+  Heading4: "heading",
   BulletedListItem: "bulleted_list_item",
   NumberedListItem: "ordered_list_item",
   ToDo: "todo_item",
@@ -199,6 +251,8 @@ export const blockTypeToNodeName = {
   Code: "code_block",
   Divider: "horizontal_rule",
   Image: "image",
+  Toggle: "toggle",
+  Callout: "callout",
 };
 
 export function headingLevelFromBlockType(blockType) {
@@ -210,6 +264,9 @@ export function headingLevelFromBlockType(blockType) {
   }
   if (blockType === "Heading3") {
     return 3;
+  }
+  if (blockType === "Heading4") {
+    return 4;
   }
   return 1;
 }

@@ -2,6 +2,10 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Yanoch.Server\Yanoch.Server.csproj" />
+    <!-- The migration assemblies are referenced so they are present in this host's OUTPUT and can
+         therefore be loaded at runtime; the provider configuration decides which one EF scans. -->
+    <ProjectReference Include="..\Yanoch.Data.Migrations.Sqlite\Yanoch.Data.Migrations.Sqlite.csproj" />
+    <ProjectReference Include="..\Yanoch.Data.Migrations.Postgres\Yanoch.Data.Migrations.Postgres.csproj" />
   </ItemGroup>
 
   <PropertyGroup>
@@ -11,5 +15,16 @@
     <BlazorDisableThrowNavigationException>true</BlazorDisableThrowNavigationException>
     <AllowMissingPrunePackageData>true</AllowMissingPrunePackageData>
   </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Required by the EF Core tools. They run against the STARTUP project, so this package has to
+         be here as well as in Yanoch.Data: without it, `dotnet ef migrations add` fails with
+         "Your startup project 'Yanoch.Web' doesn't reference Microsoft.EntityFrameworkCore.Design."
+         It is marked PrivateAssets so it never flows to anything that references this project. -->
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.12">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
 
 </Project>

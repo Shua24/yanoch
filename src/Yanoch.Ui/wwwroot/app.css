@@ -482,6 +482,55 @@ h1:focus {
     margin-top: 5px;
 }
 
+/* The toggle's disclosure triangle. Same margin-strip treatment as the to-do checkbox: it is a
+   per-row control, not part of the editable text, so it must not become part of the text column. */
+.yanoch-toggle-disclosure {
+    background: transparent;
+    border: none;
+    color: var(--yanoch-text-muted);
+    cursor: pointer;
+    font-size: 0.8rem;
+    line-height: 1;
+    margin-top: 6px;
+    padding: 0 2px;
+    width: 18px;
+}
+
+.yanoch-toggle-disclosure:hover {
+    color: var(--yanoch-text);
+}
+
+/* A toggle's own text: the whole row is the click target for opening and closing it in Notion, but
+   here the triangle is explicit, so the text just needs to sit slightly bolder than a paragraph. */
+.yanoch-toggle-text {
+    font-weight: 600;
+}
+
+/* The children of an open toggle. The left rule makes the nesting visible without indenting the
+   block rows themselves, which would fight the existing IndentLevel padding. */
+.yanoch-toggle-children {
+    border-left: 2px solid var(--yanoch-border);
+    margin-left: 8px;
+    padding-left: 12px;
+}
+
+/* A callout: a text block with a coloured background and a leading icon. The icon is rendered
+   through a pseudo-element from the data attribute so the text node stays pure inline content. */
+.yanoch-callout-text {
+    background: var(--yanoch-surface);
+    border: 1px solid var(--yanoch-border);
+    border-radius: 6px;
+    padding: 12px 14px 12px 38px;
+    position: relative;
+}
+
+.yanoch-callout-text::before {
+    content: attr(data-icon);
+    left: 12px;
+    position: absolute;
+    top: 11px;
+}
+
 .yanoch-block-editor {
     outline: none;
     padding: 3px 0;
@@ -662,7 +711,11 @@ h1:focus {
 }
 
 .yanoch-block-editor li[data-list="ordered"]::before {
-    content: "1.";
+    /* The ordinal is COMPUTED per item and published as a custom property by BlockEditor. It is
+       not a stored column and not derived by the browser: each item is its own one-node editor,
+       so the <li>s are never siblings inside one <ol> and browser numbering cannot apply. The
+       fallback keeps a bare item readable if the property is ever missing. */
+    content: var(--yanoch-list-marker, "1.");
     margin-right: 8px;
     color: var(--yanoch-text);
 }

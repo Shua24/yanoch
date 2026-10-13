@@ -38,6 +38,9 @@ public partial class Editor
     private ThemeService ThemeService { get; set; } = default!;
 
     [Inject]
+    private ToggleStateService ToggleState { get; set; } = default!;
+
+    [Inject]
     private NavigationManager Navigation { get; set; } = default!;
 
     private Page? currentPage;
@@ -133,6 +136,22 @@ public partial class Editor
 
     private void BuildEditorModels()
     {
+        // The numbered-list markers are computed per SIBLING LIST, so the pass runs over the
+        // children of every parent rather than over the flat list. Doing it flat would run the
+        // numbering straight through a column boundary or a toggle's children.
+        Dictionary<Guid, string> listMarkers = new Dictionary<Guid, string>();
+        foreach (Guid? parentBlockId in orderedBlocks
+            .Select(block => block.ParentBlockId)
+            .Distinct()
+            .ToList())
+        {
+            IReadOnlyDictionary<Guid, string> parentMarkers = OrderedListNumbering.ComputeMarkers(ReadChildren(parentBlockId));
+            foreach (KeyValuePair<Guid, string> marker in parentMarkers)
+            {
+                listMarkers[marker.Key] = marker.Value;
+            }
+        }
+
         editorModels = orderedBlocks
             .Where(block => !block.IsContainer)
             .Select(block => new BlockEditorModel
@@ -141,6 +160,7 @@ public partial class Editor
                 ContentJson = block.ContentJson,
                 IndentLevel = block.IndentLevel,
                 AutoFocus = focusedBlockId == block.Id,
+                ListMarker = listMarkers.TryGetValue(block.Id, out string? marker) ? marker : string.Empty,
             })
             .ToList();
     }

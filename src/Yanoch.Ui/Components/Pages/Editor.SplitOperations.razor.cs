@@ -53,7 +53,7 @@ public partial class Editor
         await Repository.SaveBlockAsync(currentBlock);
 
         // The text right of the caret becomes the next sibling. List items continue their own
-        // type; headings and quotes drop to a paragraph.
+        // type; headings, quotes and code drop to a paragraph.
         Block newBlock = await Repository.InsertBlockAfterAsync(
             PageId,
             currentBlock.ParentBlockId,
@@ -65,6 +65,17 @@ public partial class Editor
         if (newBlock.BlockType != splitType)
         {
             BlockContentService.ConvertType(newBlock, splitType);
+            await Repository.SaveBlockAsync(newBlock);
+        }
+
+        // A CLOSED toggle continues as another toggle; an OPEN one drops to a paragraph. Recovered
+        // from Notion's own rule: `if (isToggle(f) && isOpen(f.id)) t = text;` — i.e. the open case
+        // is the one that produces a paragraph, and a closed toggle falls through to the
+        // "continue the type" branch. Without this, Enter inside a closed toggle would end the
+        // toggle instead of adding a sibling to it.
+        if (splitType == BlockType.Toggle && ToggleState.IsOpen(currentBlock.Id))
+        {
+            BlockContentService.ConvertType(newBlock, BlockType.Paragraph);
             await Repository.SaveBlockAsync(newBlock);
         }
 
@@ -178,6 +189,17 @@ public partial class Editor
             return;
         }
 
+        // Tab on a block that sits directly BELOW a toggle nests it INTO that toggle instead of
+        // only changing the list indent. Recovered from Notion: its indent operation is applied to
+        // the block TREE (`indentSelfAndSubtree`), and indenting under a toggle forces the toggle
+        // open — otherwise the block would vanish into something the user cannot see. The two
+        // nesting mechanisms stay separate: this uses real parentage, list indent still uses
+        // IndentLevel.
+        if (direction > 0 && await TryNestIntoPrecedingToggleAsync(block))
+        {
+            return;
+        }
+
         int newIndentLevel = block.IndentLevel + direction;
         if (newIndentLevel < 0)
         {
@@ -227,16 +249,36 @@ public partial class Editor
     }
 
     /// <summary>
-    /// The type the right-hand half of a split becomes. List items continue their own type so
-    /// Enter extends a list; headings, quotes and code drop to a paragraph.
+    /// The type the right-hand half of a split becomes. This mirrors Notion's own two sets exactly.
+    ///
+    /// CONTINUE their type: text (paragraph), to_do, bulleted_list, numbered_list, toggle.
+    /// DROP to paragraph: header, sub_header, sub_sub_header, header_4, quote, callout.
+    ///
+    /// Recovered verbatim from Notion: `t = v && b && !b.isType(ev) && … ? v : text;` where
+    /// `ev = {header, sub_header, sub_sub_header, header_4, quote, callout}` and the continuing set
+    /// is `KT = {text, to_do, bulleted_list, numbered_list, toggle}`. `code` is excluded separately.
     /// </summary>
     private static BlockType DetermineSplitType(BlockType sourceType)
     {
-        if (IsListBlock(sourceType))
+        if (ContinuesTypeOnEnter(sourceType))
         {
             return sourceType;
         }
         return BlockType.Paragraph;
+    }
+
+    /// <summary>
+    /// True for the block types Notion's Enter rule CONTINUES: paragraph, to-do, bulleted list,
+    /// numbered list and toggle. Everything else — headings, quote and callout — drops to a
+    /// paragraph. Divider and image are leaves and never reach a split.
+    /// </summary>
+    private static bool ContinuesTypeOnEnter(BlockType blockType)
+    {
+        return blockType == BlockType.Paragraph
+            || blockType == BlockType.ToDo
+            || blockType == BlockType.BulletedListItem
+            || blockType == BlockType.NumberedListItem
+            || blockType == BlockType.Toggle;
     }
 
     private static bool IsListBlock(BlockType blockType)
